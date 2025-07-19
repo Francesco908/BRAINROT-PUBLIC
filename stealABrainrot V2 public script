@@ -1,0 +1,418 @@
+-- Rubba Brainrot GUI Script
+-- Stile moderno Roblox con animazioni fluide
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- Variabili globali
+local basePosition = nil
+local currentHolding = nil
+local isDragging = false
+local dragStart = nil
+local startPos = nil
+
+-- Crea la GUI principale
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BrainrotGUI"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.IgnoreGuiInset = true
+
+-- Frame principale (contenitore)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+MainFrame.Size = UDim2.new(0, 300, 0, 200)
+MainFrame.Active = true
+MainFrame.Draggable = false
+
+-- Corner per arrotondare
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
+
+-- Gradient per il background
+local MainGradient = Instance.new("UIGradient")
+MainGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.new(0.15, 0.15, 0.25)),
+    ColorSequenceKeypoint.new(1, Color3.new(0.08, 0.08, 0.12))
+}
+MainGradient.Rotation = 45
+MainGradient.Parent = MainFrame
+
+-- Bordo luminoso
+local BorderFrame = Instance.new("Frame")
+BorderFrame.Name = "BorderFrame"
+BorderFrame.Parent = MainFrame
+BorderFrame.BackgroundTransparency = 1
+BorderFrame.Size = UDim2.new(1, 2, 1, 2)
+BorderFrame.Position = UDim2.new(0, -1, 0, -1)
+
+local BorderStroke = Instance.new("UIStroke")
+BorderStroke.Color = Color3.new(0.3, 0.6, 1)
+BorderStroke.Thickness = 2
+BorderStroke.Transparency = 0.3
+BorderStroke.Parent = MainFrame
+
+-- Header con titolo e controlli
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Parent = MainFrame
+Header.BackgroundColor3 = Color3.new(0.2, 0.4, 0.8)
+Header.BorderSizePixel = 0
+Header.Size = UDim2.new(1, 0, 0, 35)
+Header.Position = UDim2.new(0, 0, 0, 0)
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 12)
+HeaderCorner.Parent = Header
+
+-- Gradient per header
+local HeaderGradient = Instance.new("UIGradient")
+HeaderGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.new(0.3, 0.5, 1)),
+    ColorSequenceKeypoint.new(1, Color3.new(0.2, 0.4, 0.8))
+}
+HeaderGradient.Rotation = 90
+HeaderGradient.Parent = Header
+
+-- Titolo
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Parent = Header
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(1, -80, 1, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "🧠 RUBBA BRAINROT"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Pulsante minimizza
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Parent = Header
+MinimizeButton.BackgroundColor3 = Color3.new(1, 0.8, 0)
+MinimizeButton.BorderSizePixel = 0
+MinimizeButton.Position = UDim2.new(1, -60, 0.5, -10)
+MinimizeButton.Size = UDim2.new(0, 20, 0, 20)
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.Text = "−"
+MinimizeButton.TextColor3 = Color3.new(0, 0, 0)
+MinimizeButton.TextSize = 16
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 4)
+MinCorner.Parent = MinimizeButton
+
+-- Pulsante chiudi
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = Header
+CloseButton.BackgroundColor3 = Color3.new(1, 0.3, 0.3)
+CloseButton.BorderSizePixel = 0
+CloseButton.Position = UDim2.new(1, -35, 0.5, -10)
+CloseButton.Size = UDim2.new(0, 20, 0, 20)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "×"
+CloseButton.TextColor3 = Color3.new(1, 1, 1)
+CloseButton.TextSize = 16
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 4)
+CloseCorner.Parent = CloseButton
+
+-- Contenuto principale
+local Content = Instance.new("Frame")
+Content.Name = "Content"
+Content.Parent = MainFrame
+Content.BackgroundTransparency = 1
+Content.Position = UDim2.new(0, 0, 0, 40)
+Content.Size = UDim2.new(1, 0, 1, -40)
+
+-- Pulsante Teleport Brainrot
+local TeleportButton = Instance.new("TextButton")
+TeleportButton.Name = "TeleportButton"
+TeleportButton.Parent = Content
+TeleportButton.BackgroundColor3 = Color3.new(0.2, 0.8, 0.4)
+TeleportButton.BorderSizePixel = 0
+TeleportButton.Position = UDim2.new(0.05, 0, 0.1, 0)
+TeleportButton.Size = UDim2.new(0.9, 0, 0, 35)
+TeleportButton.Font = Enum.Font.GothamBold
+TeleportButton.Text = "🌀 TELEPORT BRAINROT"
+TeleportButton.TextColor3 = Color3.new(1, 1, 1)
+TeleportButton.TextSize = 12
+
+local TeleCorner = Instance.new("UICorner")
+TeleCorner.CornerRadius = UDim.new(0, 8)
+TeleCorner.Parent = TeleportButton
+
+-- Gradient per teleport button
+local TeleGradient = Instance.new("UIGradient")
+TeleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.new(0.3, 0.9, 0.5)),
+    ColorSequenceKeypoint.new(1, Color3.new(0.2, 0.7, 0.4))
+}
+TeleGradient.Rotation = 45
+TeleGradient.Parent = TeleportButton
+
+-- Pulsante Set Base
+local SetBaseButton = Instance.new("TextButton")
+SetBaseButton.Name = "SetBaseButton"
+SetBaseButton.Parent = Content
+SetBaseButton.BackgroundColor3 = Color3.new(0.8, 0.4, 0.2)
+SetBaseButton.BorderSizePixel = 0
+SetBaseButton.Position = UDim2.new(0.05, 0, 0.4, 0)
+SetBaseButton.Size = UDim2.new(0.9, 0, 0, 35)
+SetBaseButton.Font = Enum.Font.GothamBold
+SetBaseButton.Text = "📍 SET BASE POSITION"
+SetBaseButton.TextColor3 = Color3.new(1, 1, 1)
+SetBaseButton.TextSize = 12
+
+local BaseCorner = Instance.new("UICorner")
+BaseCorner.CornerRadius = UDim.new(0, 8)
+BaseCorner.Parent = SetBaseButton
+
+-- Gradient per set base button
+local BaseGradient = Instance.new("UIGradient")
+BaseGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.new(0.9, 0.5, 0.3)),
+    ColorSequenceKeypoint.new(1, Color3.new(0.7, 0.4, 0.2))
+}
+BaseGradient.Rotation = 45
+BaseGradient.Parent = SetBaseButton
+
+-- Label Holding Brainrot
+local HoldingLabel = Instance.new("TextLabel")
+HoldingLabel.Name = "HoldingLabel"
+HoldingLabel.Parent = Content
+HoldingLabel.BackgroundColor3 = Color3.new(0.15, 0.15, 0.2)
+HoldingLabel.BorderSizePixel = 0
+HoldingLabel.Position = UDim2.new(0.05, 0, 0.7, 0)
+HoldingLabel.Size = UDim2.new(0.9, 0, 0, 25)
+HoldingLabel.Font = Enum.Font.Gotham
+HoldingLabel.Text = "🤲 Holding: Nessun oggetto"
+HoldingLabel.TextColor3 = Color3.new(0.8, 0.8, 1)
+HoldingLabel.TextSize = 11
+
+local HoldCorner = Instance.new("UICorner")
+HoldCorner.CornerRadius = UDim.new(0, 6)
+HoldCorner.Parent = HoldingLabel
+
+-- Effetti e animazioni
+local function createTweenInfo(duration, style, direction)
+    return TweenInfo.new(duration, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
+end
+
+local function animateButton(button, scale)
+    local tween = TweenService:Create(button, createTweenInfo(0.1), {Size = button.Size * scale})
+    tween:Play()
+    tween.Completed:Connect(function()
+        TweenService:Create(button, createTweenInfo(0.1), {Size = button.Size / scale}):Play()
+    end)
+end
+
+-- Funzione per ottenere l'oggetto in mano
+local function getHeldObject()
+    local character = Player.Character
+    if not character then return nil end
+    
+    -- Controlla tool in mano
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool then
+        return tool
+    end
+    
+    -- Controlla accessori
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid then
+        for _, accessory in pairs(character:GetChildren()) do
+            if accessory:IsA("Accessory") or accessory:IsA("Hat") then
+                return accessory
+            end
+        end
+    end
+    
+    return nil
+end
+
+-- Funzione per aggiornare il label
+local function updateHoldingLabel()
+    spawn(function()
+        while true do
+            local heldObject = getHeldObject()
+            if heldObject then
+                currentHolding = heldObject
+                HoldingLabel.Text = "🤲 Holding: " .. heldObject.Name
+                HoldingLabel.TextColor3 = Color3.new(0.4, 1, 0.4)
+            else
+                currentHolding = nil
+                HoldingLabel.Text = "🤲 Holding: Nessun oggetto"
+                HoldingLabel.TextColor3 = Color3.new(0.8, 0.8, 1)
+            end
+            wait(0.5)
+        end
+    end)
+end
+
+-- Funzione teleport
+local function teleportBrainrot()
+    if not currentHolding then
+        -- Effetto di errore
+        local errorTween = TweenService:Create(TeleportButton, createTweenInfo(0.2), {BackgroundColor3 = Color3.new(1, 0.2, 0.2)})
+        errorTween:Play()
+        errorTween.Completed:Connect(function()
+            TweenService:Create(TeleportButton, createTweenInfo(0.2), {BackgroundColor3 = Color3.new(0.2, 0.8, 0.4)}):Play()
+        end)
+        return
+    end
+    
+    if not basePosition then
+        -- Effetto di warning
+        local warnTween = TweenService:Create(TeleportButton, createTweenInfo(0.2), {BackgroundColor3 = Color3.new(1, 0.8, 0.2)})
+        warnTween:Play()
+        warnTween.Completed:Connect(function()
+            TweenService:Create(TeleportButton, createTweenInfo(0.2), {BackgroundColor3 = Color3.new(0.2, 0.8, 0.4)}):Play()
+        end)
+        return
+    end
+    
+    -- Teleporta l'oggetto
+    if currentHolding:FindFirstChild("Handle") then
+        currentHolding.Handle.CFrame = CFrame.new(basePosition)
+    elseif currentHolding:FindFirstChild("Head") then
+        currentHolding.Head.CFrame = CFrame.new(basePosition)
+    elseif currentHolding.PrimaryPart then
+        currentHolding:SetPrimaryPartCFrame(CFrame.new(basePosition))
+    end
+    
+    -- Effetto di successo
+    local successTween = TweenService:Create(TeleportButton, createTweenInfo(0.3), {BackgroundColor3 = Color3.new(0.4, 1, 0.6)})
+    successTween:Play()
+    successTween.Completed:Connect(function()
+        TweenService:Create(TeleportButton, createTweenInfo(0.3), {BackgroundColor3 = Color3.new(0.2, 0.8, 0.4)}):Play()
+    end)
+end
+
+-- Funzione set base
+local function setBase()
+    local character = Player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        basePosition = character.HumanoidRootPart.Position + Vector3.new(5, 0, 0)
+        
+        -- Effetto di successo
+        local successTween = TweenService:Create(SetBaseButton, createTweenInfo(0.3), {BackgroundColor3 = Color3.new(0.4, 1, 0.4)})
+        successTween:Play()
+        successTween.Completed:Connect(function()
+            TweenService:Create(SetBaseButton, createTweenInfo(0.3), {BackgroundColor3 = Color3.new(0.8, 0.4, 0.2)}):Play()
+        end)
+    end
+end
+
+-- Funzione drag
+local function onDragStart(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
+end
+
+local function onDragEnd(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDragging = false
+    end
+end
+
+local function onDrag(input)
+    if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end
+
+-- Eventi
+TeleportButton.MouseButton1Click:Connect(function()
+    animateButton(TeleportButton, 0.95)
+    teleportBrainrot()
+end)
+
+SetBaseButton.MouseButton1Click:Connect(function()
+    animateButton(SetBaseButton, 0.95)
+    setBase()
+end)
+
+-- Minimizza
+local isMinimized = false
+MinimizeButton.MouseButton1Click:Connect(function()
+    animateButton(MinimizeButton, 0.9)
+    isMinimized = not isMinimized
+    
+    local targetSize = isMinimized and UDim2.new(0, 300, 0, 35) or UDim2.new(0, 300, 0, 200)
+    local tween = TweenService:Create(MainFrame, createTweenInfo(0.3, Enum.EasingStyle.Back), {Size = targetSize})
+    tween:Play()
+    
+    MinimizeButton.Text = isMinimized and "+" or "−"
+end)
+
+-- Chiudi
+CloseButton.MouseButton1Click:Connect(function()
+    animateButton(CloseButton, 0.9)
+    local tween = TweenService:Create(MainFrame, createTweenInfo(0.3), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0)
+    })
+    tween:Play()
+    tween.Completed:Connect(function()
+        ScreenGui:Destroy()
+    end)
+end)
+
+-- Drag events
+Header.InputBegan:Connect(onDragStart)
+Header.InputEnded:Connect(onDragEnd)
+UserInputService.InputChanged:Connect(onDrag)
+
+-- Hover effects
+local function addHoverEffect(button, hoverColor, originalColor)
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, createTweenInfo(0.2), {BackgroundColor3 = hoverColor}):Play()
+    end)
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, createTweenInfo(0.2), {BackgroundColor3 = originalColor}):Play()
+    end)
+end
+
+addHoverEffect(TeleportButton, Color3.new(0.3, 1, 0.5), Color3.new(0.2, 0.8, 0.4))
+addHoverEffect(SetBaseButton, Color3.new(1, 0.5, 0.3), Color3.new(0.8, 0.4, 0.2))
+addHoverEffect(MinimizeButton, Color3.new(1, 0.9, 0.2), Color3.new(1, 0.8, 0))
+addHoverEffect(CloseButton, Color3.new(1, 0.4, 0.4), Color3.new(1, 0.3, 0.3))
+
+-- Avvia update del holding label
+updateHoldingLabel()
+
+-- Animazione di entrata
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+
+local entranceTween = TweenService:Create(MainFrame, createTweenInfo(0.5, Enum.EasingStyle.Back), {
+    Size = UDim2.new(0, 300, 0, 200),
+    Position = UDim2.new(0.5, -150, 0.5, -100)
+})
+entranceTween:Play()
+
+print("🧠 Rubba Brainrot GUI caricata con successo!")
