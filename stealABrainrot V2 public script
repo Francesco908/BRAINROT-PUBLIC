@@ -1,5 +1,5 @@
 -- RUBBA BRAINROT GUI - Sistema Perfetto con NoClip
--- Teleporta SOLO l'oggetto in mano al delivery point
+-- Teleporta SOLO il Model in mano al delivery point (PRIORITÀ AL MODEL!)
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -201,35 +201,21 @@ local HoldCorner = Instance.new("UICorner")
 HoldCorner.CornerRadius = UDim.new(0, 6)
 HoldCorner.Parent = HoldingLabel
 
--- SISTEMA DI RILEVAMENTO AVANZATO CON TIMER
+-- SISTEMA DI RILEVAMENTO AVANZATO CON PRIORITÀ AL MODEL
 local function detectHeldObject()
     DetectionLabel.Text = "🔍 DETECTION: Scanning..."
     DetectionLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
-    
-    -- Timer di 2 secondi
+
     spawn(function()
         wait(2)
-        
         local character = Player.Character
         if not character then 
             DetectionLabel.Text = "🔍 DETECTION: No Character"
             DetectionLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
             return 
         end
-        
-        -- Rileva Tool equipaggiato
-        local tool = character:FindFirstChildOfClass("Tool")
-        if tool then
-            currentHeldObject = tool
-            currentHeldType = "Tool"
-            DetectionLabel.Text = "🔍 DETECTION: Tool Found!"
-            DetectionLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            HoldingLabel.Text = "🤲 Holding: " .. tool.Name .. " (Tool)"
-            HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            return
-        end
-        
-        -- Rileva Model in mano (oggetti custom)
+
+        -- 1. Rileva Model in mano (oggetti custom, come il brainrot)
         for _, child in pairs(character:GetChildren()) do
             if child:IsA("Model") and child.Name ~= character.Name and not child:FindFirstChildOfClass("Humanoid") then
                 currentHeldObject = child
@@ -241,8 +227,20 @@ local function detectHeldObject()
                 return
             end
         end
-        
-        -- Rileva Accessory
+
+        -- 2. Rileva Tool equipaggiato SOLO SE NON HAI UN MODEL!
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then
+            currentHeldObject = tool
+            currentHeldType = "Tool"
+            DetectionLabel.Text = "🔍 DETECTION: Tool Found!"
+            DetectionLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            HoldingLabel.Text = "🤲 Holding: " .. tool.Name .. " (Tool)"
+            HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            return
+        end
+
+        -- 3. Accessory (tipo cappelli, ecc.)
         for _, child in pairs(character:GetChildren()) do
             if child:IsA("Accessory") then
                 currentHeldObject = child
@@ -254,8 +252,8 @@ local function detectHeldObject()
                 return
             end
         end
-        
-        -- Rileva Part custom
+
+        -- 4. Part custom
         for _, child in pairs(character:GetChildren()) do
             if child:IsA("BasePart") and not table.find({"Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "HumanoidRootPart"}, child.Name) then
                 currentHeldObject = child
@@ -267,7 +265,7 @@ local function detectHeldObject()
                 return
             end
         end
-        
+
         -- Nessun oggetto trovato
         currentHeldObject = nil
         currentHeldType = nil
@@ -278,14 +276,13 @@ local function detectHeldObject()
     end)
 end
 
--- SISTEMA NOCLIP
+-- NOCLIP SYSTEM
 local function toggleNoClip()
     noclipEnabled = not noclipEnabled
-    
+
     if noclipEnabled then
         NoClipBtn.Text = "👻 NOCLIP: ON"
         NoClipBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-        
         noclipConnection = RunService.Stepped:Connect(function()
             local character = Player.Character
             if character then
@@ -299,12 +296,10 @@ local function toggleNoClip()
     else
         NoClipBtn.Text = "👻 NOCLIP: OFF"
         NoClipBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
-        
         if noclipConnection then
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
-        
         local character = Player.Character
         if character then
             for _, part in pairs(character:GetDescendants()) do
@@ -318,7 +313,7 @@ local function toggleNoClip()
     end
 end
 
--- FUNZIONE TELEPORT SOLO OGGETTO
+-- TELEPORT SOLO OGGETTO
 local function teleportObjectToDelivery()
     if not currentHeldObject then
         TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
@@ -328,7 +323,7 @@ local function teleportObjectToDelivery()
         TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
         return
     end
-    
+
     if not deliveryPosition then
         TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
         TeleportBtn.Text = "⚠️ SET DELIVERY FIRST"
@@ -337,17 +332,16 @@ local function teleportObjectToDelivery()
         TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
         return
     end
-    
-    -- Teleporta SOLO l'oggetto
+
     local success = false
-    
-    if currentHeldType == "Tool" and currentHeldObject:FindFirstChild("Handle") then
-        currentHeldObject.Handle.CFrame = CFrame.new(deliveryPosition)
-        success = true
-    elseif currentHeldType == "Model" and currentHeldObject.PrimaryPart then
+
+    if currentHeldType == "Model" and currentHeldObject.PrimaryPart then
         currentHeldObject:SetPrimaryPartCFrame(CFrame.new(deliveryPosition))
         success = true
     elseif currentHeldType == "Model" and currentHeldObject:FindFirstChild("Handle") then
+        currentHeldObject.Handle.CFrame = CFrame.new(deliveryPosition)
+        success = true
+    elseif currentHeldType == "Tool" and currentHeldObject:FindFirstChild("Handle") then
         currentHeldObject.Handle.CFrame = CFrame.new(deliveryPosition)
         success = true
     elseif currentHeldType == "Accessory" and currentHeldObject:FindFirstChild("Handle") then
@@ -357,7 +351,7 @@ local function teleportObjectToDelivery()
         currentHeldObject.CFrame = CFrame.new(deliveryPosition)
         success = true
     end
-    
+
     if success then
         TeleportBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
         TeleportBtn.Text = "✅ TELEPORTED!"
@@ -383,7 +377,7 @@ Header.InputBegan:Connect(function(input)
         dragging = true
         dragStart = input.Position
         startPos = MainFrame.Position
-        
+
         local connection
         connection = input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
