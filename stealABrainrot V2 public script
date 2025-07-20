@@ -1,14 +1,15 @@
--- RUBBA BRAINROT GUI - Sistema Perfetto con Bypass! (FIXED)
+-- SIGMA HUB - Advanced Parkour Script
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
--- Variabili globali
+-- Global variables
 local deliveryPosition = nil
 local isDragging = false
 local isMinimized = false
@@ -16,9 +17,9 @@ local noclipEnabled = false
 local noclipConnection = nil
 local teleporting = false
 
--- Distruggi GUI esistente
-if PlayerGui:FindFirstChild("BrainrotGUI") then
-    PlayerGui.BrainrotGUI:Destroy()
+-- Destroy existing GUI
+if PlayerGui:FindFirstChild("SigmaHub") then
+    PlayerGui.SigmaHub:Destroy()
 end
 
 -- TELEPORT SCREEN
@@ -87,17 +88,17 @@ local function restoreCharacter(character)
     end
 end
 
--- Crea ScreenGui principale
+-- Create main ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BrainrotGUI"
+ScreenGui.Name = "SigmaHub"
 ScreenGui.Parent = PlayerGui
 ScreenGui.ResetOnSpawn = false
 
--- Frame principale
+-- Main frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
 MainFrame.BorderSizePixel = 0
 MainFrame.Position = UDim2.new(0.5, -150, 0.5, -90)
 MainFrame.Size = UDim2.new(0, 300, 0, 180)
@@ -109,16 +110,16 @@ MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
 
 local Border = Instance.new("UIStroke")
-Border.Color = Color3.fromRGB(70, 130, 255)
-Border.Thickness = 2
-Border.Transparency = 0.3
+Border.Color = Color3.fromRGB(138, 43, 226)
+Border.Thickness = 3
+Border.Transparency = 0.2
 Border.Parent = MainFrame
 
 -- Header
 local Header = Instance.new("Frame")
 Header.Name = "Header"
 Header.Parent = MainFrame
-Header.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+Header.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
 Header.BorderSizePixel = 0
 Header.Size = UDim2.new(1, 0, 0, 35)
 Header.Active = true
@@ -129,7 +130,7 @@ HeaderCorner.Parent = Header
 
 local HeaderFix = Instance.new("Frame")
 HeaderFix.Parent = Header
-HeaderFix.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+HeaderFix.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
 HeaderFix.BorderSizePixel = 0
 HeaderFix.Position = UDim2.new(0, 0, 0.7, 0)
 HeaderFix.Size = UDim2.new(1, 0, 0.3, 0)
@@ -141,7 +142,7 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.Size = UDim2.new(1, -80, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "🧠 RUBBA BRAINROT PRO"
+Title.Text = "⚡ SIGMA HUB"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -185,15 +186,15 @@ Content.BackgroundTransparency = 1
 Content.Position = UDim2.new(0, 0, 0, 40)
 Content.Size = UDim2.new(1, 0, 1, -40)
 
--- Pulsante Set Delivery Point
+-- Set Position Button
 local SetDeliveryBtn = Instance.new("TextButton")
 SetDeliveryBtn.Parent = Content
-SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
+SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(46, 139, 87)
 SetDeliveryBtn.BorderSizePixel = 0
 SetDeliveryBtn.Position = UDim2.new(0.05, 0, 0.05, 0)
 SetDeliveryBtn.Size = UDim2.new(0.9, 0, 0, 28)
 SetDeliveryBtn.Font = Enum.Font.GothamBold
-SetDeliveryBtn.Text = "📍 SET DELIVERY POINT"
+SetDeliveryBtn.Text = "📍 SET POSITION"
 SetDeliveryBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 SetDeliveryBtn.TextSize = 12
 
@@ -201,15 +202,15 @@ local DeliveryCorner = Instance.new("UICorner")
 DeliveryCorner.CornerRadius = UDim.new(0, 8)
 DeliveryCorner.Parent = SetDeliveryBtn
 
--- Pulsante Flying Teleport
+-- Flying Teleport Button
 local TeleportBtn = Instance.new("TextButton")
 TeleportBtn.Parent = Content
-TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+TeleportBtn.BackgroundColor3 = Color3.fromRGB(65, 105, 225)
 TeleportBtn.BorderSizePixel = 0
 TeleportBtn.Position = UDim2.new(0.05, 0, 0.3, 0)
 TeleportBtn.Size = UDim2.new(0.9, 0, 0, 35)
 TeleportBtn.Font = Enum.Font.GothamBold
-TeleportBtn.Text = "🌀 FLY TO DELIVERY"
+TeleportBtn.Text = "🌀 FLY TO POSITION"
 TeleportBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeleportBtn.TextSize = 12
 
@@ -217,10 +218,10 @@ local TeleCorner = Instance.new("UICorner")
 TeleCorner.CornerRadius = UDim.new(0, 8)
 TeleCorner.Parent = TeleportBtn
 
--- Pulsante NoClip
+-- NoClip Button
 local NoClipBtn = Instance.new("TextButton")
 NoClipBtn.Parent = Content
-NoClipBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+NoClipBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
 NoClipBtn.BorderSizePixel = 0
 NoClipBtn.Position = UDim2.new(0.05, 0, 0.55, 0)
 NoClipBtn.Size = UDim2.new(0.9, 0, 0, 35)
@@ -233,15 +234,15 @@ local NoClipCorner = Instance.new("UICorner")
 NoClipCorner.CornerRadius = UDim.new(0, 8)
 NoClipCorner.Parent = NoClipBtn
 
--- Pulsante TP TO BASE
+-- Instant TP Button
 local BaseTPBtn = Instance.new("TextButton")
 BaseTPBtn.Parent = Content
-BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 69, 0)
 BaseTPBtn.BorderSizePixel = 0
 BaseTPBtn.Position = UDim2.new(0.05, 0, 0.8, 0)
 BaseTPBtn.Size = UDim2.new(0.9, 0, 0, 28)
 BaseTPBtn.Font = Enum.Font.GothamBold
-BaseTPBtn.Text = "⚡ TP TO BASE"
+BaseTPBtn.Text = "⚡ INSTANT TP"
 BaseTPBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BaseTPBtn.TextSize = 12
 
@@ -249,17 +250,17 @@ local BaseTPCorner = Instance.new("UICorner")
 BaseTPCorner.CornerRadius = UDim.new(0, 8)
 BaseTPCorner.Parent = BaseTPBtn
 
--- FUNZIONI DI TELEPORT (FIXED)
+-- TELEPORT FUNCTIONS (FIXED)
 local function flyToDelivery()
     if teleporting then return end
     if not deliveryPosition then
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-        TeleportBtn.Text = "⚠️ SET DELIVERY FIRST"
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+        TeleportBtn.Text = "⚠️ SET POSITION FIRST"
         spawn(function()
             wait(1.5)
             if TeleportBtn and TeleportBtn.Parent then
-                TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-                TeleportBtn.Text = "🌀 FLY TO DELIVERY"
+                TeleportBtn.BackgroundColor3 = Color3.fromRGB(65, 105, 225)
+                TeleportBtn.Text = "🌀 FLY TO POSITION"
             end
         end)
         return
@@ -273,7 +274,7 @@ local function flyToDelivery()
     
     teleporting = true
     TeleportBtn.Text = "🚀 FLYING..."
-    TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+    TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
     
     -- Bypass anticheat
     if not bypassAnticheat(character) then
@@ -299,13 +300,13 @@ local function flyToDelivery()
     tween.Completed:Connect(function()
         restoreCharacter(character)
         TeleportBtn.Text = "✅ ARRIVED!"
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
         
         spawn(function()
             wait(2)
             if TeleportBtn and TeleportBtn.Parent then
-                TeleportBtn.Text = "🌀 FLY TO DELIVERY"
-                TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+                TeleportBtn.Text = "🌀 FLY TO POSITION"
+                TeleportBtn.BackgroundColor3 = Color3.fromRGB(65, 105, 225)
             end
             teleporting = false
         end)
@@ -315,13 +316,13 @@ end
 local function instantTeleport()
     if teleporting then return end
     if not deliveryPosition then
-        BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-        BaseTPBtn.Text = "⚠️ SET DELIVERY FIRST"
+        BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+        BaseTPBtn.Text = "⚠️ SET POSITION FIRST"
         spawn(function()
             wait(1.5)
             if BaseTPBtn and BaseTPBtn.Parent then
-                BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-                BaseTPBtn.Text = "⚡ TP TO BASE"
+                BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 69, 0)
+                BaseTPBtn.Text = "⚡ INSTANT TP"
             end
         end)
         return
@@ -338,7 +339,7 @@ local function instantTeleport()
     -- Show black screen
     TeleportScreen.Enabled = true
     BaseTPBtn.Text = "⏳ TELEPORTING..."
-    BaseTPBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    BaseTPBtn.BackgroundColor3 = Color3.fromRGB(105, 105, 105)
     
     spawn(function()
         -- Bypass and teleport
@@ -360,50 +361,72 @@ local function instantTeleport()
         restoreCharacter(character)
         
         BaseTPBtn.Text = "✅ TELEPORTED!"
-        BaseTPBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        BaseTPBtn.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
         
         wait(2)
         if BaseTPBtn and BaseTPBtn.Parent then
-            BaseTPBtn.Text = "⚡ TP TO BASE"
-            BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+            BaseTPBtn.Text = "⚡ INSTANT TP"
+            BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 69, 0)
         end
         
         teleporting = false
     end)
 end
 
--- NOCLIP SYSTEM (FIXED)
+-- NOCLIP SYSTEM (IMPROVED)
 local function toggleNoClip()
     noclipEnabled = not noclipEnabled
 
     if noclipEnabled then
         NoClipBtn.Text = "👻 NOCLIP: ON"
-        NoClipBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        NoClipBtn.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
         
-        noclipConnection = RunService.Stepped:Connect(function()
+        noclipConnection = RunService.Heartbeat:Connect(function()
             local character = Player.Character
             if character then
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") and part ~= character.HumanoidRootPart then
                         part.CanCollide = false
+                    end
+                end
+                
+                -- Also handle accessories
+                for _, accessory in pairs(character:GetChildren()) do
+                    if accessory:IsA("Accessory") then
+                        local handle = accessory:FindFirstChild("Handle")
+                        if handle then
+                            handle.CanCollide = false
+                        end
                     end
                 end
             end
         end)
     else
         NoClipBtn.Text = "👻 NOCLIP: OFF"
-        NoClipBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+        NoClipBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
         
         if noclipConnection then
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
         
+        -- Restore collision
         local character = Player.Character
         if character then
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            wait(0.1) -- Small delay to prevent glitching
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") and part ~= character.HumanoidRootPart then
                     part.CanCollide = true
+                end
+            end
+            
+            -- Restore accessory collision
+            for _, accessory in pairs(character:GetChildren()) do
+                if accessory:IsA("Accessory") then
+                    local handle = accessory:FindFirstChild("Handle")
+                    if handle then
+                        handle.CanCollide = true
+                    end
                 end
             end
         end
@@ -445,21 +468,21 @@ local function enableDragging(frame)
     end)
 end
 
--- EVENTI (FIXED)
+-- EVENTS (FIXED)
 SetDeliveryBtn.MouseButton1Click:Connect(function()
     local character = Player.Character
     if character then
         local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
         if rootPart then
             deliveryPosition = rootPart.Position
-            SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-            SetDeliveryBtn.Text = "✅ DELIVERY SET!"
+            SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
+            SetDeliveryBtn.Text = "✅ POSITION SET!"
             
             spawn(function()
                 wait(2)
                 if SetDeliveryBtn and SetDeliveryBtn.Parent then
-                    SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
-                    SetDeliveryBtn.Text = "📍 SET DELIVERY POINT"
+                    SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(46, 139, 87)
+                    SetDeliveryBtn.Text = "📍 SET POSITION"
                 end
             end)
         end
@@ -509,5 +532,5 @@ end)
 -- Enable dragging
 enableDragging(MainFrame)
 
-print("🧠 Rubba Brainrot PRO - Sistema Perfetto Caricato! (FIXED)")
-print("All features should now work properly!")
+print("⚡ SIGMA HUB - Advanced Parkour Script Loaded!")
+print("All features working perfectly!")
