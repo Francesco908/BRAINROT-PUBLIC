@@ -594,4 +594,4 @@ local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingS
 })
 openTween:Play()
 
-print("⚡ SIGMA HUB v2.2 - MOD: Persistent speed boost, amber UI, enhanced features!"
+print("⚡ SIGMA HUB v2.2 - MOD: Persistent speed boost, amber UI, enhanced features!")
