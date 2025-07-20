@@ -1,5 +1,5 @@
--- RUBBA BRAINROT GUI FIXED - Sistema Avanzato
--- GUI Movibile, Minimizzabile, Chiudibile con rilevamento perfetto
+-- RUBBA BRAINROT GUI - Sistema Perfetto con NoClip
+-- Teleporta SOLO l'oggetto in mano al delivery point
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -10,13 +10,16 @@ local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
 -- Variabili globali
-local basePosition = nil
-local currentHolding = nil
+local deliveryPosition = nil
+local currentHeldObject = nil
+local currentHeldType = nil
 local isDragging = false
 local isMinimized = false
 local updateConnection = nil
+local noclipEnabled = false
+local noclipConnection = nil
 
--- Distruggi GUI esistente se presente
+-- Distruggi GUI esistente
 if PlayerGui:FindFirstChild("BrainrotGUI") then
     PlayerGui.BrainrotGUI:Destroy()
 end
@@ -33,37 +36,33 @@ MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
-MainFrame.Size = UDim2.new(0, 300, 0, 200)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
+MainFrame.Size = UDim2.new(0, 350, 0, 250)
 MainFrame.Active = true
 MainFrame.ClipsDescendants = true
 
--- Corner arrotondato
 local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 12)
 MainCorner.Parent = MainFrame
 
--- Bordo
 local Border = Instance.new("UIStroke")
 Border.Color = Color3.fromRGB(70, 130, 255)
 Border.Thickness = 2
 Border.Transparency = 0.3
 Border.Parent = MainFrame
 
--- Header (barra del titolo)
+-- Header
 local Header = Instance.new("Frame")
 Header.Name = "Header"
 Header.Parent = MainFrame
 Header.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
 Header.BorderSizePixel = 0
 Header.Size = UDim2.new(1, 0, 0, 35)
-Header.Position = UDim2.new(0, 0, 0, 0)
 
 local HeaderCorner = Instance.new("UICorner")
 HeaderCorner.CornerRadius = UDim.new(0, 12)
 HeaderCorner.Parent = Header
 
--- Fix per header corner (solo top)
 local HeaderFix = Instance.new("Frame")
 HeaderFix.Parent = Header
 HeaderFix.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
@@ -73,20 +72,18 @@ HeaderFix.Size = UDim2.new(1, 0, 0.3, 0)
 
 -- Titolo
 local Title = Instance.new("TextLabel")
-Title.Name = "Title"
 Title.Parent = Header
 Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.Size = UDim2.new(1, -80, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "STEAL A BRAINROT"
+Title.Text = "🧠 RUBBA BRAINROT PRO"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
--- Pulsante Minimizza
+-- Minimizza
 local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Name = "MinimizeBtn"
 MinimizeBtn.Parent = Header
 MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
 MinimizeBtn.BorderSizePixel = 0
@@ -101,9 +98,8 @@ local MinCorner = Instance.new("UICorner")
 MinCorner.CornerRadius = UDim.new(0, 4)
 MinCorner.Parent = MinimizeBtn
 
--- Pulsante Chiudi
+-- Chiudi
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Name = "CloseBtn"
 CloseBtn.Parent = Header
 CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
 CloseBtn.BorderSizePixel = 0
@@ -120,22 +116,36 @@ CloseCorner.Parent = CloseBtn
 
 -- Contenuto
 local Content = Instance.new("Frame")
-Content.Name = "Content"
 Content.Parent = MainFrame
 Content.BackgroundTransparency = 1
 Content.Position = UDim2.new(0, 0, 0, 40)
 Content.Size = UDim2.new(1, 0, 1, -40)
 
+-- Pulsante Set Delivery Point
+local SetDeliveryBtn = Instance.new("TextButton")
+SetDeliveryBtn.Parent = Content
+SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
+SetDeliveryBtn.BorderSizePixel = 0
+SetDeliveryBtn.Position = UDim2.new(0.05, 0, 0.05, 0)
+SetDeliveryBtn.Size = UDim2.new(0.9, 0, 0, 35)
+SetDeliveryBtn.Font = Enum.Font.GothamBold
+SetDeliveryBtn.Text = "📍 SET DELIVERY POINT"
+SetDeliveryBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SetDeliveryBtn.TextSize = 12
+
+local DeliveryCorner = Instance.new("UICorner")
+DeliveryCorner.CornerRadius = UDim.new(0, 8)
+DeliveryCorner.Parent = SetDeliveryBtn
+
 -- Pulsante Teleport Brainrot
 local TeleportBtn = Instance.new("TextButton")
-TeleportBtn.Name = "TeleportBtn"
 TeleportBtn.Parent = Content
 TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
 TeleportBtn.BorderSizePixel = 0
-TeleportBtn.Position = UDim2.new(0.05, 0, 0.1, 0)
+TeleportBtn.Position = UDim2.new(0.05, 0, 0.22, 0)
 TeleportBtn.Size = UDim2.new(0.9, 0, 0, 35)
 TeleportBtn.Font = Enum.Font.GothamBold
-TeleportBtn.Text = "🌀 TELEPORT BRAINROT"
+TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
 TeleportBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeleportBtn.TextSize = 12
 
@@ -143,33 +153,47 @@ local TeleCorner = Instance.new("UICorner")
 TeleCorner.CornerRadius = UDim.new(0, 8)
 TeleCorner.Parent = TeleportBtn
 
--- Pulsante Set Base
-local SetBaseBtn = Instance.new("TextButton")
-SetBaseBtn.Name = "SetBaseBtn"
-SetBaseBtn.Parent = Content
-SetBaseBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
-SetBaseBtn.BorderSizePixel = 0
-SetBaseBtn.Position = UDim2.new(0.05, 0, 0.4, 0)
-SetBaseBtn.Size = UDim2.new(0.9, 0, 0, 35)
-SetBaseBtn.Font = Enum.Font.GothamBold
-SetBaseBtn.Text = "📍 SET BASE"
-SetBaseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SetBaseBtn.TextSize = 12
+-- Pulsante NoClip
+local NoClipBtn = Instance.new("TextButton")
+NoClipBtn.Parent = Content
+NoClipBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+NoClipBtn.BorderSizePixel = 0
+NoClipBtn.Position = UDim2.new(0.05, 0, 0.39, 0)
+NoClipBtn.Size = UDim2.new(0.9, 0, 0, 35)
+NoClipBtn.Font = Enum.Font.GothamBold
+NoClipBtn.Text = "👻 NOCLIP: OFF"
+NoClipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+NoClipBtn.TextSize = 12
 
-local BaseCorner = Instance.new("UICorner")
-BaseCorner.CornerRadius = UDim.new(0, 8)
-BaseCorner.Parent = SetBaseBtn
+local NoClipCorner = Instance.new("UICorner")
+NoClipCorner.CornerRadius = UDim.new(0, 8)
+NoClipCorner.Parent = NoClipBtn
+
+-- Label Detection Status
+local DetectionLabel = Instance.new("TextLabel")
+DetectionLabel.Parent = Content
+DetectionLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+DetectionLabel.BorderSizePixel = 0
+DetectionLabel.Position = UDim2.new(0.05, 0, 0.58, 0)
+DetectionLabel.Size = UDim2.new(0.9, 0, 0, 30)
+DetectionLabel.Font = Enum.Font.GothamBold
+DetectionLabel.Text = "🔍 DETECTION: Scanning..."
+DetectionLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+DetectionLabel.TextSize = 11
+
+local DetectCorner = Instance.new("UICorner")
+DetectCorner.CornerRadius = UDim.new(0, 6)
+DetectCorner.Parent = DetectionLabel
 
 -- Label Holding
 local HoldingLabel = Instance.new("TextLabel")
-HoldingLabel.Name = "HoldingLabel"
 HoldingLabel.Parent = Content
 HoldingLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 HoldingLabel.BorderSizePixel = 0
-HoldingLabel.Position = UDim2.new(0.05, 0, 0.7, 0)
-HoldingLabel.Size = UDim2.new(0.9, 0, 0, 25)
+HoldingLabel.Position = UDim2.new(0.05, 0, 0.75, 0)
+HoldingLabel.Size = UDim2.new(0.9, 0, 0, 30)
 HoldingLabel.Font = Enum.Font.Gotham
-HoldingLabel.Text = "🤲 Holding: null"
+HoldingLabel.Text = "🤲 Holding: Nessun oggetto"
 HoldingLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
 HoldingLabel.TextSize = 11
 
@@ -177,115 +201,182 @@ local HoldCorner = Instance.new("UICorner")
 HoldCorner.CornerRadius = UDim.new(0, 6)
 HoldCorner.Parent = HoldingLabel
 
--- SISTEMA DI RILEVAMENTO AVANZATO
-local function getHeldObject()
-    local character = Player.Character
-    if not character then return nil end
+-- SISTEMA DI RILEVAMENTO AVANZATO CON TIMER
+local function detectHeldObject()
+    DetectionLabel.Text = "🔍 DETECTION: Scanning..."
+    DetectionLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
     
-    -- Controlla Tool equipaggiato
-    local tool = character:FindFirstChildOfClass("Tool")
-    if tool then
-        return tool, "Tool"
-    end
-    
-    -- Controlla Accessory/Hat
-    for _, child in pairs(character:GetChildren()) do
-        if child:IsA("Accessory") then
-            return child, "Accessory"
-        end
-    end
-    
-    -- Controlla Model
-    for _, child in pairs(character:GetChildren()) do
-        if child:IsA("Model") and child.Name ~= character.Name then
-            return child, "Model"
-        end
-    end
-    
-    -- Controlla Part
-    for _, child in pairs(character:GetChildren()) do
-        if child:IsA("BasePart") and child.Name ~= "Head" and child.Name ~= "Torso" and 
-           child.Name ~= "Left Arm" and child.Name ~= "Right Arm" and 
-           child.Name ~= "Left Leg" and child.Name ~= "Right Leg" and
-           child.Name ~= "HumanoidRootPart" then
-            return child, "Part"
-        end
-    end
-    
-    return nil, nil
-end
-
--- Funzione per teleportare oggetto
-local function teleportObject(obj, objType)
-    if not obj or not basePosition then return false end
-    
-    local success = false
-    
-    if objType == "Tool" then
-        if obj:FindFirstChild("Handle") then
-            obj.Handle.CFrame = CFrame.new(basePosition)
-            success = true
-        end
-    elseif objType == "Accessory" then
-        if obj:FindFirstChild("Handle") then
-            obj.Handle.CFrame = CFrame.new(basePosition)
-            success = true
-        end
-    elseif objType == "Model" then
-        if obj.PrimaryPart then
-            obj:SetPrimaryPartCFrame(CFrame.new(basePosition))
-            success = true
-        elseif obj:FindFirstChild("Handle") then
-            obj.Handle.CFrame = CFrame.new(basePosition)
-            success = true
-        end
-    elseif objType == "Part" then
-        obj.CFrame = CFrame.new(basePosition)
-        success = true
-    end
-    
-    return success
-end
-
--- Sistema di aggiornamento in tempo reale
-local function startHoldingUpdate()
-    if updateConnection then
-        updateConnection:Disconnect()
-    end
-    
-    updateConnection = RunService.Heartbeat:Connect(function()
-        local obj, objType = getHeldObject()
+    -- Timer di 2 secondi
+    spawn(function()
+        wait(2)
         
-        if obj then
-            currentHolding = {object = obj, type = objType}
-            HoldingLabel.Text = "🤲 Holding: " .. obj.Name .. " (" .. objType .. ")"
-            HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-        else
-            currentHolding = nil
-            HoldingLabel.Text = "🤲 Holding: Nessun oggetto"
-            HoldingLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+        local character = Player.Character
+        if not character then 
+            DetectionLabel.Text = "🔍 DETECTION: No Character"
+            DetectionLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            return 
         end
+        
+        -- Rileva Tool equipaggiato
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then
+            currentHeldObject = tool
+            currentHeldType = "Tool"
+            DetectionLabel.Text = "🔍 DETECTION: Tool Found!"
+            DetectionLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            HoldingLabel.Text = "🤲 Holding: " .. tool.Name .. " (Tool)"
+            HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            return
+        end
+        
+        -- Rileva Model in mano (oggetti custom)
+        for _, child in pairs(character:GetChildren()) do
+            if child:IsA("Model") and child.Name ~= character.Name and not child:FindFirstChildOfClass("Humanoid") then
+                currentHeldObject = child
+                currentHeldType = "Model"
+                DetectionLabel.Text = "🔍 DETECTION: Model Found!"
+                DetectionLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                HoldingLabel.Text = "🤲 Holding: " .. child.Name .. " (Model)"
+                HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                return
+            end
+        end
+        
+        -- Rileva Accessory
+        for _, child in pairs(character:GetChildren()) do
+            if child:IsA("Accessory") then
+                currentHeldObject = child
+                currentHeldType = "Accessory"
+                DetectionLabel.Text = "🔍 DETECTION: Accessory Found!"
+                DetectionLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                HoldingLabel.Text = "🤲 Holding: " .. child.Name .. " (Accessory)"
+                HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                return
+            end
+        end
+        
+        -- Rileva Part custom
+        for _, child in pairs(character:GetChildren()) do
+            if child:IsA("BasePart") and not table.find({"Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg", "HumanoidRootPart"}, child.Name) then
+                currentHeldObject = child
+                currentHeldType = "Part"
+                DetectionLabel.Text = "🔍 DETECTION: Part Found!"
+                DetectionLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                HoldingLabel.Text = "🤲 Holding: " .. child.Name .. " (Part)"
+                HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+                return
+            end
+        end
+        
+        -- Nessun oggetto trovato
+        currentHeldObject = nil
+        currentHeldType = nil
+        DetectionLabel.Text = "🔍 DETECTION: Nothing Found"
+        DetectionLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        HoldingLabel.Text = "🤲 Holding: Nessun oggetto"
+        HoldingLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
     end)
 end
 
--- EVENTI E FUNZIONI
+-- SISTEMA NOCLIP
+local function toggleNoClip()
+    noclipEnabled = not noclipEnabled
+    
+    if noclipEnabled then
+        NoClipBtn.Text = "👻 NOCLIP: ON"
+        NoClipBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        
+        noclipConnection = RunService.Stepped:Connect(function()
+            local character = Player.Character
+            if character then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        NoClipBtn.Text = "👻 NOCLIP: OFF"
+        NoClipBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+        
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        
+        local character = Player.Character
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    if part.Name ~= "HumanoidRootPart" then
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
+    end
+end
 
--- Drag System (movibile)
+-- FUNZIONE TELEPORT SOLO OGGETTO
+local function teleportObjectToDelivery()
+    if not currentHeldObject then
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        TeleportBtn.Text = "❌ NO OBJECT HELD"
+        wait(1)
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+        TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
+        return
+    end
+    
+    if not deliveryPosition then
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+        TeleportBtn.Text = "⚠️ SET DELIVERY FIRST"
+        wait(1)
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+        TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
+        return
+    end
+    
+    -- Teleporta SOLO l'oggetto
+    local success = false
+    
+    if currentHeldType == "Tool" and currentHeldObject:FindFirstChild("Handle") then
+        currentHeldObject.Handle.CFrame = CFrame.new(deliveryPosition)
+        success = true
+    elseif currentHeldType == "Model" and currentHeldObject.PrimaryPart then
+        currentHeldObject:SetPrimaryPartCFrame(CFrame.new(deliveryPosition))
+        success = true
+    elseif currentHeldType == "Model" and currentHeldObject:FindFirstChild("Handle") then
+        currentHeldObject.Handle.CFrame = CFrame.new(deliveryPosition)
+        success = true
+    elseif currentHeldType == "Accessory" and currentHeldObject:FindFirstChild("Handle") then
+        currentHeldObject.Handle.CFrame = CFrame.new(deliveryPosition)
+        success = true
+    elseif currentHeldType == "Part" then
+        currentHeldObject.CFrame = CFrame.new(deliveryPosition)
+        success = true
+    end
+    
+    if success then
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        TeleportBtn.Text = "✅ TELEPORTED!"
+        wait(1)
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+        TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
+    else
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 50)
+        TeleportBtn.Text = "❌ TELEPORT FAILED"
+        wait(1)
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+        TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
+    end
+end
+
+-- DRAG SYSTEM
 local dragging = false
 local dragStart = nil
 local startPos = nil
-
-local function updateInput(input)
-    if dragging then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end
 
 Header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -304,88 +395,57 @@ Header.InputBegan:Connect(function(input)
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        updateInput(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
     end
 end)
 
--- Teleport Brainrot
-TeleportBtn.MouseButton1Click:Connect(function()
-    if not currentHolding then
-        -- Effetto errore
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        wait(0.2)
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-        return
-    end
-    
-    if not basePosition then
-        -- Effetto warning
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-        wait(0.2)
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-        return
-    end
-    
-    -- Teleporta
-    local success = teleportObject(currentHolding.object, currentHolding.type)
-    
-    if success then
-        -- Effetto successo
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-        wait(0.3)
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-    else
-        -- Effetto fallimento
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 50)
-        wait(0.2)
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-    end
-end)
-
--- Set Base
-SetBaseBtn.MouseButton1Click:Connect(function()
+-- EVENTI
+SetDeliveryBtn.MouseButton1Click:Connect(function()
     local character = Player.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
-        basePosition = character.HumanoidRootPart.Position + Vector3.new(5, 2, 0)
-        
-        -- Effetto successo
-        SetBaseBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-        wait(0.3)
-        SetBaseBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
+        deliveryPosition = character.HumanoidRootPart.Position + Vector3.new(5, 0, 0)
+        SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        SetDeliveryBtn.Text = "✅ DELIVERY SET!"
+        wait(1)
+        SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
+        SetDeliveryBtn.Text = "📍 SET DELIVERY POINT"
     end
 end)
 
--- Minimizza
+TeleportBtn.MouseButton1Click:Connect(teleportObjectToDelivery)
+NoClipBtn.MouseButton1Click:Connect(toggleNoClip)
+
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    
-    local targetSize = isMinimized and UDim2.new(0, 300, 0, 35) or UDim2.new(0, 300, 0, 200)
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {Size = targetSize})
-    tween:Play()
-    
+    local targetSize = isMinimized and UDim2.new(0, 350, 0, 35) or UDim2.new(0, 350, 0, 250)
+    TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = targetSize}):Play()
     MinimizeBtn.Text = isMinimized and "+" or "−"
     Content.Visible = not isMinimized
 end)
 
--- Chiudi
 CloseBtn.MouseButton1Click:Connect(function()
-    if updateConnection then
-        updateConnection:Disconnect()
-    end
-    
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3), {
+    if noclipConnection then noclipConnection:Disconnect() end
+    TweenService:Create(MainFrame, TweenInfo.new(0.3), {
         Size = UDim2.new(0, 0, 0, 0),
         Position = UDim2.new(0.5, 0, 0.5, 0)
-    })
-    tween:Play()
-    
-    tween.Completed:Connect(function()
-        ScreenGui:Destroy()
-    end)
+    }):Play()
+    wait(0.3)
+    ScreenGui:Destroy()
 end)
 
--- Avvia sistema
-startHoldingUpdate()
+-- Avvia detection continua ogni 3 secondi
+spawn(function()
+    while ScreenGui.Parent do
+        detectHeldObject()
+        wait(3)
+    end
+end)
 
-print("🧠 Rubba Brainrot GUI - Sistema Avanzato Caricato!")
+print("🧠 Rubba Brainrot PRO - Sistema Perfetto Caricato!")
