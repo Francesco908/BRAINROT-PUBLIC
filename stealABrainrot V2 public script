@@ -1,4 +1,4 @@
--- SIGMA HUB - Modern Parkour Script v2.0
+-- SIGMA HUB v2.0
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -769,7 +769,7 @@ addHoverEffect(BaseTPBtn)
 addHoverEffect(MinimizeBtn)
 addHoverEffect(CloseBtn)
 
-print("⚡ SIGMA PARKOUR HUB v2.0 - Modern Edition Loaded!")
+print("⚡ SIGMA HUB v2.0 - Modern Edition Loaded!")
 print("🏗️ New Features:")
 print("   - Start Roof TP: Teleports to parkour starting roof")
 print("   - Nearest Base TP: Finds and teleports to closest plot/base")
