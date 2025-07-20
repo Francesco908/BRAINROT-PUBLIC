@@ -1,4 +1,4 @@
--- SIGMA HUB v2.2 - MOD by Copilot Chat
+-- SIGMA HUB v2.2 - MOD by OnlyRobloxScript
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
