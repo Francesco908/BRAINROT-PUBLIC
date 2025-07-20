@@ -1,10 +1,11 @@
--- SIGMA HUB - Advanced Parkour Script
+-- SIGMA HUB - Modern Parkour Script v2.0
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -49,7 +50,7 @@ TeleportText.TextSize = 32
 TeleportText.TextScaled = true
 TeleportText.Parent = TeleportScreen
 
--- BYPASS FUNCTIONS (FIXED)
+-- BYPASS FUNCTIONS
 local function bypassAnticheat(character)
     if not character then return false end
     
@@ -58,10 +59,8 @@ local function bypassAnticheat(character)
     
     if not humanoid or not rootPart then return false end
     
-    -- Disable physics temporarily
     rootPart.Anchored = true
     
-    -- Clear velocity
     if rootPart:FindFirstChild("BodyVelocity") then
         rootPart.BodyVelocity:Destroy()
     end
@@ -81,11 +80,69 @@ local function restoreCharacter(character)
     if rootPart then
         rootPart.Anchored = false
         
-        -- Remove body velocity
         if rootPart:FindFirstChild("BodyVelocity") then
             rootPart.BodyVelocity:Destroy()
         end
     end
+end
+
+-- PARKOUR SPECIFIC FUNCTIONS
+local function findNearestBase()
+    local character = Player.Character
+    if not character then return nil end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil end
+    
+    local nearestBase = nil
+    local shortestDistance = math.huge
+    
+    -- Search for common base/plot names in parkour games
+    for _, obj in pairs(Workspace:GetChildren()) do
+        local objName = obj.Name:lower()
+        if objName:match("plot") or objName:match("base") or objName:match("spawn") or obj:FindFirstChild("Plot") then
+            local basePart = obj:FindFirstChildOfClass("BasePart")
+            if not basePart and obj:FindFirstChild("Plot") then
+                basePart = obj.Plot:FindFirstChildOfClass("BasePart")
+            end
+            
+            if basePart then
+                local distance = (rootPart.Position - basePart.Position).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    nearestBase = basePart.Position
+                end
+            end
+        end
+    end
+    
+    return nearestBase
+end
+
+local function findStartRoof()
+    -- Look for common starting roof positions in parkour games
+    for _, obj in pairs(Workspace:GetChildren()) do
+        local objName = obj.Name:lower()
+        if objName:match("start") or objName:match("roof") or objName:match("begin") then
+            local roofPart = obj:FindFirstChildOfClass("BasePart")
+            if roofPart and roofPart.Position.Y > 50 then -- Assume roof is high up
+                return roofPart.Position + Vector3.new(0, 5, 0) -- Add height offset
+            end
+        end
+    end
+    
+    -- Fallback: look for the highest part in spawn area
+    local highestY = 0
+    local roofPosition = nil
+    
+    for _, obj in pairs(Workspace:GetChildren()) do
+        if obj:IsA("BasePart") and obj.Position.Y > highestY and obj.Position.Y > 30 then
+            highestY = obj.Position.Y
+            roofPosition = obj.Position + Vector3.new(0, 8, 0)
+        end
+    end
+    
+    return roofPosition
 end
 
 -- Create main ScreenGui
@@ -94,38 +151,68 @@ ScreenGui.Name = "SigmaHub"
 ScreenGui.Parent = PlayerGui
 ScreenGui.ResetOnSpawn = false
 
--- Main frame
+-- Main frame - Modern glass morphism style
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MainFrame.BackgroundTransparency = 0.1
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -90)
-MainFrame.Size = UDim2.new(0, 300, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -140)
+MainFrame.Size = UDim2.new(0, 350, 0, 280)
 MainFrame.Active = true
 MainFrame.ClipsDescendants = true
 
+-- Glass effect
+local Blur = Instance.new("Frame")
+Blur.Name = "Blur"
+Blur.Parent = MainFrame
+Blur.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+Blur.BackgroundTransparency = 0.95
+Blur.BorderSizePixel = 0
+Blur.Size = UDim2.new(1, 0, 1, 0)
+
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.CornerRadius = UDim.new(0, 16)
 MainCorner.Parent = MainFrame
 
+local BlurCorner = Instance.new("UICorner")
+BlurCorner.CornerRadius = UDim.new(0, 16)
+BlurCorner.Parent = Blur
+
+-- Gradient border
 local Border = Instance.new("UIStroke")
 Border.Color = Color3.fromRGB(138, 43, 226)
-Border.Thickness = 3
-Border.Transparency = 0.2
+Border.Thickness = 2
+Border.Transparency = 0.3
 Border.Parent = MainFrame
 
--- Header
+local BorderGradient = Instance.new("UIGradient")
+BorderGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0.0, Color3.fromRGB(138, 43, 226)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(75, 0, 130)),
+    ColorSequenceKeypoint.new(1.0, Color3.fromRGB(138, 43, 226))
+}
+BorderGradient.Parent = Border
+
+-- Header with gradient
 local Header = Instance.new("Frame")
 Header.Name = "Header"
 Header.Parent = MainFrame
 Header.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
 Header.BorderSizePixel = 0
-Header.Size = UDim2.new(1, 0, 0, 35)
+Header.Size = UDim2.new(1, 0, 0, 40)
 Header.Active = true
 
+local HeaderGradient = Instance.new("UIGradient")
+HeaderGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0.0, Color3.fromRGB(138, 43, 226)),
+    ColorSequenceKeypoint.new(1.0, Color3.fromRGB(75, 0, 130))
+}
+HeaderGradient.Parent = Header
+
 local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 12)
+HeaderCorner.CornerRadius = UDim.new(0, 16)
 HeaderCorner.Parent = Header
 
 local HeaderFix = Instance.new("Frame")
@@ -135,134 +222,170 @@ HeaderFix.BorderSizePixel = 0
 HeaderFix.Position = UDim2.new(0, 0, 0.7, 0)
 HeaderFix.Size = UDim2.new(1, 0, 0.3, 0)
 
--- Titolo
+local HeaderFixGradient = Instance.new("UIGradient")
+HeaderFixGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0.0, Color3.fromRGB(138, 43, 226)),
+    ColorSequenceKeypoint.new(1.0, Color3.fromRGB(75, 0, 130))
+}
+HeaderFixGradient.Parent = HeaderFix
+
+-- Modern title with glow effect
 local Title = Instance.new("TextLabel")
 Title.Parent = Header
 Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0, 15, 0, 0)
-Title.Size = UDim2.new(1, -80, 1, 0)
+Title.Position = UDim2.new(0, 20, 0, 0)
+Title.Size = UDim2.new(1, -100, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "⚡ SIGMA HUB"
+Title.Text = "⚡ SIGMA PARKOUR HUB"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 14
+Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.TextStrokeTransparency = 0.7
+Title.TextStrokeColor3 = Color3.fromRGB(138, 43, 226)
 
--- Minimizza
+-- Modern control buttons
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Parent = Header
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 193, 7)
 MinimizeBtn.BorderSizePixel = 0
-MinimizeBtn.Position = UDim2.new(1, -60, 0.5, -10)
-MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+MinimizeBtn.Position = UDim2.new(1, -70, 0.5, -12)
+MinimizeBtn.Size = UDim2.new(0, 24, 0, 24)
 MinimizeBtn.Font = Enum.Font.GothamBold
 MinimizeBtn.Text = "−"
 MinimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-MinimizeBtn.TextSize = 16
+MinimizeBtn.TextSize = 18
 
 local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 4)
+MinCorner.CornerRadius = UDim.new(0, 6)
 MinCorner.Parent = MinimizeBtn
 
--- Chiudi
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = Header
-CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
 CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1, -35, 0.5, -10)
-CloseBtn.Size = UDim2.new(0, 20, 0, 20)
+CloseBtn.Position = UDim2.new(1, -40, 0.5, -12)
+CloseBtn.Size = UDim2.new(0, 24, 0, 24)
 CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Text = "×"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.TextSize = 16
 
 local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 4)
+CloseCorner.CornerRadius = UDim.new(0, 6)
 CloseCorner.Parent = CloseBtn
 
--- Contenuto
+-- Content area with better spacing
 local Content = Instance.new("Frame")
 Content.Parent = MainFrame
 Content.BackgroundTransparency = 1
-Content.Position = UDim2.new(0, 0, 0, 40)
-Content.Size = UDim2.new(1, 0, 1, -40)
+Content.Position = UDim2.new(0, 0, 0, 45)
+Content.Size = UDim2.new(1, 0, 1, -45)
 
--- Set Position Button
-local SetDeliveryBtn = Instance.new("TextButton")
-SetDeliveryBtn.Parent = Content
-SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(46, 139, 87)
-SetDeliveryBtn.BorderSizePixel = 0
-SetDeliveryBtn.Position = UDim2.new(0.05, 0, 0.05, 0)
-SetDeliveryBtn.Size = UDim2.new(0.9, 0, 0, 28)
-SetDeliveryBtn.Font = Enum.Font.GothamBold
-SetDeliveryBtn.Text = "📍 SET POSITION"
-SetDeliveryBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SetDeliveryBtn.TextSize = 12
+-- Modern button creation function
+local function createModernButton(parent, position, size, text, color, icon)
+    local button = Instance.new("TextButton")
+    button.Parent = parent
+    button.BackgroundColor3 = color
+    button.BorderSizePixel = 0
+    button.Position = position
+    button.Size = size
+    button.Font = Enum.Font.GothamBold
+    button.Text = icon .. " " .. text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 13
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = button
+    
+    -- Gradient effect
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0.0, color),
+        ColorSequenceKeypoint.new(1.0, Color3.new(color.R * 0.8, color.G * 0.8, color.B * 0.8))
+    }
+    gradient.Parent = button
+    
+    -- Shadow effect
+    local shadow = Instance.new("Frame")
+    shadow.Name = "Shadow"
+    shadow.Parent = button
+    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 0.8
+    shadow.BorderSizePixel = 0
+    shadow.Position = UDim2.new(0, 2, 0, 2)
+    shadow.Size = UDim2.new(1, 0, 1, 0)
+    shadow.ZIndex = button.ZIndex - 1
+    
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 10)
+    shadowCorner.Parent = shadow
+    
+    return button
+end
 
-local DeliveryCorner = Instance.new("UICorner")
-DeliveryCorner.CornerRadius = UDim.new(0, 8)
-DeliveryCorner.Parent = SetDeliveryBtn
+-- Create modern buttons with better layout
+local SetDeliveryBtn = createModernButton(Content, 
+    UDim2.new(0.05, 0, 0.05, 0), 
+    UDim2.new(0.9, 0, 0, 32), 
+    "SET POSITION", 
+    Color3.fromRGB(40, 167, 69), 
+    "📍")
 
--- Flying Teleport Button
-local TeleportBtn = Instance.new("TextButton")
-TeleportBtn.Parent = Content
-TeleportBtn.BackgroundColor3 = Color3.fromRGB(65, 105, 225)
-TeleportBtn.BorderSizePixel = 0
-TeleportBtn.Position = UDim2.new(0.05, 0, 0.3, 0)
-TeleportBtn.Size = UDim2.new(0.9, 0, 0, 35)
-TeleportBtn.Font = Enum.Font.GothamBold
-TeleportBtn.Text = "🌀 FLY TO POSITION"
-TeleportBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-TeleportBtn.TextSize = 12
+local TeleportBtn = createModernButton(Content, 
+    UDim2.new(0.05, 0, 0.2, 0), 
+    UDim2.new(0.9, 0, 0, 35), 
+    "FLY TO POSITION", 
+    Color3.fromRGB(0, 123, 255), 
+    "🌀")
 
-local TeleCorner = Instance.new("UICorner")
-TeleCorner.CornerRadius = UDim.new(0, 8)
-TeleCorner.Parent = TeleportBtn
+-- NEW PARKOUR BUTTONS
+local StartRoofBtn = createModernButton(Content, 
+    UDim2.new(0.05, 0, 0.35, 0), 
+    UDim2.new(0.43, 0, 0, 35), 
+    "START ROOF", 
+    Color3.fromRGB(255, 87, 34), 
+    "🏗️")
 
--- NoClip Button
-local NoClipBtn = Instance.new("TextButton")
-NoClipBtn.Parent = Content
-NoClipBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
-NoClipBtn.BorderSizePixel = 0
-NoClipBtn.Position = UDim2.new(0.05, 0, 0.55, 0)
-NoClipBtn.Size = UDim2.new(0.9, 0, 0, 35)
-NoClipBtn.Font = Enum.Font.GothamBold
-NoClipBtn.Text = "👻 NOCLIP: OFF"
-NoClipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-NoClipBtn.TextSize = 12
+local NearestBaseBtn = createModernButton(Content, 
+    UDim2.new(0.52, 0, 0.35, 0), 
+    UDim2.new(0.43, 0, 0, 35), 
+    "NEAREST BASE", 
+    Color3.fromRGB(156, 39, 176), 
+    "🎯")
 
-local NoClipCorner = Instance.new("UICorner")
-NoClipCorner.CornerRadius = UDim.new(0, 8)
-NoClipCorner.Parent = NoClipBtn
+local NoClipBtn = createModernButton(Content, 
+    UDim2.new(0.05, 0, 0.52, 0), 
+    UDim2.new(0.9, 0, 0, 35), 
+    "NOCLIP: OFF", 
+    Color3.fromRGB(220, 20, 60), 
+    "👻")
 
--- Instant TP Button
-local BaseTPBtn = Instance.new("TextButton")
-BaseTPBtn.Parent = Content
-BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 69, 0)
-BaseTPBtn.BorderSizePixel = 0
-BaseTPBtn.Position = UDim2.new(0.05, 0, 0.8, 0)
-BaseTPBtn.Size = UDim2.new(0.9, 0, 0, 28)
-BaseTPBtn.Font = Enum.Font.GothamBold
-BaseTPBtn.Text = "⚡ INSTANT TP"
-BaseTPBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-BaseTPBtn.TextSize = 12
+local BaseTPBtn = createModernButton(Content, 
+    UDim2.new(0.05, 0, 0.67, 0), 
+    UDim2.new(0.9, 0, 0, 35), 
+    "INSTANT TP", 
+    Color3.fromRGB(255, 69, 0), 
+    "⚡")
 
-local BaseTPCorner = Instance.new("UICorner")
-BaseTPCorner.CornerRadius = UDim.new(0, 8)
-BaseTPCorner.Parent = BaseTPBtn
+-- Status indicator
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = Content
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0.05, 0, 0.85, 0)
+StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "Ready to teleport!"
+StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+StatusLabel.TextSize = 11
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
 
--- TELEPORT FUNCTIONS (FIXED)
+-- TELEPORT FUNCTIONS
 local function flyToDelivery()
     if teleporting then return end
     if not deliveryPosition then
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
-        TeleportBtn.Text = "⚠️ SET POSITION FIRST"
-        spawn(function()
-            wait(1.5)
-            if TeleportBtn and TeleportBtn.Parent then
-                TeleportBtn.BackgroundColor3 = Color3.fromRGB(65, 105, 225)
-                TeleportBtn.Text = "🌀 FLY TO POSITION"
-            end
-        end)
+        StatusLabel.Text = "⚠️ Set a position first!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 193, 7)
         return
     end
     
@@ -273,40 +396,30 @@ local function flyToDelivery()
     if not rootPart then return end
     
     teleporting = true
-    TeleportBtn.Text = "🚀 FLYING..."
-    TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+    StatusLabel.Text = "🚀 Flying to position..."
+    StatusLabel.TextColor3 = Color3.fromRGB(0, 123, 255)
     
-    -- Bypass anticheat
     if not bypassAnticheat(character) then
         teleporting = false
         return
     end
     
-    -- Create smooth flying tween
     local targetCFrame = CFrame.new(deliveryPosition)
-    local tweenInfo = TweenInfo.new(
-        1.5, -- Duration
-        Enum.EasingStyle.Quad,
-        Enum.EasingDirection.InOut,
-        0,
-        false,
-        0
-    )
-    
+    local tweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
     local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
     
     tween:Play()
     
     tween.Completed:Connect(function()
         restoreCharacter(character)
-        TeleportBtn.Text = "✅ ARRIVED!"
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
+        StatusLabel.Text = "✅ Arrived successfully!"
+        StatusLabel.TextColor3 = Color3.fromRGB(40, 167, 69)
         
         spawn(function()
-            wait(2)
-            if TeleportBtn and TeleportBtn.Parent then
-                TeleportBtn.Text = "🌀 FLY TO POSITION"
-                TeleportBtn.BackgroundColor3 = Color3.fromRGB(65, 105, 225)
+            wait(3)
+            if StatusLabel and StatusLabel.Parent then
+                StatusLabel.Text = "Ready to teleport!"
+                StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
             end
             teleporting = false
         end)
@@ -316,15 +429,8 @@ end
 local function instantTeleport()
     if teleporting then return end
     if not deliveryPosition then
-        BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
-        BaseTPBtn.Text = "⚠️ SET POSITION FIRST"
-        spawn(function()
-            wait(1.5)
-            if BaseTPBtn and BaseTPBtn.Parent then
-                BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 69, 0)
-                BaseTPBtn.Text = "⚡ INSTANT TP"
-            end
-        end)
+        StatusLabel.Text = "⚠️ Set a position first!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 193, 7)
         return
     end
     
@@ -335,51 +441,133 @@ local function instantTeleport()
     if not rootPart then return end
     
     teleporting = true
-    
-    -- Show black screen
     TeleportScreen.Enabled = true
-    BaseTPBtn.Text = "⏳ TELEPORTING..."
-    BaseTPBtn.BackgroundColor3 = Color3.fromRGB(105, 105, 105)
+    StatusLabel.Text = "⏳ Instant teleporting..."
+    StatusLabel.TextColor3 = Color3.fromRGB(108, 117, 125)
     
     spawn(function()
-        -- Bypass and teleport
         bypassAnticheat(character)
+        wait(1)
         
-        wait(1) -- Black screen duration
-        
-        -- Instant teleport
         if rootPart and rootPart.Parent then
             rootPart.CFrame = CFrame.new(deliveryPosition)
         end
         
-        wait(1) -- Additional delay
-        
-        -- Hide black screen
+        wait(1)
         TeleportScreen.Enabled = false
-        
-        -- Restore character
         restoreCharacter(character)
         
-        BaseTPBtn.Text = "✅ TELEPORTED!"
-        BaseTPBtn.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
+        StatusLabel.Text = "✅ Teleported instantly!"
+        StatusLabel.TextColor3 = Color3.fromRGB(40, 167, 69)
         
-        wait(2)
-        if BaseTPBtn and BaseTPBtn.Parent then
-            BaseTPBtn.Text = "⚡ INSTANT TP"
-            BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 69, 0)
+        wait(3)
+        if StatusLabel and StatusLabel.Parent then
+            StatusLabel.Text = "Ready to teleport!"
+            StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
         end
         
         teleporting = false
     end)
 end
 
--- NOCLIP SYSTEM (IMPROVED)
+-- NEW PARKOUR TELEPORT FUNCTIONS
+local function teleportToStartRoof()
+    if teleporting then return end
+    
+    local roofPosition = findStartRoof()
+    if not roofPosition then
+        StatusLabel.Text = "⚠️ No start roof found!"
+        StatusLabel.TextColor3 = Color3.fromRGB(220, 53, 69)
+        return
+    end
+    
+    local character = Player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    if not rootPart then return end
+    
+    teleporting = true
+    StatusLabel.Text = "🏗️ Going to start roof..."
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 87, 34)
+    
+    bypassAnticheat(character)
+    
+    spawn(function()
+        wait(0.5)
+        if rootPart and rootPart.Parent then
+            rootPart.CFrame = CFrame.new(roofPosition)
+        end
+        
+        wait(0.5)
+        restoreCharacter(character)
+        
+        StatusLabel.Text = "✅ At start roof!"
+        StatusLabel.TextColor3 = Color3.fromRGB(40, 167, 69)
+        
+        wait(3)
+        if StatusLabel and StatusLabel.Parent then
+            StatusLabel.Text = "Ready to teleport!"
+            StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
+        
+        teleporting = false
+    end)
+end
+
+local function teleportToNearestBase()
+    if teleporting then return end
+    
+    local basePosition = findNearestBase()
+    if not basePosition then
+        StatusLabel.Text = "⚠️ No bases found nearby!"
+        StatusLabel.TextColor3 = Color3.fromRGB(220, 53, 69)
+        return
+    end
+    
+    local character = Player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    if not rootPart then return end
+    
+    teleporting = true
+    StatusLabel.Text = "🎯 Finding nearest base..."
+    StatusLabel.TextColor3 = Color3.fromRGB(156, 39, 176)
+    
+    bypassAnticheat(character)
+    
+    spawn(function()
+        wait(0.5)
+        if rootPart and rootPart.Parent then
+            rootPart.CFrame = CFrame.new(basePosition + Vector3.new(0, 5, 0))
+        end
+        
+        wait(0.5)
+        restoreCharacter(character)
+        
+        StatusLabel.Text = "✅ At nearest base!"
+        StatusLabel.TextColor3 = Color3.fromRGB(40, 167, 69)
+        
+        wait(3)
+        if StatusLabel and StatusLabel.Parent then
+            StatusLabel.Text = "Ready to teleport!"
+            StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
+        
+        teleporting = false
+    end)
+end
+
+-- NOCLIP SYSTEM
 local function toggleNoClip()
     noclipEnabled = not noclipEnabled
 
     if noclipEnabled then
         NoClipBtn.Text = "👻 NOCLIP: ON"
-        NoClipBtn.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
+        NoClipBtn.BackgroundColor3 = Color3.fromRGB(40, 167, 69)
+        StatusLabel.Text = "👻 NoClip activated!"
+        StatusLabel.TextColor3 = Color3.fromRGB(40, 167, 69)
         
         noclipConnection = RunService.Heartbeat:Connect(function()
             local character = Player.Character
@@ -390,7 +578,6 @@ local function toggleNoClip()
                     end
                 end
                 
-                -- Also handle accessories
                 for _, accessory in pairs(character:GetChildren()) do
                     if accessory:IsA("Accessory") then
                         local handle = accessory:FindFirstChild("Handle")
@@ -404,23 +591,23 @@ local function toggleNoClip()
     else
         NoClipBtn.Text = "👻 NOCLIP: OFF"
         NoClipBtn.BackgroundColor3 = Color3.fromRGB(220, 20, 60)
+        StatusLabel.Text = "👻 NoClip deactivated!"
+        StatusLabel.TextColor3 = Color3.fromRGB(220, 53, 69)
         
         if noclipConnection then
             noclipConnection:Disconnect()
             noclipConnection = nil
         end
         
-        -- Restore collision
         local character = Player.Character
         if character then
-            wait(0.1) -- Small delay to prevent glitching
+            wait(0.1)
             for _, part in pairs(character:GetChildren()) do
                 if part:IsA("BasePart") and part ~= character.HumanoidRootPart then
                     part.CanCollide = true
                 end
             end
             
-            -- Restore accessory collision
             for _, accessory in pairs(character:GetChildren()) do
                 if accessory:IsA("Accessory") then
                     local handle = accessory:FindFirstChild("Handle")
@@ -431,9 +618,17 @@ local function toggleNoClip()
             end
         end
     end
+    
+    spawn(function()
+        wait(2)
+        if StatusLabel and StatusLabel.Parent then
+            StatusLabel.Text = "Ready to teleport!"
+            StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
+    end)
 end
 
--- DRAG SYSTEM (FIXED)
+-- DRAG SYSTEM
 local function enableDragging(frame)
     local dragging = false
     local dragStart = nil
@@ -468,21 +663,21 @@ local function enableDragging(frame)
     end)
 end
 
--- EVENTS (FIXED)
+-- EVENT CONNECTIONS
 SetDeliveryBtn.MouseButton1Click:Connect(function()
     local character = Player.Character
     if character then
         local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
         if rootPart then
             deliveryPosition = rootPart.Position
-            SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(50, 205, 50)
-            SetDeliveryBtn.Text = "✅ POSITION SET!"
+            StatusLabel.Text = "✅ Position saved!"
+            StatusLabel.TextColor3 = Color3.fromRGB(40, 167, 69)
             
             spawn(function()
                 wait(2)
-                if SetDeliveryBtn and SetDeliveryBtn.Parent then
-                    SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(46, 139, 87)
-                    SetDeliveryBtn.Text = "📍 SET POSITION"
+                if StatusLabel and StatusLabel.Parent then
+                    StatusLabel.Text = "Ready to teleport!"
+                    StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
                 end
             end)
         end
@@ -491,11 +686,13 @@ end)
 
 TeleportBtn.MouseButton1Click:Connect(flyToDelivery)
 BaseTPBtn.MouseButton1Click:Connect(instantTeleport)
+StartRoofBtn.MouseButton1Click:Connect(teleportToStartRoof)
+NearestBaseBtn.MouseButton1Click:Connect(teleportToNearestBase)
 NoClipBtn.MouseButton1Click:Connect(toggleNoClip)
 
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 300, 0, 35) or UDim2.new(0, 300, 0, 180)
+    local targetSize = isMinimized and UDim2.new(0, 350, 0, 40) or UDim2.new(0, 350, 0, 280)
     
     local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = targetSize})
     tween:Play()
@@ -512,7 +709,7 @@ CloseBtn.MouseButton1Click:Connect(function()
     
     teleporting = false
     
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
         Size = UDim2.new(0, 0, 0, 0),
         Position = UDim2.new(0.5, 0, 0.5, 0)
     })
@@ -532,5 +729,51 @@ end)
 -- Enable dragging
 enableDragging(MainFrame)
 
-print("⚡ SIGMA HUB - Advanced Parkour Script Loaded!")
-print("All features working perfectly!")
+-- Startup animation
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+
+local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Size = UDim2.new(0, 350, 0, 280),
+    Position = UDim2.new(0.5, -175, 0.5, -140)
+})
+
+openTween:Play()
+
+-- Add button hover effects
+local function addHoverEffect(button)
+    local originalSize = button.Size
+    
+    button.MouseEnter:Connect(function()
+        local hoverTween = TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
+            Size = UDim2.new(originalSize.X.Scale, originalSize.X.Offset + 4, originalSize.Y.Scale, originalSize.Y.Offset + 2)
+        })
+        hoverTween:Play()
+    end)
+    
+    button.MouseLeave:Connect(function()
+        local normalTween = TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
+            Size = originalSize
+        })
+        normalTween:Play()
+    end)
+end
+
+-- Apply hover effects to all buttons
+addHoverEffect(SetDeliveryBtn)
+addHoverEffect(TeleportBtn)
+addHoverEffect(StartRoofBtn)
+addHoverEffect(NearestBaseBtn)
+addHoverEffect(NoClipBtn)
+addHoverEffect(BaseTPBtn)
+addHoverEffect(MinimizeBtn)
+addHoverEffect(CloseBtn)
+
+print("⚡ SIGMA PARKOUR HUB v2.0 - Modern Edition Loaded!")
+print("🏗️ New Features:")
+print("   - Start Roof TP: Teleports to parkour starting roof")
+print("   - Nearest Base TP: Finds and teleports to closest plot/base")
+print("   - Modern glass morphism UI design")
+print("   - Smooth animations and hover effects")
+print("   - Enhanced status indicators")
+print("All systems operational! 🚀")
