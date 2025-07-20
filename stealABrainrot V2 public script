@@ -65,18 +65,24 @@ local function bypassAnticheat(character)
         cframe = root.CFrame
     }
     
+    -- Bypass anticheat più aggressivo
     workspace.Gravity = 0
     humanoid.WalkSpeed = 0
     humanoid.JumpPower = 0
+    humanoid.JumpHeight = 0
     humanoid.HipHeight = 0
+    humanoid.PlatformStand = true
     root.CanCollide = false
     root.Velocity = Vector3.new(0, 0, 0)
+    root.AngularVelocity = Vector3.new(0, 0, 0)
+    root.RotVelocity = Vector3.new(0, 0, 0)
     
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             part.CanCollide = false
             part.Velocity = Vector3.new(0, 0, 0)
             part.RotVelocity = Vector3.new(0, 0, 0)
+            part.AngularVelocity = Vector3.new(0, 0, 0)
         end
     end
     
@@ -84,23 +90,8 @@ local function bypassAnticheat(character)
 end
 
 local function restoreCharacter(character, originalProperties)
-    if not character or not originalProperties then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not root then return end
-    
-    workspace.Gravity = originalProperties.gravity
-    humanoid.WalkSpeed = originalProperties.walkSpeed
-    humanoid.JumpPower = originalProperties.jumpPower
-    humanoid.HipHeight = originalProperties.hipHeight
-    root.CanCollide = originalProperties.collisionType
-    
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            part.CanCollide = true
-        end
-    end
+    -- NON ripristina mai il personaggio - rimane bypassato
+    return
 end
 
 -- Crea ScreenGui principale
@@ -115,8 +106,8 @@ MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
-MainFrame.Size = UDim2.new(0, 350, 0, 200)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -90)
+MainFrame.Size = UDim2.new(0, 300, 0, 180)
 MainFrame.Active = true
 MainFrame.ClipsDescendants = true
 
@@ -206,7 +197,7 @@ SetDeliveryBtn.Parent = Content
 SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
 SetDeliveryBtn.BorderSizePixel = 0
 SetDeliveryBtn.Position = UDim2.new(0.05, 0, 0.05, 0)
-SetDeliveryBtn.Size = UDim2.new(0.9, 0, 0, 35)
+SetDeliveryBtn.Size = UDim2.new(0.9, 0, 0, 28)
 SetDeliveryBtn.Font = Enum.Font.GothamBold
 SetDeliveryBtn.Text = "📍 SET DELIVERY POINT"
 SetDeliveryBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -254,7 +245,7 @@ BaseTPBtn.Parent = Content
 BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
 BaseTPBtn.BorderSizePixel = 0
 BaseTPBtn.Position = UDim2.new(0.05, 0, 0.8, 0)
-BaseTPBtn.Size = UDim2.new(0.9, 0, 0, 35)
+BaseTPBtn.Size = UDim2.new(0.9, 0, 0, 28)
 BaseTPBtn.Font = Enum.Font.GothamBold
 BaseTPBtn.Text = "⚡ TP TO BASE"
 BaseTPBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -299,21 +290,15 @@ local function flyToDelivery()
         return 
     end
     
-    local distance = (deliveryPosition - root.Position).Magnitude
-    local speed = math.min(distance / 2, 500)
-    local tweenTime = math.max(distance / speed, 0.1)
-    
+    -- FLY VELOCISSIMO - 0.5 secondi massimo
     local tween = TweenService:Create(root, 
-        TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), 
+        TweenInfo.new(0.5, Enum.EasingStyle.Linear), 
         {CFrame = CFrame.new(deliveryPosition)}
     )
     
     tween:Play()
     tween.Completed:Connect(function()
         spawn(function()
-            wait(0.1)
-            restoreCharacter(character, originalProperties)
-            
             if TeleportBtn and TeleportBtn.Parent then
                 TeleportBtn.Text = "✅ ARRIVED!"
                 wait(1)
@@ -348,20 +333,21 @@ local function instantTeleport()
     teleporting = true
     TeleportScreen.Enabled = true
     
+    -- Bypass permanente - si ferma lì per sempre
     local originalProperties = bypassAnticheat(character)
     
     spawn(function()
+        -- Black screen per 3 secondi
+        wait(3)
+        
         local success = pcall(function()
             local root = character:FindFirstChild("HumanoidRootPart")
             if root then
                 root.CFrame = CFrame.new(deliveryPosition)
+                -- Mantiene bypass attivo - non ripristina mai
             end
         end)
         
-        wait(0.1)
-        if originalProperties then
-            restoreCharacter(character, originalProperties)
-        end
         TeleportScreen.Enabled = false
         teleporting = false
     end)
@@ -464,7 +450,7 @@ NoClipBtn.MouseButton1Click:Connect(toggleNoClip)
 
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 350, 0, 35) or UDim2.new(0, 350, 0, 200)
+    local targetSize = isMinimized and UDim2.new(0, 300, 0, 35) or UDim2.new(0, 300, 0, 180)
     TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = targetSize}):Play()
     MinimizeBtn.Text = isMinimized and "+" or "−"
     Content.Visible = not isMinimized
