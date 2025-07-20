@@ -16,6 +16,11 @@ local noclipEnabled = false
 local noclipConnection = nil
 local teleporting = false
 
+-- Distruggi GUI esistente
+if PlayerGui:FindFirstChild("BrainrotGUI") then
+    PlayerGui.BrainrotGUI:Destroy()
+end
+
 -- TELEPORT SCREEN
 local TeleportScreen = Instance.new("ScreenGui")
 TeleportScreen.Name = "TeleportScreen"
@@ -42,7 +47,7 @@ TeleportText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeleportText.TextSize = 32
 TeleportText.Parent = TeleportScreen
 
--- BYPASS FUNCTION
+-- BYPASS FUNCTIONS
 local function bypassAnticheat(character)
     if not character then return end
     
@@ -50,7 +55,6 @@ local function bypassAnticheat(character)
     local root = character:FindFirstChild("HumanoidRootPart")
     if not humanoid or not root then return end
     
-    -- Store original properties
     local originalProperties = {
         gravity = workspace.Gravity,
         walkSpeed = humanoid.WalkSpeed,
@@ -61,7 +65,6 @@ local function bypassAnticheat(character)
         cframe = root.CFrame
     }
     
-    -- Apply bypass
     workspace.Gravity = 0
     humanoid.WalkSpeed = 0
     humanoid.JumpPower = 0
@@ -69,7 +72,6 @@ local function bypassAnticheat(character)
     root.CanCollide = false
     root.Velocity = Vector3.new(0, 0, 0)
     
-    -- Avoid detection
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             part.CanCollide = false
@@ -81,7 +83,6 @@ local function bypassAnticheat(character)
     return originalProperties
 end
 
--- RESTORE FUNCTION
 local function restoreCharacter(character, originalProperties)
     if not character or not originalProperties then return end
     
@@ -102,70 +103,152 @@ local function restoreCharacter(character, originalProperties)
     end
 end
 
--- FAST TELEPORT FUNCTION
-local function instantTeleport()
-    if teleporting or not deliveryPosition then return end
-    
-    local character = Player.Character
-    if not character then return end
-    
-    teleporting = true
-    TeleportScreen.Enabled = true
-    
-    local originalProperties = bypassAnticheat(character)
-    
-    -- Instant teleport with safety checks
-    local success = pcall(function()
-        local root = character:FindFirstChild("HumanoidRootPart")
-        if root then
-            root.CFrame = CFrame.new(deliveryPosition)
-        end
-    end)
-    
-    wait(0.1) -- Short delay for stability
-    
-    restoreCharacter(character, originalProperties)
-    TeleportScreen.Enabled = false
-    teleporting = false
-    
-    return success
-end
+-- Crea ScreenGui principale
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BrainrotGUI"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
 
--- FLYING TELEPORT FUNCTION
-local function flyToDelivery()
-    if teleporting or not deliveryPosition then return end
-    
-    local character = Player.Character
-    if not character then return end
-    
-    teleporting = true
-    
-    local originalProperties = bypassAnticheat(character)
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    -- Super fast flight
-    local distance = (deliveryPosition - root.Position).Magnitude
-    local speed = math.min(distance / 2, 500) -- Max speed
-    
-    local tween = TweenService:Create(root, 
-        TweenInfo.new(distance / speed, Enum.EasingStyle.Linear), 
-        {CFrame = CFrame.new(deliveryPosition)}
-    )
-    
-    tween:Play()
-    tween.Completed:Wait()
-    
-    wait(0.1) -- Short stabilization delay
-    
-    restoreCharacter(character, originalProperties)
-    teleporting = false
-end
+-- Frame principale
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
+MainFrame.Size = UDim2.new(0, 350, 0, 200)
+MainFrame.Active = true
+MainFrame.ClipsDescendants = true
 
--- GUI Creation
-[... resto del tuo codice GUI precedente ...]
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
 
--- Aggiungi il pulsante TP TO BASE
+local Border = Instance.new("UIStroke")
+Border.Color = Color3.fromRGB(70, 130, 255)
+Border.Thickness = 2
+Border.Transparency = 0.3
+Border.Parent = MainFrame
+
+-- Header
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Parent = MainFrame
+Header.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+Header.BorderSizePixel = 0
+Header.Size = UDim2.new(1, 0, 0, 35)
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 12)
+HeaderCorner.Parent = Header
+
+local HeaderFix = Instance.new("Frame")
+HeaderFix.Parent = Header
+HeaderFix.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+HeaderFix.BorderSizePixel = 0
+HeaderFix.Position = UDim2.new(0, 0, 0.7, 0)
+HeaderFix.Size = UDim2.new(1, 0, 0.3, 0)
+
+-- Titolo
+local Title = Instance.new("TextLabel")
+Title.Parent = Header
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(1, -80, 1, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "🧠 RUBBA BRAINROT PRO"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Minimizza
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Parent = Header
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+MinimizeBtn.BorderSizePixel = 0
+MinimizeBtn.Position = UDim2.new(1, -60, 0.5, -10)
+MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Text = "−"
+MinimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+MinimizeBtn.TextSize = 16
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 4)
+MinCorner.Parent = MinimizeBtn
+
+-- Chiudi
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = Header
+CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Position = UDim2.new(1, -35, 0.5, -10)
+CloseBtn.Size = UDim2.new(0, 20, 0, 20)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Text = "×"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 16
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 4)
+CloseCorner.Parent = CloseBtn
+
+-- Contenuto
+local Content = Instance.new("Frame")
+Content.Parent = MainFrame
+Content.BackgroundTransparency = 1
+Content.Position = UDim2.new(0, 0, 0, 40)
+Content.Size = UDim2.new(1, 0, 1, -40)
+
+-- Pulsante Set Delivery Point
+local SetDeliveryBtn = Instance.new("TextButton")
+SetDeliveryBtn.Parent = Content
+SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
+SetDeliveryBtn.BorderSizePixel = 0
+SetDeliveryBtn.Position = UDim2.new(0.05, 0, 0.05, 0)
+SetDeliveryBtn.Size = UDim2.new(0.9, 0, 0, 35)
+SetDeliveryBtn.Font = Enum.Font.GothamBold
+SetDeliveryBtn.Text = "📍 SET DELIVERY POINT"
+SetDeliveryBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SetDeliveryBtn.TextSize = 12
+
+local DeliveryCorner = Instance.new("UICorner")
+DeliveryCorner.CornerRadius = UDim.new(0, 8)
+DeliveryCorner.Parent = SetDeliveryBtn
+
+-- Pulsante Flying Teleport
+local TeleportBtn = Instance.new("TextButton")
+TeleportBtn.Parent = Content
+TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+TeleportBtn.BorderSizePixel = 0
+TeleportBtn.Position = UDim2.new(0.05, 0, 0.3, 0)
+TeleportBtn.Size = UDim2.new(0.9, 0, 0, 35)
+TeleportBtn.Font = Enum.Font.GothamBold
+TeleportBtn.Text = "🌀 FLY TO DELIVERY"
+TeleportBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+TeleportBtn.TextSize = 12
+
+local TeleCorner = Instance.new("UICorner")
+TeleCorner.CornerRadius = UDim.new(0, 8)
+TeleCorner.Parent = TeleportBtn
+
+-- Pulsante NoClip
+local NoClipBtn = Instance.new("TextButton")
+NoClipBtn.Parent = Content
+NoClipBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+NoClipBtn.BorderSizePixel = 0
+NoClipBtn.Position = UDim2.new(0.05, 0, 0.55, 0)
+NoClipBtn.Size = UDim2.new(0.9, 0, 0, 35)
+NoClipBtn.Font = Enum.Font.GothamBold
+NoClipBtn.Text = "👻 NOCLIP: OFF"
+NoClipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+NoClipBtn.TextSize = 12
+
+local NoClipCorner = Instance.new("UICorner")
+NoClipCorner.CornerRadius = UDim.new(0, 8)
+NoClipCorner.Parent = NoClipBtn
+
+-- Pulsante TP TO BASE
 local BaseTPBtn = Instance.new("TextButton")
 BaseTPBtn.Parent = Content
 BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
@@ -181,47 +264,192 @@ local BaseTPCorner = Instance.new("UICorner")
 BaseTPCorner.CornerRadius = UDim.new(0, 8)
 BaseTPCorner.Parent = BaseTPBtn
 
--- Eventi
-TeleportBtn.MouseButton1Click:Connect(flyToDelivery)
-BaseTPBtn.MouseButton1Click:Connect(instantTeleport)
+-- FUNZIONI DI TELEPORT
+local function flyToDelivery()
+    if teleporting or not deliveryPosition then
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+        TeleportBtn.Text = "⚠️ SET DELIVERY FIRST"
+        wait(1)
+        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+        TeleportBtn.Text = "🌀 FLY TO DELIVERY"
+        return
+    end
+    
+    local character = Player.Character
+    if not character then return end
+    
+    teleporting = true
+    TeleportBtn.Text = "🚀 FLYING..."
+    
+    local originalProperties = bypassAnticheat(character)
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local distance = (deliveryPosition - root.Position).Magnitude
+    local speed = math.min(distance / 2, 500)
+    
+    local tween = TweenService:Create(root, 
+        TweenInfo.new(distance / speed, Enum.EasingStyle.Linear), 
+        {CFrame = CFrame.new(deliveryPosition)}
+    )
+    
+    tween:Play()
+    tween.Completed:Wait()
+    
+    wait(0.1)
+    restoreCharacter(character, originalProperties)
+    
+    TeleportBtn.Text = "✅ ARRIVED!"
+    wait(1)
+    TeleportBtn.Text = "🌀 FLY TO DELIVERY"
+    teleporting = false
+end
 
--- Rendi il GUI draggabile ovunque
+local function instantTeleport()
+    if teleporting or not deliveryPosition then
+        BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+        BaseTPBtn.Text = "⚠️ SET DELIVERY FIRST"
+        wait(1)
+        BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+        BaseTPBtn.Text = "⚡ TP TO BASE"
+        return
+    end
+    
+    local character = Player.Character
+    if not character then return end
+    
+    teleporting = true
+    TeleportScreen.Enabled = true
+    
+    local originalProperties = bypassAnticheat(character)
+    
+    local success = pcall(function()
+        local root = character:FindFirstChild("HumanoidRootPart")
+        if root then
+            root.CFrame = CFrame.new(deliveryPosition)
+        end
+    end)
+    
+    wait(0.1)
+    restoreCharacter(character, originalProperties)
+    TeleportScreen.Enabled = false
+    teleporting = false
+end
+
+-- NOCLIP SYSTEM
+local function toggleNoClip()
+    noclipEnabled = not noclipEnabled
+
+    if noclipEnabled then
+        NoClipBtn.Text = "👻 NOCLIP: ON"
+        NoClipBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        noclipConnection = RunService.Stepped:Connect(function()
+            local character = Player.Character
+            if character then
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        NoClipBtn.Text = "👻 NOCLIP: OFF"
+        NoClipBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        local character = Player.Character
+        if character then
+            for _, part in ipairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    if part.Name ~= "HumanoidRootPart" then
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- DRAG SYSTEM
 local function enableDragging(frame)
     local dragging
     local dragStart
     local startPos
 
+    local function updateDrag(input)
+        if dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end
+
     frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
-            
-            local connection
-            connection = input.Changed:Connect(function()
+
+            input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
-                    connection:Disconnect()
                 end
             end)
         end
     end)
 
     UserInputService.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            if dragging then
-                local delta = input.Position - dragStart
-                frame.Position = UDim2.new(
-                    startPos.X.Scale,
-                    startPos.X.Offset + delta.X,
-                    startPos.Y.Scale,
-                    startPos.Y.Offset + delta.Y
-                )
-            end
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            updateDrag(input)
         end
     end)
 end
 
+-- EVENTI
+SetDeliveryBtn.MouseButton1Click:Connect(function()
+    local character = Player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        deliveryPosition = character.HumanoidRootPart.Position + Vector3.new(5, 0, 0)
+        SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+        SetDeliveryBtn.Text = "✅ DELIVERY SET!"
+        wait(1)
+        SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
+        SetDeliveryBtn.Text = "📍 SET DELIVERY POINT"
+    end
+end)
+
+TeleportBtn.MouseButton1Click:Connect(flyToDelivery)
+BaseTPBtn.MouseButton1Click:Connect(instantTeleport)
+NoClipBtn.MouseButton1Click:Connect(toggleNoClip)
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    local targetSize = isMinimized and UDim2.new(0, 350, 0, 35) or UDim2.new(0, 350, 0, 200)
+    TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = targetSize}):Play()
+    MinimizeBtn.Text = isMinimized and "+" or "−"
+    Content.Visible = not isMinimized
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    if noclipConnection then noclipConnection:Disconnect() end
+    teleporting = false
+    TweenService:Create(MainFrame, TweenInfo.new(0.3), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0)
+    }):Play()
+    wait(0.3)
+    ScreenGui:Destroy()
+    TeleportScreen:Destroy()
+end)
+
+-- Enable dragging
 enableDragging(MainFrame)
 
-[... resto del tuo codice ...]
+print("🧠 Rubba Brainrot PRO - Sistema Perfetto Caricato!")
