@@ -49,11 +49,11 @@ TeleportText.Parent = TeleportScreen
 
 -- BYPASS FUNCTIONS
 local function bypassAnticheat(character)
-    if not character then return end
+    if not character then return nil end
     
     local humanoid = character:FindFirstChild("Humanoid")
     local root = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not root then return end
+    if not humanoid or not root then return nil end
     
     local originalProperties = {
         gravity = workspace.Gravity,
@@ -97,7 +97,7 @@ local function restoreCharacter(character, originalProperties)
     root.CanCollide = originalProperties.collisionType
     
     for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
             part.CanCollide = true
         end
     end
@@ -266,12 +266,18 @@ BaseTPCorner.Parent = BaseTPBtn
 
 -- FUNZIONI DI TELEPORT
 local function flyToDelivery()
-    if teleporting or not deliveryPosition then
+    if teleporting then return end
+    
+    if not deliveryPosition then
         TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
         TeleportBtn.Text = "⚠️ SET DELIVERY FIRST"
-        wait(1)
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-        TeleportBtn.Text = "🌀 FLY TO DELIVERY"
+        spawn(function()
+            wait(1)
+            if TeleportBtn and TeleportBtn.Parent then
+                TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+                TeleportBtn.Text = "🌀 FLY TO DELIVERY"
+            end
+        end)
         return
     end
     
@@ -282,36 +288,57 @@ local function flyToDelivery()
     TeleportBtn.Text = "🚀 FLYING..."
     
     local originalProperties = bypassAnticheat(character)
+    if not originalProperties then 
+        teleporting = false
+        return 
+    end
+    
     local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
+    if not root then 
+        teleporting = false
+        return 
+    end
     
     local distance = (deliveryPosition - root.Position).Magnitude
     local speed = math.min(distance / 2, 500)
+    local tweenTime = math.max(distance / speed, 0.1)
     
     local tween = TweenService:Create(root, 
-        TweenInfo.new(distance / speed, Enum.EasingStyle.Linear), 
+        TweenInfo.new(tweenTime, Enum.EasingStyle.Linear), 
         {CFrame = CFrame.new(deliveryPosition)}
     )
     
     tween:Play()
-    tween.Completed:Wait()
-    
-    wait(0.1)
-    restoreCharacter(character, originalProperties)
-    
-    TeleportBtn.Text = "✅ ARRIVED!"
-    wait(1)
-    TeleportBtn.Text = "🌀 FLY TO DELIVERY"
-    teleporting = false
+    tween.Completed:Connect(function()
+        spawn(function()
+            wait(0.1)
+            restoreCharacter(character, originalProperties)
+            
+            if TeleportBtn and TeleportBtn.Parent then
+                TeleportBtn.Text = "✅ ARRIVED!"
+                wait(1)
+                if TeleportBtn and TeleportBtn.Parent then
+                    TeleportBtn.Text = "🌀 FLY TO DELIVERY"
+                end
+            end
+            teleporting = false
+        end)
+    end)
 end
 
 local function instantTeleport()
-    if teleporting or not deliveryPosition then
+    if teleporting then return end
+    
+    if not deliveryPosition then
         BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
         BaseTPBtn.Text = "⚠️ SET DELIVERY FIRST"
-        wait(1)
-        BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-        BaseTPBtn.Text = "⚡ TP TO BASE"
+        spawn(function()
+            wait(1)
+            if BaseTPBtn and BaseTPBtn.Parent then
+                BaseTPBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+                BaseTPBtn.Text = "⚡ TP TO BASE"
+            end
+        end)
         return
     end
     
@@ -323,17 +350,21 @@ local function instantTeleport()
     
     local originalProperties = bypassAnticheat(character)
     
-    local success = pcall(function()
-        local root = character:FindFirstChild("HumanoidRootPart")
-        if root then
-            root.CFrame = CFrame.new(deliveryPosition)
+    spawn(function()
+        local success = pcall(function()
+            local root = character:FindFirstChild("HumanoidRootPart")
+            if root then
+                root.CFrame = CFrame.new(deliveryPosition)
+            end
+        end)
+        
+        wait(0.1)
+        if originalProperties then
+            restoreCharacter(character, originalProperties)
         end
+        TeleportScreen.Enabled = false
+        teleporting = false
     end)
-    
-    wait(0.1)
-    restoreCharacter(character, originalProperties)
-    TeleportScreen.Enabled = false
-    teleporting = false
 end
 
 -- NOCLIP SYSTEM
@@ -363,10 +394,8 @@ local function toggleNoClip()
         local character = Player.Character
         if character then
             for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    if part.Name ~= "HumanoidRootPart" then
-                        part.CanCollide = true
-                    end
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.CanCollide = true
                 end
             end
         end
@@ -375,12 +404,12 @@ end
 
 -- DRAG SYSTEM
 local function enableDragging(frame)
-    local dragging
-    local dragStart
-    local startPos
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
 
     local function updateDrag(input)
-        if dragging then
+        if dragging and dragStart and startPos then
             local delta = input.Position - dragStart
             frame.Position = UDim2.new(
                 startPos.X.Scale,
@@ -419,9 +448,13 @@ SetDeliveryBtn.MouseButton1Click:Connect(function()
         deliveryPosition = character.HumanoidRootPart.Position + Vector3.new(5, 0, 0)
         SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
         SetDeliveryBtn.Text = "✅ DELIVERY SET!"
-        wait(1)
-        SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
-        SetDeliveryBtn.Text = "📍 SET DELIVERY POINT"
+        spawn(function()
+            wait(1)
+            if SetDeliveryBtn and SetDeliveryBtn.Parent then
+                SetDeliveryBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 50)
+                SetDeliveryBtn.Text = "📍 SET DELIVERY POINT"
+            end
+        end)
     end
 end)
 
@@ -438,18 +471,28 @@ MinimizeBtn.MouseButton1Click:Connect(function()
 end)
 
 CloseBtn.MouseButton1Click:Connect(function()
-    if noclipConnection then noclipConnection:Disconnect() end
+    if noclipConnection then 
+        noclipConnection:Disconnect() 
+        noclipConnection = nil
+    end
     teleporting = false
     TweenService:Create(MainFrame, TweenInfo.new(0.3), {
         Size = UDim2.new(0, 0, 0, 0),
         Position = UDim2.new(0.5, 0, 0.5, 0)
     }):Play()
-    wait(0.3)
-    ScreenGui:Destroy()
-    TeleportScreen:Destroy()
+    spawn(function()
+        wait(0.3)
+        if ScreenGui and ScreenGui.Parent then
+            ScreenGui:Destroy()
+        end
+        if TeleportScreen and TeleportScreen.Parent then
+            TeleportScreen:Destroy()
+        end
+    end)
 end)
 
 -- Enable dragging
 enableDragging(MainFrame)
 
 print("🧠 Rubba Brainrot PRO - Sistema Perfetto Caricato!")
+print("GUI should now be visible and working!")
