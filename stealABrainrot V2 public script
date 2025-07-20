@@ -1,4 +1,4 @@
--- SIGMA HUB v2.2 - MOD by Copilot Chat - Modified with Persistent Speed & Amber UI
+-- SIGMA HUB v2.3 - Super Speed Edition
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -95,34 +95,12 @@ local function restoreCharacter(character)
             if not speedEnabled then
                 humanoid.WalkSpeed = 16
             else
-                humanoid.WalkSpeed = 27.2
+                humanoid.WalkSpeed = 85  -- Super Speed!
             end
             humanoid.JumpPower = 50
             humanoid.AutoRotate = true
         end
     end)
-end
-
-local function findNearestPlot()
-    local character = Player.Character
-    if not character then return nil end
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return nil end
-    local nearestPlot = nil
-    local shortestDistance = math.huge
-    for _, obj in pairs(Workspace:GetChildren()) do
-        if obj.Name:lower():find("plot") then
-            local basePart = obj:FindFirstChildOfClass("BasePart")
-            if basePart then
-                local distance = (rootPart.Position - basePart.Position).Magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    nearestPlot = basePart.Position
-                end
-            end
-        end
-    end
-    return nearestPlot
 end
 
 -- UI
@@ -137,8 +115,8 @@ MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 MainFrame.BackgroundTransparency = 0
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -190)
-MainFrame.Size = UDim2.new(0, 350, 0, 380)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -160)
+MainFrame.Size = UDim2.new(0, 350, 0, 320)
 MainFrame.Active = true
 MainFrame.ClipsDescendants = true
 
@@ -229,20 +207,19 @@ local function createModernButton(parent, position, size, text, icon)
     return button
 end
 
--- Bottoni
+-- Bottoni (rimosso NEAREST PLOT)
 local SetDeliveryBtn = createModernButton(Content, UDim2.new(0.05, 0, 0.03, 0), UDim2.new(0.9, 0, 0, 32), "SET POSITION", "📍")
-local TeleportBtn   = createModernButton(Content, UDim2.new(0.05, 0, 0.13, 0), UDim2.new(0.9, 0, 0, 32), "FLY TO POSITION", "🌀")
-local ForwardBtn    = createModernButton(Content, UDim2.new(0.05, 0, 0.23, 0), UDim2.new(0.9, 0, 0, 32), "TP FORWARD (bypass)", "➡️")
-local NearestBaseBtn= createModernButton(Content, UDim2.new(0.05, 0, 0.33, 0), UDim2.new(0.9, 0, 0, 32), "NEAREST PLOT", "🎯")
-local NoClipBtn     = createModernButton(Content, UDim2.new(0.05, 0, 0.43, 0), UDim2.new(0.9, 0, 0, 32), "NOCLIP: OFF", "👻")
-local SpeedBtn      = createModernButton(Content, UDim2.new(0.05, 0, 0.53, 0), UDim2.new(0.9, 0, 0, 32), "SPEED BOOST: OFF", "⚡")
+local TeleportBtn   = createModernButton(Content, UDim2.new(0.05, 0, 0.15, 0), UDim2.new(0.9, 0, 0, 32), "FLY TO POSITION", "🌀")
+local ForwardBtn    = createModernButton(Content, UDim2.new(0.05, 0, 0.27, 0), UDim2.new(0.9, 0, 0, 32), "TP FORWARD (bypass)", "➡️")
+local NoClipBtn     = createModernButton(Content, UDim2.new(0.05, 0, 0.39, 0), UDim2.new(0.9, 0, 0, 32), "NOCLIP: OFF", "👻")
+local SpeedBtn      = createModernButton(Content, UDim2.new(0.05, 0, 0.51, 0), UDim2.new(0.9, 0, 0, 32), "SUPER SPEED: OFF", "🏃‍♂️")
 local InvisBtn      = createModernButton(Content, UDim2.new(0.05, 0, 0.63, 0), UDim2.new(0.9, 0, 0, 32), "INVISIBILITY: OFF", "👁️")
-local BaseTPBtn     = createModernButton(Content, UDim2.new(0.05, 0, 0.73, 0), UDim2.new(0.9, 0, 0, 32), "INSTANT TP", "✨")
+local BaseTPBtn     = createModernButton(Content, UDim2.new(0.05, 0, 0.75, 0), UDim2.new(0.9, 0, 0, 32), "INSTANT TP", "✨")
 
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = Content
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Position = UDim2.new(0.05, 0, 0.85, 0)
+StatusLabel.Position = UDim2.new(0.05, 0, 0.87, 0)
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.Text = "Ready to teleport!"
@@ -323,40 +300,6 @@ local function instantTeleport()
     end)
 end
 
-local function teleportToNearestPlot()
-    if teleporting then return end
-    local plotPosition = findNearestPlot()
-    if not plotPosition then
-        StatusLabel.Text = "⚠️ No plots found nearby!"
-        StatusLabel.TextColor3 = Color3.fromRGB(255,0,255)
-        return
-    end
-    local character = Player.Character
-    if not character then return end
-    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-    if not rootPart then return end
-    teleporting = true
-    StatusLabel.Text = "🎯 Finding nearest plot..."
-    StatusLabel.TextColor3 = Color3.fromRGB(255,0,255)
-    bypassAnticheat(character)
-    spawn(function()
-        wait(0.5)
-        if rootPart and rootPart.Parent then
-            rootPart.CFrame = CFrame.new(plotPosition + Vector3.new(0, 5, 0))
-        end
-        wait(0.5)
-        restoreCharacter(character)
-        StatusLabel.Text = "✅ At nearest plot!"
-        StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
-        wait(3)
-        if StatusLabel and StatusLabel.Parent then
-            StatusLabel.Text = "Ready to teleport!"
-            StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
-        end
-        teleporting = false
-    end)
-end
-
 -- TP FORWARD (bypass)
 local function tpForward()
     local character = Player.Character
@@ -377,13 +320,13 @@ local function tpForward()
     StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
 end
 
--- SPEED BOOST (70%) - PERSISTENT VERSION
+-- SUPER SPEED (85 WalkSpeed) - PERSISTENT VERSION
 local function maintainSpeed()
     local character = Player.Character
     if character and speedEnabled then
         local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid and humanoid.WalkSpeed ~= 27.2 then
-            humanoid.WalkSpeed = 27.2
+        if humanoid and humanoid.WalkSpeed ~= 85 then
+            humanoid.WalkSpeed = 85  -- Super Speed!
         end
     end
 end
@@ -396,17 +339,17 @@ local function toggleSpeed()
     if not humanoid then return end
     
     if speedEnabled then
-        humanoid.WalkSpeed = 27.2
-        SpeedBtn.Text = "⚡ SPEED BOOST: ON"
-        StatusLabel.Text = "⚡ Speed Boost ON!"
-        StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
+        humanoid.WalkSpeed = 85  -- Super Speed!
+        SpeedBtn.Text = "🏃‍♂️ SUPER SPEED: ON"
+        StatusLabel.Text = "🏃‍♂️ SUPER SPEED ACTIVATED!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255,20,147)  -- Hot pink per enfatizzare
         -- Start monitoring speed to maintain it
         if speedConnection then speedConnection:Disconnect() end
         speedConnection = RunService.Heartbeat:Connect(maintainSpeed)
     else
         humanoid.WalkSpeed = 16
-        SpeedBtn.Text = "⚡ SPEED BOOST: OFF"
-        StatusLabel.Text = "Speed boost OFF"
+        SpeedBtn.Text = "🏃‍♂️ SUPER SPEED: OFF"
+        StatusLabel.Text = "Speed restored to normal"
         StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
         -- Stop monitoring speed
         if speedConnection then 
@@ -530,7 +473,7 @@ Player.CharacterAdded:Connect(function(character)
         -- Wait for humanoid to load
         local humanoid = character:WaitForChild("Humanoid")
         wait(0.5) -- Small delay to ensure everything is loaded
-        humanoid.WalkSpeed = 27.2
+        humanoid.WalkSpeed = 85  -- Super Speed!
     end
 end)
 
@@ -556,7 +499,6 @@ end)
 
 TeleportBtn.MouseButton1Click:Connect(flyToDelivery)
 BaseTPBtn.MouseButton1Click:Connect(instantTeleport)
-NearestBaseBtn.MouseButton1Click:Connect(teleportToNearestPlot)
 NoClipBtn.MouseButton1Click:Connect(toggleNoClip)
 SpeedBtn.MouseButton1Click:Connect(toggleSpeed)
 InvisBtn.MouseButton1Click:Connect(toggleInvis)
@@ -564,7 +506,7 @@ ForwardBtn.MouseButton1Click:Connect(tpForward)
 
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 350, 0, 40) or UDim2.new(0, 350, 0, 380)
+    local targetSize = isMinimized and UDim2.new(0, 350, 0, 40) or UDim2.new(0, 350, 0, 320)
     local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = targetSize})
     tween:Play()
     MinimizeBtn.Text = isMinimized and "+" or "−"
@@ -590,8 +532,8 @@ enableDragging(MainFrame)
 MainFrame.Size = UDim2.new(0, 0, 0, 0)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 350, 0, 380), Position = UDim2.new(0.5, -175, 0.5, -190)
+    Size = UDim2.new(0, 350, 0, 320), Position = UDim2.new(0.5, -175, 0.5, -160)
 })
 openTween:Play()
 
-print("⚡ SIGMA HUB v2.2 - MOD: Persistent speed boost, amber UI, enhanced features!")
+print("⚡ SIGMA HUB v2.3 - SUPER SPEED EDITION! WalkSpeed: 85 🏃‍♂️💨")
