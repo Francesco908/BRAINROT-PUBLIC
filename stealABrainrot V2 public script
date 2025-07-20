@@ -1,4 +1,5 @@
--- SIGMA HUB v3.1 - Enhanced with Persistent Speed & ESP 
+-- SIGMA HUB v2.2 - MOD by Copilot Chat
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,361 +9,91 @@ local Workspace = game:GetService("Workspace")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
--- Variables
+-- Vars
 local deliveryPosition = nil
 local isDragging = false
-local dragOffset = Vector2.new(0, 0)
 local isMinimized = false
 local noclipEnabled = false
 local noclipConnection = nil
 local teleporting = false
 local speedEnabled = false
 local invisEnabled = false
-local espEnabled = false
-local currentTab = "Main"
-local speedConnection = nil
-local espConnection = nil
 
--- Clean up existing GUI
 if PlayerGui:FindFirstChild("SigmaHub") then
     PlayerGui.SigmaHub:Destroy()
 end
 
--- Main GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "SigmaHub"
-ScreenGui.Parent = PlayerGui
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- Teleport Screen
+local TeleportScreen = Instance.new("ScreenGui")
+TeleportScreen.Name = "TeleportScreen"
+TeleportScreen.DisplayOrder = 999999999
+TeleportScreen.IgnoreGuiInset = true
+TeleportScreen.Enabled = false
+TeleportScreen.Parent = PlayerGui
 
--- Main Frame (movable)
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -130)
-MainFrame.Size = UDim2.new(0, 350, 0, 280)
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.ClipsDescendants = true
+local BlackScreen = Instance.new("Frame")
+BlackScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+BlackScreen.BorderSizePixel = 0
+BlackScreen.Size = UDim2.new(1, 0, 1, 0)
+BlackScreen.Parent = TeleportScreen
 
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 12)
-MainCorner.Parent = MainFrame
+local TeleportText = Instance.new("TextLabel")
+TeleportText.BackgroundTransparency = 1
+TeleportText.Position = UDim2.new(0, 0, 0.4, 0)
+TeleportText.Size = UDim2.new(1, 0, 0.2, 0)
+TeleportText.Font = Enum.Font.GothamBold
+TeleportText.Text = "TELEPORTING..."
+TeleportText.TextColor3 = Color3.fromRGB(255, 255, 255)
+TeleportText.TextSize = 32
+TeleportText.TextScaled = true
+TeleportText.Parent = TeleportScreen
 
-local MainStroke = Instance.new("UIStroke")
-MainStroke.Color = Color3.fromRGB(70, 130, 255)
-MainStroke.Thickness = 2
-MainStroke.Parent = MainFrame
-
--- Header
-local Header = Instance.new("Frame")
-Header.Name = "Header"
-Header.Parent = MainFrame
-Header.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-Header.BorderSizePixel = 0
-Header.Size = UDim2.new(1, 0, 0, 35)
-Header.Position = UDim2.new(0, 0, 0, 0)
-
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 12)
-HeaderCorner.Parent = Header
-
-local HeaderFix = Instance.new("Frame")
-HeaderFix.Parent = Header
-HeaderFix.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-HeaderFix.BorderSizePixel = 0
-HeaderFix.Size = UDim2.new(1, 0, 0, 12)
-HeaderFix.Position = UDim2.new(0, 0, 1, -12)
-
-local Title = Instance.new("TextLabel")
-Title.Parent = Header
-Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0, 15, 0, 0)
-Title.Size = UDim2.new(0, 200, 1, 0)
-Title.Font = Enum.Font.GothamBold
-Title.Text = "⚡ SIGMA HUB v3.1"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 14
-Title.TextXAlignment = Enum.TextXAlignment.Left
-
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Parent = Header
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 193, 7)
-MinimizeBtn.BorderSizePixel = 0
-MinimizeBtn.Position = UDim2.new(1, -60, 0.5, -10)
-MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
-MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.Text = "−"
-MinimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-MinimizeBtn.TextSize = 14
-
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 4)
-MinCorner.Parent = MinimizeBtn
-
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Parent = Header
-CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
-CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1, -35, 0.5, -10)
-CloseBtn.Size = UDim2.new(0, 20, 0, 20)
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.Text = "×"
-CloseBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-CloseBtn.TextSize = 12
-
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 4)
-CloseCorner.Parent = CloseBtn
-
--- Tab System
-local TabContainer = Instance.new("Frame")
-TabContainer.Parent = MainFrame
-TabContainer.BackgroundTransparency = 1
-TabContainer.Position = UDim2.new(0, 10, 0, 45)
-TabContainer.Size = UDim2.new(1, -20, 0, 30)
-
-local tabs = {"Main", "Teleport", "Player", "Visual"}
-local tabButtons = {}
-local contentFrames = {}
-
--- Create tab buttons
-for i, tabName in ipairs(tabs) do
-    local tabBtn = Instance.new("TextButton")
-    tabBtn.Parent = TabContainer
-    tabBtn.BackgroundColor3 = (tabName == currentTab) and Color3.fromRGB(70, 130, 255) or Color3.fromRGB(45, 45, 55)
-    tabBtn.BorderSizePixel = 0
-    tabBtn.Position = UDim2.new((i-1) * 0.25, 2, 0, 0)
-    tabBtn.Size = UDim2.new(0.25, -4, 1, 0)
-    tabBtn.Font = Enum.Font.Gotham
-    tabBtn.Text = tabName
-    tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    tabBtn.TextSize = 12
-    
-    local tabCorner = Instance.new("UICorner")
-    tabCorner.CornerRadius = UDim.new(0, 6)
-    tabCorner.Parent = tabBtn
-    
-    tabButtons[tabName] = tabBtn
-    
-    -- Create content frame
-    local contentFrame = Instance.new("ScrollingFrame")
-    contentFrame.Parent = MainFrame
-    contentFrame.BackgroundTransparency = 1
-    contentFrame.Position = UDim2.new(0, 10, 0, 85)
-    contentFrame.Size = UDim2.new(1, -20, 1, -115)
-    contentFrame.CanvasSize = UDim2.new(0, 0, 0, 400)
-    contentFrame.ScrollBarThickness = 4
-    contentFrame.ScrollBarImageColor3 = Color3.fromRGB(70, 130, 255)
-    contentFrame.Visible = (tabName == currentTab)
-    contentFrames[tabName] = contentFrame
-end
-
--- Status Label
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Parent = MainFrame
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Position = UDim2.new(0, 10, 1, -25)
-StatusLabel.Size = UDim2.new(1, -20, 0, 20)
-StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.Text = "✅ Ready to use!"
-StatusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-StatusLabel.TextSize = 11
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
-
--- Helper function to create buttons
-local function createButton(parent, position, size, text, color)
-    local button = Instance.new("TextButton")
-    button.Parent = parent
-    button.BackgroundColor3 = color or Color3.fromRGB(55, 55, 65)
-    button.BorderSizePixel = 0
-    button.Position = position
-    button.Size = size
-    button.Font = Enum.Font.Gotham
-    button.Text = text
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextSize = 12
-    button.AutoButtonColor = false
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = button
-    
-    -- Hover effect
-    button.MouseEnter:Connect(function()
-        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70, 130, 255)}):Play()
-    end)
-    button.MouseLeave:Connect(function()
-        if not button:GetAttribute("Active") then
-            TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = color or Color3.fromRGB(55, 55, 65)}):Play()
+-- BYPASS LOGIC
+local function bypassAnticheat(character)
+    if not character then return false end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    if not humanoid or not rootPart then return false end
+    pcall(function()
+        rootPart.Anchored = true
+        humanoid.PlatformStand = true
+        humanoid.Sit = true
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
+        humanoid.AutoRotate = false
+        for _,obj in pairs(rootPart:GetChildren()) do
+            if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then obj:Destroy() end
         end
+        local bv = Instance.new("BodyVelocity")
+        bv.MaxForce = Vector3.new(1e8, 1e8, 1e8)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.Parent = rootPart
+        local bg = Instance.new("BodyGyro")
+        bg.MaxTorque = Vector3.new(1e8,1e8,1e8)
+        bg.CFrame = rootPart.CFrame
+        bg.Parent = rootPart
     end)
-    
-    return button
+    return true
 end
-
--- Main Tab Content
-local MainContent = contentFrames["Main"]
-local SetPosBtn = createButton(MainContent, UDim2.new(0, 0, 0, 5), UDim2.new(1, 0, 0, 35), "📍 SET CURRENT POSITION")
-local FlyBtn = createButton(MainContent, UDim2.new(0, 0, 0, 45), UDim2.new(1, 0, 0, 35), "🚀 FLY TO POSITION")
-local FindPlotBtn = createButton(MainContent, UDim2.new(0, 0, 0, 85), UDim2.new(1, 0, 0, 35), "🎯 FIND NEAREST PLOT")
-local LaserTPBtn = createButton(MainContent, UDim2.new(0, 0, 0, 125), UDim2.new(1, 0, 0, 35), "🔴 TP TO NEAREST LASER")
-
--- Teleport Tab Content
-local TeleportContent = contentFrames["Teleport"]
-local InstantTPBtn = createButton(TeleportContent, UDim2.new(0, 0, 0, 5), UDim2.new(1, 0, 0, 35), "⚡ INSTANT TELEPORT")
-local ForwardTPBtn = createButton(TeleportContent, UDim2.new(0, 0, 0, 45), UDim2.new(1, 0, 0, 35), "➡️ TELEPORT FORWARD")
-
--- Player Tab Content
-local PlayerContent = contentFrames["Player"]
-local NoClipBtn = createButton(PlayerContent, UDim2.new(0, 0, 0, 5), UDim2.new(1, 0, 0, 35), "👻 NOCLIP: OFF")
-local SpeedBtn = createButton(PlayerContent, UDim2.new(0, 0, 0, 45), UDim2.new(1, 0, 0, 35), "⚡ SPEED: OFF")
-local InvisBtn = createButton(PlayerContent, UDim2.new(0, 0, 0, 85), UDim2.new(1, 0, 0, 35), "👁️ INVISIBLE: OFF")
-
--- Visual Tab Content
-local VisualContent = contentFrames["Visual"]
-local ESPBtn = createButton(VisualContent, UDim2.new(0, 0, 0, 5), UDim2.new(1, 0, 0, 35), "👀 PLAYER ESP: OFF")
-
--- Tab switching function
-local function switchTab(tabName)
-    currentTab = tabName
-    for name, frame in pairs(contentFrames) do
-        frame.Visible = (name == tabName)
-    end
-    for name, btn in pairs(tabButtons) do
-        local isActive = (name == tabName)
-        btn.BackgroundColor3 = isActive and Color3.fromRGB(70, 130, 255) or Color3.fromRGB(45, 45, 55)
-    end
-end
-
--- Connect tab buttons
-for tabName, button in pairs(tabButtons) do
-    button.MouseButton1Click:Connect(function()
-        switchTab(tabName)
-    end)
-end
-
--- Utility Functions
-local function updateStatus(text, color)
-    StatusLabel.Text = text
-    StatusLabel.TextColor3 = color or Color3.fromRGB(255, 255, 255)
-end
-
--- Persistent Speed System
-local function maintainSpeed()
-    if speedEnabled then
-        local character = Player.Character
-        if character then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.WalkSpeed ~= 80 then
-                humanoid.WalkSpeed = 80
-            end
-        end
-    end
-end
-
--- ESP System
-local espBoxes = {}
-
-local function createESP(player)
-    if player == Player then return end
-    
-    local character = player.Character
+local function restoreCharacter(character)
     if not character then return end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
-    
-    local box = Instance.new("BoxHandleAdornment")
-    box.Name = "ESP_" .. player.Name
-    box.Parent = rootPart
-    box.Size = rootPart.Size
-    box.Color3 = Color3.fromRGB(255, 0, 0)
-    box.Transparency = 0.5
-    box.AlwaysOnTop = true
-    box.ZIndex = 5
-    box.Adornee = rootPart
-    
-    local nameLabel = Instance.new("BillboardGui")
-    nameLabel.Name = "NameESP"
-    nameLabel.Parent = rootPart
-    nameLabel.Size = UDim2.new(0, 200, 0, 50)
-    nameLabel.Adornee = rootPart
-    nameLabel.AlwaysOnTop = true
-    
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Parent = nameLabel
-    textLabel.Size = UDim2.new(1, 0, 1, 0)
-    textLabel.BackgroundTransparency = 1
-    textLabel.Text = player.Name
-    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textLabel.TextSize = 16
-    textLabel.Font = Enum.Font.GothamBold
-    textLabel.TextStrokeTransparency = 0
-    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    
-    espBoxes[player] = {box, nameLabel}
-end
-
-local function removeESP(player)
-    if espBoxes[player] then
-        for _, item in pairs(espBoxes[player]) do
-            if item then item:Destroy() end
-        end
-        espBoxes[player] = nil
-    end
-end
-
-local function toggleESP()
-    espEnabled = not espEnabled
-    ESPBtn.Text = espEnabled and "👀 PLAYER ESP: ON" or "👀 PLAYER ESP: OFF"
-    ESPBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(255, 100, 255) or Color3.fromRGB(55, 55, 65)
-    ESPBtn:SetAttribute("Active", espEnabled)
-    
-    if espEnabled then
-        for _, player in pairs(Players:GetPlayers()) do
-            createESP(player)
-        end
-        
-        espConnection = RunService.Heartbeat:Connect(function()
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= Player and not espBoxes[player] then
-                    createESP(player)
-                end
-            end
-        end)
-    else
-        if espConnection then
-            espConnection:Disconnect()
-            espConnection = nil
-        end
-        for player, _ in pairs(espBoxes) do
-            removeESP(player)
-        end
-    end
-end
-
-local function findNearestLaser()
-    local character = Player.Character
-    if not character then return nil end
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return nil end
-    
-    local nearestLaser = nil
-    local shortestDistance = math.huge
-    
-    for _, obj in pairs(Workspace:GetDescendants()) do
-        if obj.Name:lower():find("laser") and obj:IsA("BasePart") then
-            local distance = (rootPart.Position - obj.Position).Magnitude
-            if distance < shortestDistance then
-                shortestDistance = distance
-                nearestLaser = obj.Position
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    pcall(function()
+        if rootPart then
+            rootPart.Anchored = false
+            for _,obj in pairs(rootPart:GetChildren()) do
+                if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then obj:Destroy() end
             end
         end
-    end
-    return nearestLaser
+        if humanoid then
+            humanoid.PlatformStand = false
+            humanoid.Sit = false
+            humanoid.WalkSpeed = 16
+            humanoid.JumpPower = 50
+            humanoid.AutoRotate = true
+        end
+    end)
 end
 
 local function findNearestPlot()
@@ -370,18 +101,16 @@ local function findNearestPlot()
     if not character then return nil end
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then return nil end
-    
     local nearestPlot = nil
     local shortestDistance = math.huge
-    
     for _, obj in pairs(Workspace:GetChildren()) do
-        if obj.Name:lower():find("plot") or obj.Name:lower():find("base") then
-            local part = obj:FindFirstChildOfClass("Part") or obj:FindFirstChildOfClass("BasePart")
-            if part then
-                local distance = (rootPart.Position - part.Position).Magnitude
+        if obj.Name:lower():find("plot") then
+            local basePart = obj:FindFirstChildOfClass("BasePart")
+            if basePart then
+                local distance = (rootPart.Position - basePart.Position).Magnitude
                 if distance < shortestDistance then
                     shortestDistance = distance
-                    nearestPlot = part.Position + Vector3.new(0, 5, 0)
+                    nearestPlot = basePart.Position
                 end
             end
         end
@@ -389,341 +118,442 @@ local function findNearestPlot()
     return nearestPlot
 end
 
-local function bypassTeleport(targetPos)
+-- UI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SigmaHub"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+MainFrame.BackgroundTransparency = 0
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -190)
+MainFrame.Size = UDim2.new(0, 350, 0, 380)
+MainFrame.Active = true
+MainFrame.ClipsDescendants = true
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 16)
+MainCorner.Parent = MainFrame
+
+local Border = Instance.new("UIStroke")
+Border.Color = Color3.fromRGB(255,255,255)
+Border.Thickness = 2
+Border.Transparency = 0.2
+Border.Parent = MainFrame
+
+-- Header
+local Header = Instance.new("Frame")
+Header.Name = "Header"
+Header.Parent = MainFrame
+Header.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Header.BorderSizePixel = 0
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.Active = true
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 16)
+HeaderCorner.Parent = Header
+
+local Title = Instance.new("TextLabel")
+Title.Parent = Header
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 20, 0, 0)
+Title.Size = UDim2.new(1, -100, 1, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "⚡ SIGMA HUB"
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Parent = Header
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+MinimizeBtn.BorderSizePixel = 0
+MinimizeBtn.Position = UDim2.new(1, -70, 0.5, -12)
+MinimizeBtn.Size = UDim2.new(0, 24, 0, 24)
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Text = "−"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 18
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinimizeBtn
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Parent = Header
+CloseBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Position = UDim2.new(1, -40, 0.5, -12)
+CloseBtn.Size = UDim2.new(0, 24, 0, 24)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Text = "×"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 16
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+-- Content area
+local Content = Instance.new("Frame")
+Content.Parent = MainFrame
+Content.BackgroundTransparency = 1
+Content.Position = UDim2.new(0, 0, 0, 45)
+Content.Size = UDim2.new(1, 0, 1, -45)
+
+-- Button factory (black, white text)
+local function createModernButton(parent, position, size, text, icon)
+    local button = Instance.new("TextButton")
+    button.Parent = parent
+    button.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    button.BorderSizePixel = 0
+    button.Position = position
+    button.Size = size
+    button.Font = Enum.Font.GothamBold
+    button.Text = icon .. " " .. text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 14
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = button
+    return button
+end
+
+-- Bottoni
+local SetDeliveryBtn = createModernButton(Content, UDim2.new(0.05, 0, 0.03, 0), UDim2.new(0.9, 0, 0, 32), "SET POSITION", "📍")
+local TeleportBtn   = createModernButton(Content, UDim2.new(0.05, 0, 0.13, 0), UDim2.new(0.9, 0, 0, 32), "FLY TO POSITION", "🌀")
+local ForwardBtn    = createModernButton(Content, UDim2.new(0.05, 0, 0.23, 0), UDim2.new(0.9, 0, 0, 32), "TP FORWARD (bypass)", "➡️")
+local NearestBaseBtn= createModernButton(Content, UDim2.new(0.05, 0, 0.33, 0), UDim2.new(0.9, 0, 0, 32), "NEAREST PLOT", "🎯")
+local NoClipBtn     = createModernButton(Content, UDim2.new(0.05, 0, 0.43, 0), UDim2.new(0.9, 0, 0, 32), "NOCLIP: OFF", "👻")
+local SpeedBtn      = createModernButton(Content, UDim2.new(0.05, 0, 0.53, 0), UDim2.new(0.9, 0, 0, 32), "SPEED BOOST: OFF", "⚡")
+local InvisBtn      = createModernButton(Content, UDim2.new(0.05, 0, 0.63, 0), UDim2.new(0.9, 0, 0, 32), "INVISIBILITY: OFF", "👁️")
+local BaseTPBtn     = createModernButton(Content, UDim2.new(0.05, 0, 0.73, 0), UDim2.new(0.9, 0, 0, 32), "INSTANT TP", "✨")
+
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Parent = Content
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Position = UDim2.new(0.05, 0, 0.85, 0)
+StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Text = "Ready to teleport!"
+StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+StatusLabel.TextSize = 11
+StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+-- Teleport functions
+local function flyToDelivery()
     if teleporting then return end
-    teleporting = true
-    
-    local character = Player.Character
-    if not character then 
-        teleporting = false
-        return 
-    end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart then 
-        teleporting = false
-        return 
-    end
-    
-    updateStatus("🔄 Bypassing anticheat...", Color3.fromRGB(255, 193, 7))
-    
-    local originalPos = rootPart.CFrame
-    
-    -- Multi-step bypass
-    rootPart.CFrame = CFrame.new(originalPos.Position + Vector3.new(0, 100, 0))
-    wait(0.1)
-    rootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 100, 0))
-    wait(0.1)
-    rootPart.CFrame = CFrame.new(targetPos)
-    
-    updateStatus("✅ Teleported successfully!", Color3.fromRGB(100, 255, 100))
-    teleporting = false
-    
-    spawn(function()
-        wait(2)
-        updateStatus("✅ Ready to use!", Color3.fromRGB(100, 255, 100))
-    end)
-end
-
--- Feature Functions
-local function setPosition()
-    local character = Player.Character
-    if character then
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        if rootPart then
-            deliveryPosition = rootPart.Position
-            updateStatus("📍 Position saved!", Color3.fromRGB(100, 255, 100))
-            spawn(function()
-                wait(2)
-                updateStatus("✅ Ready to use!", Color3.fromRGB(100, 255, 100))
-            end)
-        end
-    end
-end
-
-local function flyToPosition()
     if not deliveryPosition then
-        updateStatus("❌ No position set!", Color3.fromRGB(255, 100, 100))
+        StatusLabel.Text = "⚠️ Set a position first!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 193, 7)
         return
     end
     local character = Player.Character
     if not character then return end
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not rootPart or not humanoid then return end
-    
-    updateStatus("🚀 Flying to position...", Color3.fromRGB(255, 193, 7))
-    
-    -- Disabilita il controllo del personaggio
-    humanoid.PlatformStand = true
-    
-    -- Posizione corrente
-    local currentPos = rootPart.Position
-    
-    -- Passo 1: Sale a Y=170
-    local upPos = Vector3.new(currentPos.X, 170, currentPos.Z)
-    local upTween = TweenService:Create(rootPart, TweenInfo.new(1, Enum.EasingStyle.Linear), {CFrame = CFrame.new(upPos)})
-    upTween:Play()
-    upTween.Completed:Wait()
-    
-    -- Passo 2: Si muove verso il punto settato a Y=170
-    local targetPosAt170 = Vector3.new(deliveryPosition.X, 170, deliveryPosition.Z)
-    local flyTween = TweenService:Create(rootPart, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPosAt170)})
-    flyTween:Play()
-    flyTween.Completed:Wait()
-    
-    -- Aspetta 1 secondo
-    wait(1)
-    
-    -- Passo 3: Cade a Y=-72 velocemente
-    local fallPos = Vector3.new(deliveryPosition.X, -72, deliveryPosition.Z)
-    local fallTween = TweenService:Create(rootPart, TweenInfo.new(0.5, Enum.EasingStyle.Linear), {CFrame = CFrame.new(fallPos)})
-    fallTween:Play()
-    fallTween.Completed:Wait()
-    
-    -- Passo 4: Torna alla posizione settata (presumibilmente a terra)
-    rootPart.CFrame = CFrame.new(deliveryPosition)
-    
-    -- Riabilita il controllo del personaggio
-    humanoid.PlatformStand = false
-    
-    updateStatus("✅ Fly sequence completed!", Color3.fromRGB(100, 255, 100))
-end
-
-local function findAndGoToPlot()
-    local plotPos = findNearestPlot()
-    if plotPos then
-        deliveryPosition = plotPos
-        bypassTeleport(plotPos)
-        updateStatus("🎯 Found and going to plot!", Color3.fromRGB(100, 255, 100))
-    else
-        updateStatus("❌ No plot found!", Color3.fromRGB(255, 100, 100))
+    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    if not rootPart then return end
+    teleporting = true
+    StatusLabel.Text = "🚀 Flying to position..."
+    StatusLabel.TextColor3 = Color3.fromRGB(0, 128, 255)
+    if not bypassAnticheat(character) then
+        teleporting = false
+        return
     end
-end
-
-local function teleportToLaser()
-    local laserPos = findNearestLaser()
-    if laserPos then
-        updateStatus("🔴 Found laser, teleporting...", Color3.fromRGB(255, 193, 7))
-        local character = Player.Character
-        if character then
-            local rootPart = character:FindFirstChild("HumanoidRootPart")
-            if rootPart then
-                rootPart.CFrame = CFrame.new(laserPos)
-                wait(0.5)
-                -- Move forward 2 studs
-                local forwardPos = rootPart.Position + rootPart.CFrame.LookVector * 2
-                rootPart.CFrame = CFrame.new(forwardPos)
-                updateStatus("✅ Teleported to laser!", Color3.fromRGB(100, 255, 100))
+    local targetCFrame = CFrame.new(deliveryPosition)
+    local tweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+    tween:Play()
+    tween.Completed:Connect(function()
+        restoreCharacter(character)
+        StatusLabel.Text = "✅ Arrived successfully!"
+        StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
+        spawn(function()
+            wait(3)
+            if StatusLabel and StatusLabel.Parent then
+                StatusLabel.Text = "Ready to teleport!"
+                StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
             end
-        end
-    else
-        updateStatus("❌ No laser found!", Color3.fromRGB(255, 100, 100))
-    end
+            teleporting = false
+        end)
+    end)
 end
 
 local function instantTeleport()
+    if teleporting then return end
     if not deliveryPosition then
-        updateStatus("❌ No position set!", Color3.fromRGB(255, 100, 100))
+        StatusLabel.Text = "⚠️ Set a position first!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 193, 7)
         return
     end
-    
     local character = Player.Character
-    if character then
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        if rootPart then
-            local teleportPos = Vector3.new(deliveryPosition.X, 170, deliveryPosition.Z)
-            rootPart.CFrame = CFrame.new(teleportPos)
-            updateStatus("⚡ Teleported to position at height!", Color3.fromRGB(100, 255, 100))
-            -- Il personaggio rimane in aria e cade naturalmente per la fisica di Roblox
+    if not character then return end
+    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    if not rootPart then return end
+    teleporting = true
+    TeleportScreen.Enabled = true
+    StatusLabel.Text = "⏳ Instant teleporting..."
+    StatusLabel.TextColor3 = Color3.fromRGB(255,215,0)
+    spawn(function()
+        bypassAnticheat(character)
+        wait(1)
+        if rootPart and rootPart.Parent then
+            rootPart.CFrame = CFrame.new(deliveryPosition)
         end
-    end
+        wait(1)
+        TeleportScreen.Enabled = false
+        restoreCharacter(character)
+        StatusLabel.Text = "✅ Teleported instantly!"
+        StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
+        wait(3)
+        if StatusLabel and StatusLabel.Parent then
+            StatusLabel.Text = "Ready to teleport!"
+            StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+        end
+        teleporting = false
+    end)
 end
 
-local function teleportForward()
-    local character = Player.Character
-    if character then
-        local rootPart = character:FindFirstChild("HumanoidRootPart")
-        if rootPart then
-            local forwardPos = rootPart.Position + rootPart.CFrame.LookVector * 20
-            rootPart.CFrame = CFrame.new(forwardPos)
-            updateStatus("➡️ Moved forward!", Color3.fromRGB(100, 255, 100))
-        end
+local function teleportToNearestPlot()
+    if teleporting then return end
+    local plotPosition = findNearestPlot()
+    if not plotPosition then
+        StatusLabel.Text = "⚠️ No plots found nearby!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255,0,255)
+        return
     end
+    local character = Player.Character
+    if not character then return end
+    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    if not rootPart then return end
+    teleporting = true
+    StatusLabel.Text = "🎯 Finding nearest plot..."
+    StatusLabel.TextColor3 = Color3.fromRGB(255,0,255)
+    bypassAnticheat(character)
+    spawn(function()
+        wait(0.5)
+        if rootPart and rootPart.Parent then
+            rootPart.CFrame = CFrame.new(plotPosition + Vector3.new(0, 5, 0))
+        end
+        wait(0.5)
+        restoreCharacter(character)
+        StatusLabel.Text = "✅ At nearest plot!"
+        StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
+        wait(3)
+        if StatusLabel and StatusLabel.Parent then
+            StatusLabel.Text = "Ready to teleport!"
+            StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+        end
+        teleporting = false
+    end)
 end
 
+-- TP FORWARD (bypass)
+local function tpForward()
+    local character = Player.Character
+    if not character then return end
+    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    if not rootPart then return end
+    bypassAnticheat(character)
+    wait(0.15)
+    local cf = rootPart.CFrame
+    -- Avanti di 3
+    rootPart.CFrame = cf + (cf.LookVector * 3)
+    wait(0.3)
+    restoreCharacter(character)
+    StatusLabel.Text = "✅ TP Forward!"
+    StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
+    wait(2)
+    StatusLabel.Text = "Ready to teleport!"
+    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+end
+
+-- SPEED BOOST (70%)
+local function toggleSpeed()
+    speedEnabled = not speedEnabled
+    local character = Player.Character
+    if not character then return end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    if speedEnabled then
+        humanoid.WalkSpeed = 27.2
+        SpeedBtn.Text = "⚡ SPEED BOOST: ON"
+        StatusLabel.Text = "⚡ Speed Boost ON!"
+        StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
+    else
+        humanoid.WalkSpeed = 16
+        SpeedBtn.Text = "⚡ SPEED BOOST: OFF"
+        StatusLabel.Text = "Speed boost OFF"
+        StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    end
+    wait(2)
+    StatusLabel.Text = "Ready to teleport!"
+    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+end
+
+-- INVISIBILITÀ (anti-anticheat)
+local function toggleInvis()
+    invisEnabled = not invisEnabled
+    local character = Player.Character
+    if not character then return end
+    -- Nasconde ogni parte visibile
+    for _,v in pairs(character:GetChildren()) do
+        if v:IsA("BasePart") then
+            v.LocalTransparencyModifier = invisEnabled and 1 or 0
+            v.CanCollide = not invisEnabled
+        end
+        if v:IsA("Accessory") and v:FindFirstChild("Handle") then
+            v.Handle.LocalTransparencyModifier = invisEnabled and 1 or 0
+            v.Handle.CanCollide = not invisEnabled
+        end
+        if v:IsA("BillboardGui") or v:IsA("Decal") then
+            v.Enabled = not invisEnabled
+        end
+    end
+    -- Nasconde la testa overhead
+    local head = character:FindFirstChild("Head")
+    if head then
+        for _,c in pairs(head:GetChildren()) do
+            if c:IsA("BillboardGui") then c.Enabled = not invisEnabled end
+        end
+    end
+    InvisBtn.Text = invisEnabled and "👁️ INVISIBILITY: ON" or "👁️ INVISIBILITY: OFF"
+    StatusLabel.Text = invisEnabled and "👁️ Invisible!" or "👁️ Visible!"
+    StatusLabel.TextColor3 = invisEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,255,255)
+    wait(2)
+    StatusLabel.Text = "Ready to teleport!"
+    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+end
+
+-- NOCLIP
 local function toggleNoClip()
     noclipEnabled = not noclipEnabled
-    NoClipBtn.Text = noclipEnabled and "👻 NOCLIP: ON" or "👻 NOCLIP: OFF"
-    NoClipBtn.BackgroundColor3 = noclipEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(55, 55, 65)
-    NoClipBtn:SetAttribute("Active", noclipEnabled)
-    
     if noclipEnabled then
+        NoClipBtn.Text = "👻 NOCLIP: ON"
+        StatusLabel.Text = "👻 NoClip activated!"
+        StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
         noclipConnection = RunService.Stepped:Connect(function()
             local character = Player.Character
             if character then
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.CanCollide then
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
                         part.CanCollide = false
                     end
                 end
             end
         end)
-    elseif noclipConnection then
-        noclipConnection:Disconnect()
-        noclipConnection = nil
+    else
+        NoClipBtn.Text = "👻 NOCLIP: OFF"
+        StatusLabel.Text = "👻 NoClip deactivated!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
         local character = Player.Character
         if character then
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            wait(0.1)
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") then
                     part.CanCollide = true
                 end
             end
         end
     end
+    wait(2)
+    StatusLabel.Text = "Ready to teleport!"
+    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
 end
 
-local function toggleSpeed()
-    speedEnabled = not speedEnabled
-    SpeedBtn.Text = speedEnabled and "⚡ SPEED: ON" or "⚡ SPEED: OFF"
-    SpeedBtn.BackgroundColor3 = speedEnabled and Color3.fromRGB(255, 193, 7) or Color3.fromRGB(55, 55, 65)
-    SpeedBtn:SetAttribute("Active", speedEnabled)
-    
-    if speedEnabled then
-        -- Start persistent speed monitoring
-        speedConnection = RunService.Heartbeat:Connect(maintainSpeed)
-        maintainSpeed()
-    else
-        if speedConnection then
-            speedConnection:Disconnect()
-            speedConnection = nil
-        end
-        local character = Player.Character
-        if character then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.WalkSpeed = 16
-            end
+-- DRAG
+local function enableDragging(frame)
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+    local connection = nil
+    local function updateInput(input)
+        if dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end
+    Header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            connection = UserInputService.InputChanged:Connect(updateInput)
+        end
+    end)
+    Header.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            if connection then
+                connection:Disconnect()
+                connection = nil
+            end
+        end
+    end)
 end
 
-local function toggleInvisibility()
-    invisEnabled = not invisEnabled
-    InvisBtn.Text = invisEnabled and "👁️ INVISIBLE: ON" or "👁️ INVISIBLE: OFF"
-    InvisBtn.BackgroundColor3 = invisEnabled and Color3.fromRGB(140, 0, 255) or Color3.fromRGB(55, 55, 65)
-    InvisBtn:SetAttribute("Active", invisEnabled)
-    
+-- EVENTI
+SetDeliveryBtn.MouseButton1Click:Connect(function()
     local character = Player.Character
     if character then
-        for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                part.Transparency = invisEnabled and 1 or 0
-                part.CanCollide = not invisEnabled
-            elseif part:IsA("Accessory") then
-                local handle = part:FindFirstChild("Handle")
-                if handle then
-                    handle.Transparency = invisEnabled and 1 or 0
+        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+        if rootPart then
+            deliveryPosition = rootPart.Position
+            StatusLabel.Text = "✅ Position saved!"
+            StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
+            spawn(function()
+                wait(2)
+                if StatusLabel and StatusLabel.Parent then
+                    StatusLabel.Text = "Ready to teleport!"
+                    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
                 end
-            elseif part:IsA("Decal") or part:IsA("Texture") then
-                part.Transparency = invisEnabled and 1 or 0
-            end
-        end
-        
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            local bodyColors = character:FindFirstChildOfClass("BodyColors")
-            if bodyColors then
-                bodyColors.HeadColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.HeadColor3
-                bodyColors.LeftArmColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.LeftArmColor3
-                bodyColors.RightArmColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.RightArmColor3
-                bodyColors.LeftLegColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.LeftLegColor3
-                bodyColors.RightLegColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.RightLegColor3
-                bodyColors.TorsoColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.TorsoColor3
-            end
+            end)
         end
     end
-end
-
--- Minimize function
-local function toggleMinimize()
-    isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 350, 0, 35) or UDim2.new(0, 350, 0, 280)
-    
-    MinimizeBtn.Text = isMinimized and "+" or "−"
-    
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
-        Size = targetSize
-    })
-    tween:Play()
-    
-    for _, frame in pairs(contentFrames) do
-        frame.Visible = not isMinimized and (frame == contentFrames[currentTab])
-    end
-    TabContainer.Visible = not isMinimized
-    StatusLabel.Visible = not isMinimized
-end
-
--- Connect all events
-MinimizeBtn.MouseButton1Click:Connect(toggleMinimize)
-CloseBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
 end)
 
--- Main tab connections
-SetPosBtn.MouseButton1Click:Connect(setPosition)
-FlyBtn.MouseButton1Click:Connect(flyToPosition)
-FindPlotBtn.MouseButton1Click:Connect(findAndGoToPlot)
-LaserTPBtn.MouseButton1Click:Connect(teleportToLaser)
-
--- Teleport tab connections
-InstantTPBtn.MouseButton1Click:Connect(instantTeleport)
-ForwardTPBtn.MouseButton1Click:Connect(teleportForward)
-
--- Player tab connections
+TeleportBtn.MouseButton1Click:Connect(flyToDelivery)
+BaseTPBtn.MouseButton1Click:Connect(instantTeleport)
+NearestBaseBtn.MouseButton1Click:Connect(teleportToNearestPlot)
 NoClipBtn.MouseButton1Click:Connect(toggleNoClip)
 SpeedBtn.MouseButton1Click:Connect(toggleSpeed)
-InvisBtn.MouseButton1Click:Connect(toggleInvisibility)
+InvisBtn.MouseButton1Click:Connect(toggleInvis)
+ForwardBtn.MouseButton1Click:Connect(tpForward)
 
--- Visual tab connections
-ESPBtn.MouseButton1Click:Connect(toggleESP)
+MinimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    local targetSize = isMinimized and UDim2.new(0, 350, 0, 40) or UDim2.new(0, 350, 0, 380)
+    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = targetSize})
+    tween:Play()
+    MinimizeBtn.Text = isMinimized and "+" or "−"
+    Content.Visible = not isMinimized
+end)
+CloseBtn.MouseButton1Click:Connect(function()
+    if noclipConnection then noclipConnection:Disconnect() noclipConnection = nil end
+    teleporting = false
+    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
+        Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)
+    })
+    tween:Play()
+    tween.Completed:Connect(function()
+        if ScreenGui and ScreenGui.Parent then ScreenGui:Destroy() end
+        if TeleportScreen and TeleportScreen.Parent then TeleportScreen:Destroy() end
+    end)
+end)
+enableDragging(MainFrame)
 
--- Opening animation
+-- Startup animation
 MainFrame.Size = UDim2.new(0, 0, 0, 0)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-
-local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 350, 0, 280),
-    Position = UDim2.new(0.5, -175, 0.5, -140)
+local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Size = UDim2.new(0, 350, 0, 380), Position = UDim2.new(0.5, -175, 0.5, -190)
 })
 openTween:Play()
 
--- Character respawn handling
-Player.CharacterAdded:Connect(function()
-    wait(1)
-    if speedEnabled then
-        maintainSpeed()
-        speedConnection = RunService.Heartbeat:Connect(maintainSpeed)
-    end
-    if invisEnabled then
-        toggleInvisibility()
-        toggleInvisibility()
-    end
-end)
-
--- Player events for ESP
-Players.PlayerAdded:Connect(function(player)
-    if espEnabled then
-        player.CharacterAdded:Connect(function()
-            wait(1)
-            createESP(player)
-        end)
-    end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    removeESP(player)
-end)
-
-print("⚡ SIGMA HUB v3.1 Enhanced - Loaded successfully!")
-updateStatus("⚡ SIGMA HUB v3.1 Loaded!", Color3.fromRGB(70, 130, 255))
+print("⚡ SIGMA HUB v2.2 - MOD Copilot: Noclip fix, black UI, TP Forward, speed, invis bypass!")
