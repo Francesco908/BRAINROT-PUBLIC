@@ -1,4 +1,4 @@
--- SIGMA HUB v3.1 - Enhanced with Persistent Speed & ESP
+-- SIGMA HUB v3.1 - Enhanced with Persistent Speed & ESP 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -446,7 +446,48 @@ local function flyToPosition()
         updateStatus("❌ No position set!", Color3.fromRGB(255, 100, 100))
         return
     end
-    bypassTeleport(deliveryPosition)
+    local character = Player.Character
+    if not character then return end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not rootPart or not humanoid then return end
+    
+    updateStatus("🚀 Flying to position...", Color3.fromRGB(255, 193, 7))
+    
+    -- Disabilita il controllo del personaggio
+    humanoid.PlatformStand = true
+    
+    -- Posizione corrente
+    local currentPos = rootPart.Position
+    
+    -- Passo 1: Sale a Y=170
+    local upPos = Vector3.new(currentPos.X, 170, currentPos.Z)
+    local upTween = TweenService:Create(rootPart, TweenInfo.new(1, Enum.EasingStyle.Linear), {CFrame = CFrame.new(upPos)})
+    upTween:Play()
+    upTween.Completed:Wait()
+    
+    -- Passo 2: Si muove verso il punto settato a Y=170
+    local targetPosAt170 = Vector3.new(deliveryPosition.X, 170, deliveryPosition.Z)
+    local flyTween = TweenService:Create(rootPart, TweenInfo.new(2, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPosAt170)})
+    flyTween:Play()
+    flyTween.Completed:Wait()
+    
+    -- Aspetta 1 secondo
+    wait(1)
+    
+    -- Passo 3: Cade a Y=-72 velocemente
+    local fallPos = Vector3.new(deliveryPosition.X, -72, deliveryPosition.Z)
+    local fallTween = TweenService:Create(rootPart, TweenInfo.new(0.5, Enum.EasingStyle.Linear), {CFrame = CFrame.new(fallPos)})
+    fallTween:Play()
+    fallTween.Completed:Wait()
+    
+    -- Passo 4: Torna alla posizione settata (presumibilmente a terra)
+    rootPart.CFrame = CFrame.new(deliveryPosition)
+    
+    -- Riabilita il controllo del personaggio
+    humanoid.PlatformStand = false
+    
+    updateStatus("✅ Fly sequence completed!", Color3.fromRGB(100, 255, 100))
 end
 
 local function findAndGoToPlot()
@@ -491,8 +532,10 @@ local function instantTeleport()
     if character then
         local rootPart = character:FindFirstChild("HumanoidRootPart")
         if rootPart then
-            rootPart.CFrame = CFrame.new(deliveryPosition)
-            updateStatus("⚡ Instant teleport!", Color3.fromRGB(100, 255, 100))
+            local teleportPos = Vector3.new(deliveryPosition.X, 170, deliveryPosition.Z)
+            rootPart.CFrame = CFrame.new(teleportPos)
+            updateStatus("⚡ Teleported to position at height!", Color3.fromRGB(100, 255, 100))
+            -- Il personaggio rimane in aria e cade naturalmente per la fisica di Roblox
         end
     end
 end
