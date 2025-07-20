@@ -1,4 +1,4 @@
--- SIGMA HUB v2.2 - MOD by Copilot Chat
+-- SIGMA HUB v2.2 - MOD by Copilot Chat - Modified with Persistent Speed & Amber UI
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -17,6 +17,7 @@ local noclipEnabled = false
 local noclipConnection = nil
 local teleporting = false
 local speedEnabled = false
+local speedConnection = nil
 local invisEnabled = false
 
 if PlayerGui:FindFirstChild("SigmaHub") then
@@ -75,6 +76,7 @@ local function bypassAnticheat(character)
     end)
     return true
 end
+
 local function restoreCharacter(character)
     if not character then return end
     local humanoid = character:FindFirstChildOfClass("Humanoid")
@@ -89,7 +91,12 @@ local function restoreCharacter(character)
         if humanoid then
             humanoid.PlatformStand = false
             humanoid.Sit = false
-            humanoid.WalkSpeed = 16
+            -- Don't reset speed if speed boost is enabled
+            if not speedEnabled then
+                humanoid.WalkSpeed = 16
+            else
+                humanoid.WalkSpeed = 27.2
+            end
             humanoid.JumpPower = 50
             humanoid.AutoRotate = true
         end
@@ -140,7 +147,7 @@ MainCorner.CornerRadius = UDim.new(0, 16)
 MainCorner.Parent = MainFrame
 
 local Border = Instance.new("UIStroke")
-Border.Color = Color3.fromRGB(255,255,255)
+Border.Color = Color3.fromRGB(255, 194, 0)  -- Amber border
 Border.Thickness = 2
 Border.Transparency = 0.2
 Border.Parent = MainFrame
@@ -165,19 +172,19 @@ Title.Position = UDim2.new(0, 20, 0, 0)
 Title.Size = UDim2.new(1, -100, 1, 0)
 Title.Font = Enum.Font.GothamBold
 Title.Text = "⚡ SIGMA HUB"
-Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.TextColor3 = Color3.fromRGB(255, 194, 0)  -- Amber text
 Title.TextSize = 16
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
 local MinimizeBtn = Instance.new("TextButton")
 MinimizeBtn.Parent = Header
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 194, 0)  -- Amber background
 MinimizeBtn.BorderSizePixel = 0
 MinimizeBtn.Position = UDim2.new(1, -70, 0.5, -12)
 MinimizeBtn.Size = UDim2.new(0, 24, 0, 24)
 MinimizeBtn.Font = Enum.Font.GothamBold
 MinimizeBtn.Text = "−"
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)  -- Black text
 MinimizeBtn.TextSize = 18
 local MinCorner = Instance.new("UICorner")
 MinCorner.CornerRadius = UDim.new(0, 6)
@@ -185,13 +192,13 @@ MinCorner.Parent = MinimizeBtn
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Parent = Header
-CloseBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 194, 0)  -- Amber background
 CloseBtn.BorderSizePixel = 0
 CloseBtn.Position = UDim2.new(1, -40, 0.5, -12)
 CloseBtn.Size = UDim2.new(0, 24, 0, 24)
 CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Text = "×"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextColor3 = Color3.fromRGB(0, 0, 0)  -- Black text
 CloseBtn.TextSize = 16
 local CloseCorner = Instance.new("UICorner")
 CloseCorner.CornerRadius = UDim.new(0, 6)
@@ -204,17 +211,17 @@ Content.BackgroundTransparency = 1
 Content.Position = UDim2.new(0, 0, 0, 45)
 Content.Size = UDim2.new(1, 0, 1, -45)
 
--- Button factory (black, white text)
+-- Button factory (amber background, black text)
 local function createModernButton(parent, position, size, text, icon)
     local button = Instance.new("TextButton")
     button.Parent = parent
-    button.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    button.BackgroundColor3 = Color3.fromRGB(255, 194, 0)  -- Amber background
     button.BorderSizePixel = 0
     button.Position = position
     button.Size = size
     button.Font = Enum.Font.GothamBold
     button.Text = icon .. " " .. text
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextColor3 = Color3.fromRGB(0, 0, 0)  -- Black text
     button.TextSize = 14
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 10)
@@ -239,7 +246,7 @@ StatusLabel.Position = UDim2.new(0.05, 0, 0.85, 0)
 StatusLabel.Size = UDim2.new(0.9, 0, 0, 25)
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.Text = "Ready to teleport!"
-StatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)  -- Amber text
 StatusLabel.TextSize = 11
 StatusLabel.TextXAlignment = Enum.TextXAlignment.Center
 
@@ -274,7 +281,7 @@ local function flyToDelivery()
             wait(3)
             if StatusLabel and StatusLabel.Parent then
                 StatusLabel.Text = "Ready to teleport!"
-                StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+                StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
             end
             teleporting = false
         end)
@@ -310,7 +317,7 @@ local function instantTeleport()
         wait(3)
         if StatusLabel and StatusLabel.Parent then
             StatusLabel.Text = "Ready to teleport!"
-            StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
         end
         teleporting = false
     end)
@@ -344,7 +351,7 @@ local function teleportToNearestPlot()
         wait(3)
         if StatusLabel and StatusLabel.Parent then
             StatusLabel.Text = "Ready to teleport!"
-            StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+            StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
         end
         teleporting = false
     end)
@@ -367,30 +374,49 @@ local function tpForward()
     StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
     wait(2)
     StatusLabel.Text = "Ready to teleport!"
-    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
 end
 
--- SPEED BOOST (70%)
+-- SPEED BOOST (70%) - PERSISTENT VERSION
+local function maintainSpeed()
+    local character = Player.Character
+    if character and speedEnabled then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.WalkSpeed ~= 27.2 then
+            humanoid.WalkSpeed = 27.2
+        end
+    end
+end
+
 local function toggleSpeed()
     speedEnabled = not speedEnabled
     local character = Player.Character
     if not character then return end
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if not humanoid then return end
+    
     if speedEnabled then
         humanoid.WalkSpeed = 27.2
         SpeedBtn.Text = "⚡ SPEED BOOST: ON"
         StatusLabel.Text = "⚡ Speed Boost ON!"
         StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
+        -- Start monitoring speed to maintain it
+        if speedConnection then speedConnection:Disconnect() end
+        speedConnection = RunService.Heartbeat:Connect(maintainSpeed)
     else
         humanoid.WalkSpeed = 16
         SpeedBtn.Text = "⚡ SPEED BOOST: OFF"
         StatusLabel.Text = "Speed boost OFF"
-        StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
+        -- Stop monitoring speed
+        if speedConnection then 
+            speedConnection:Disconnect() 
+            speedConnection = nil
+        end
     end
     wait(2)
     StatusLabel.Text = "Ready to teleport!"
-    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
 end
 
 -- INVISIBILITÀ (anti-anticheat)
@@ -421,10 +447,10 @@ local function toggleInvis()
     end
     InvisBtn.Text = invisEnabled and "👁️ INVISIBILITY: ON" or "👁️ INVISIBILITY: OFF"
     StatusLabel.Text = invisEnabled and "👁️ Invisible!" or "👁️ Visible!"
-    StatusLabel.TextColor3 = invisEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,255,255)
+    StatusLabel.TextColor3 = invisEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255, 194, 0)
     wait(2)
     StatusLabel.Text = "Ready to teleport!"
-    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
 end
 
 -- NOCLIP
@@ -447,7 +473,7 @@ local function toggleNoClip()
     else
         NoClipBtn.Text = "👻 NOCLIP: OFF"
         StatusLabel.Text = "👻 NoClip deactivated!"
-        StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
         if noclipConnection then
             noclipConnection:Disconnect()
             noclipConnection = nil
@@ -464,7 +490,7 @@ local function toggleNoClip()
     end
     wait(2)
     StatusLabel.Text = "Ready to teleport!"
-    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
 end
 
 -- DRAG
@@ -498,6 +524,16 @@ local function enableDragging(frame)
     end)
 end
 
+-- Handle character respawning to maintain speed boost
+Player.CharacterAdded:Connect(function(character)
+    if speedEnabled then
+        -- Wait for humanoid to load
+        local humanoid = character:WaitForChild("Humanoid")
+        wait(0.5) -- Small delay to ensure everything is loaded
+        humanoid.WalkSpeed = 27.2
+    end
+end)
+
 -- EVENTI
 SetDeliveryBtn.MouseButton1Click:Connect(function()
     local character = Player.Character
@@ -511,7 +547,7 @@ SetDeliveryBtn.MouseButton1Click:Connect(function()
                 wait(2)
                 if StatusLabel and StatusLabel.Parent then
                     StatusLabel.Text = "Ready to teleport!"
-                    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+                    StatusLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
                 end
             end)
         end
@@ -534,8 +570,10 @@ MinimizeBtn.MouseButton1Click:Connect(function()
     MinimizeBtn.Text = isMinimized and "+" or "−"
     Content.Visible = not isMinimized
 end)
+
 CloseBtn.MouseButton1Click:Connect(function()
     if noclipConnection then noclipConnection:Disconnect() noclipConnection = nil end
+    if speedConnection then speedConnection:Disconnect() speedConnection = nil end
     teleporting = false
     local tween = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
         Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -556,4 +594,4 @@ local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingS
 })
 openTween:Play()
 
-print("⚡ SIGMA HUB v2.2 - MOD Copilot: Noclip fix, black UI, TP Forward, speed, invis bypass!")
+print("⚡ SIGMA HUB v2.2 - MOD: Persistent speed boost, amber UI, enhanced features!"
