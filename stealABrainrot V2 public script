@@ -1,4 +1,4 @@
--- SIGMA HUB v2.2 - MOD by OnlyRobloxScript
+-- SIGMA HUB v2.2 - MOD Copilot Full Restore
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -12,6 +12,7 @@ local PlayerGui = Player:WaitForChild("PlayerGui")
 -- Vars
 local deliveryPosition = nil
 local isDragging = false
+local dragOffset = nil
 local isMinimized = false
 local noclipEnabled = false
 local noclipConnection = nil
@@ -30,13 +31,11 @@ TeleportScreen.DisplayOrder = 999999999
 TeleportScreen.IgnoreGuiInset = true
 TeleportScreen.Enabled = false
 TeleportScreen.Parent = PlayerGui
-
 local BlackScreen = Instance.new("Frame")
 BlackScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 BlackScreen.BorderSizePixel = 0
 BlackScreen.Size = UDim2.new(1, 0, 1, 0)
 BlackScreen.Parent = TeleportScreen
-
 local TeleportText = Instance.new("TextLabel")
 TeleportText.BackgroundTransparency = 1
 TeleportText.Position = UDim2.new(0, 0, 0.4, 0)
@@ -271,13 +270,11 @@ local function createModernButton(parent, position, size, text, icon)
     return button
 end
 
--- Aggiungi i bottoni che già avevi nel tab appropriato
 local MainContent = ContentFrames["Main"]
 local SetDeliveryBtn = createModernButton(MainContent, UDim2.new(0.05, 0, 0.03, 0), UDim2.new(0.9, 0, 0, 32), "SET POSITION", "📍")
 local TeleportBtn   = createModernButton(MainContent, UDim2.new(0.05, 0, 0.13, 0), UDim2.new(0.9, 0, 0, 32), "FLY TO POSITION", "🌀")
 local ForwardBtn    = createModernButton(MainContent, UDim2.new(0.05, 0, 0.23, 0), UDim2.new(0.9, 0, 0, 32), "TP FORWARD (bypass)", "➡️")
 local NearestBaseBtn= createModernButton(MainContent, UDim2.new(0.05, 0, 0.33, 0), UDim2.new(0.9, 0, 0, 32), "NEAREST PLOT", "🎯")
-
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Parent = MainContent
 StatusLabel.BackgroundTransparency = 1
@@ -371,6 +368,112 @@ local function flyToDeliveryBypass()
     teleporting = false
 end
 
+-- NOCLIP
+local function toggleNoClip()
+    noclipEnabled = not noclipEnabled
+    NoClipBtn.Text = noclipEnabled and "👻 NOCLIP: ON" or "👻 NOCLIP: OFF"
+    NoClipBtn.BackgroundColor3 = noclipEnabled and Color3.fromRGB(34,139,34) or Color3.fromRGB(0,0,0)
+    if noclipEnabled then
+        noclipConnection = RunService.Stepped:Connect(function()
+            local char = Player.Character
+            if char then
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    elseif noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+        -- restore CanCollide
+        local char = Player.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
+end
+
+-- SPEED
+local function toggleSpeed()
+    speedEnabled = not speedEnabled
+    local humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+    if speedEnabled then
+        SpeedBtn.Text = "⚡ SPEED BOOST: ON"
+        SpeedBtn.BackgroundColor3 = Color3.fromRGB(255,193,7)
+        if humanoid then humanoid.WalkSpeed = 75 end
+    else
+        SpeedBtn.Text = "⚡ SPEED BOOST: OFF"
+        SpeedBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+        if humanoid then humanoid.WalkSpeed = 16 end
+    end
+end
+
+-- INVISIBILITY
+local function toggleInvis()
+    invisEnabled = not invisEnabled
+    InvisBtn.Text = invisEnabled and "👁️ INVISIBILITY: ON" or "👁️ INVISIBILITY: OFF"
+    InvisBtn.BackgroundColor3 = invisEnabled and Color3.fromRGB(140,0,255) or Color3.fromRGB(0,0,0)
+    local char = Player.Character
+    if char then
+        for _, v in pairs(char:GetDescendants()) do
+            if v:IsA("BasePart") or v:IsA("Decal") then
+                v.Transparency = invisEnabled and 1 or 0
+            end
+        end
+    end
+end
+
+-- INSTANT TP
+local function instantTeleport()
+    if not deliveryPosition then
+        StatusLabel.Text = "⚠️ Set a position first!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 193, 7)
+        return
+    end
+    local character = Player.Character
+    if not character then return end
+    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    if not rootPart then return end
+    TeleportScreen.Enabled = true
+    rootPart.CFrame = CFrame.new(deliveryPosition)
+    wait(0.2)
+    TeleportScreen.Enabled = false
+    StatusLabel.Text = "✨ Teleported!"
+    StatusLabel.TextColor3 = Color3.fromRGB(0,255,0)
+    wait(1)
+    StatusLabel.Text = "Ready to teleport!"
+    StatusLabel.TextColor3 = Color3.fromRGB(255,255,255)
+end
+
+-- NEAREST PLOT
+local function teleportToNearestPlot()
+    local pos = findNearestPlot()
+    if not pos then
+        StatusLabel.Text = "❌ No plot found!"
+        StatusLabel.TextColor3 = Color3.fromRGB(255,0,0)
+        return
+    end
+    deliveryPosition = pos
+    instantTeleport()
+end
+
+-- TP FORWARD
+local function tpForward()
+    local char = Player.Character
+    if not char then return end
+    local rootPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso")
+    if not rootPart then return end
+    local look = rootPart.CFrame.LookVector
+    local dest = rootPart.Position + look*15
+    rootPart.CFrame = CFrame.new(dest)
+end
+
 -- EVENTI
 SetDeliveryBtn.MouseButton1Click:Connect(function()
     local character = Player.Character
@@ -391,26 +494,57 @@ SetDeliveryBtn.MouseButton1Click:Connect(function()
     end
 end)
 TeleportBtn.MouseButton1Click:Connect(flyToDeliveryBypass)
-BaseTPBtn.MouseButton1Click:Connect(function()
-    -- (usa la tua funzione instantTeleport originale)
-end)
-NearestBaseBtn.MouseButton1Click:Connect(function()
-    -- (usa la tua funzione teleportToNearestPlot originale)
-end)
-NoClipBtn.MouseButton1Click:Connect(function()
-    -- (usa la tua funzione toggleNoClip originale)
-end)
-SpeedBtn.MouseButton1Click:Connect(function()
-    -- (usa la tua funzione toggleSpeed originale)
-end)
-InvisBtn.MouseButton1Click:Connect(function()
-    -- (usa la tua funzione toggleInvis originale)
-end)
-ForwardBtn.MouseButton1Click:Connect(function()
-    -- (usa la tua funzione tpForward originale)
+BaseTPBtn.MouseButton1Click:Connect(instantTeleport)
+NearestBaseBtn.MouseButton1Click:Connect(teleportToNearestPlot)
+NoClipBtn.MouseButton1Click:Connect(toggleNoClip)
+SpeedBtn.MouseButton1Click:Connect(toggleSpeed)
+InvisBtn.MouseButton1Click:Connect(toggleInvis)
+ForwardBtn.MouseButton1Click:Connect(tpForward)
+
+-- Minimizza
+local function setMinimized(state)
+    isMinimized = state
+    if isMinimized then
+        MainFrame.Size = UDim2.new(0, 150, 0, 45)
+        for _, f in pairs(ContentFrames) do f.Visible = false end
+        Sidebar.Visible = false
+        Title.Text = "⚡ SIGMA HUB (minimized)"
+        MinimizeBtn.Text = "+"
+    else
+        MainFrame.Size = UDim2.new(0, 450, 0, 380)
+        for t, f in pairs(ContentFrames) do f.Visible = (t == selectedTab) end
+        Sidebar.Visible = true
+        Title.Text = "⚡ SIGMA HUB"
+        MinimizeBtn.Text = "−"
+    end
+end
+MinimizeBtn.MouseButton1Click:Connect(function() setMinimized(not isMinimized) end)
+setMinimized(false)
+
+-- Chiudi
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+    if TeleportScreen then TeleportScreen:Destroy() end
 end)
 
--- Minimizza/chiudi/drag come già avevi
+-- Drag
+Header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDragging = true
+        dragOffset = Vector2.new(input.Position.X - MainFrame.Position.X.Offset, input.Position.Y - MainFrame.Position.Y.Offset)
+    end
+end)
+Header.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDragging = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local newPos = UDim2.new(0, input.Position.X - dragOffset.X, 0, input.Position.Y - dragOffset.Y)
+        MainFrame.Position = newPos
+    end
+end)
 
 -- Startup animation
 MainFrame.Size = UDim2.new(0, 0, 0, 0)
@@ -420,4 +554,4 @@ local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingS
 })
 openTween:Play()
 
-print("⚡ SIGMA HUB v2.2 - MOD Copilot: Sidebar tab, fly bypass anticheat potenziato!")
+print("⚡ SIGMA HUB v2.2 - Full restore!")
