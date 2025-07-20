@@ -1,4 +1,4 @@
--- SIGMA HUB v3.0 - Enhanced & Fully Functional
+-- SIGMA HUB v3.1 - Enhanced with Persistent Speed & ESP
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -18,7 +18,10 @@ local noclipConnection = nil
 local teleporting = false
 local speedEnabled = false
 local invisEnabled = false
+local espEnabled = false
 local currentTab = "Main"
+local speedConnection = nil
+local espConnection = nil
 
 -- Clean up existing GUI
 if PlayerGui:FindFirstChild("SigmaHub") then
@@ -32,16 +35,16 @@ ScreenGui.Parent = PlayerGui
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Main Frame (smaller and cleaner)
+-- Main Frame (movable)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.Position = UDim2.new(0.5, -175, 0.5, -130)
-MainFrame.Size = UDim2.new(0, 350, 0, 260)
+MainFrame.Size = UDim2.new(0, 350, 0, 280)
 MainFrame.Active = true
-MainFrame.Draggable = false
+MainFrame.Draggable = true
 MainFrame.ClipsDescendants = true
 
 local MainCorner = Instance.new("UICorner")
@@ -66,7 +69,6 @@ local HeaderCorner = Instance.new("UICorner")
 HeaderCorner.CornerRadius = UDim.new(0, 12)
 HeaderCorner.Parent = Header
 
--- Fix header corners
 local HeaderFix = Instance.new("Frame")
 HeaderFix.Parent = Header
 HeaderFix.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
@@ -80,7 +82,7 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.Size = UDim2.new(0, 200, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "⚡ SIGMA HUB v3.0"
+Title.Text = "⚡ SIGMA HUB v3.1"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -150,7 +152,7 @@ for i, tabName in ipairs(tabs) do
     contentFrame.Parent = MainFrame
     contentFrame.BackgroundTransparency = 1
     contentFrame.Position = UDim2.new(0, 10, 0, 85)
-    contentFrame.Size = UDim2.new(1, -20, 1, -95)
+    contentFrame.Size = UDim2.new(1, -20, 1, -115)
     contentFrame.CanvasSize = UDim2.new(0, 0, 0, 400)
     contentFrame.ScrollBarThickness = 4
     contentFrame.ScrollBarImageColor3 = Color3.fromRGB(70, 130, 255)
@@ -206,6 +208,7 @@ local MainContent = contentFrames["Main"]
 local SetPosBtn = createButton(MainContent, UDim2.new(0, 0, 0, 5), UDim2.new(1, 0, 0, 35), "📍 SET CURRENT POSITION")
 local FlyBtn = createButton(MainContent, UDim2.new(0, 0, 0, 45), UDim2.new(1, 0, 0, 35), "🚀 FLY TO POSITION")
 local FindPlotBtn = createButton(MainContent, UDim2.new(0, 0, 0, 85), UDim2.new(1, 0, 0, 35), "🎯 FIND NEAREST PLOT")
+local LaserTPBtn = createButton(MainContent, UDim2.new(0, 0, 0, 125), UDim2.new(1, 0, 0, 35), "🔴 TP TO NEAREST LASER")
 
 -- Teleport Tab Content
 local TeleportContent = contentFrames["Teleport"]
@@ -220,16 +223,7 @@ local InvisBtn = createButton(PlayerContent, UDim2.new(0, 0, 0, 85), UDim2.new(1
 
 -- Visual Tab Content
 local VisualContent = contentFrames["Visual"]
-local VisualInfo = Instance.new("TextLabel")
-VisualInfo.Parent = VisualContent
-VisualInfo.BackgroundTransparency = 1
-VisualInfo.Position = UDim2.new(0, 0, 0, 20)
-VisualInfo.Size = UDim2.new(1, 0, 0, 60)
-VisualInfo.Font = Enum.Font.Gotham
-VisualInfo.Text = "Visual features\ncoming soon!"
-VisualInfo.TextColor3 = Color3.fromRGB(150, 150, 150)
-VisualInfo.TextSize = 14
-VisualInfo.TextXAlignment = Enum.TextXAlignment.Center
+local ESPBtn = createButton(VisualContent, UDim2.new(0, 0, 0, 5), UDim2.new(1, 0, 0, 35), "👀 PLAYER ESP: OFF")
 
 -- Tab switching function
 local function switchTab(tabName)
@@ -254,6 +248,121 @@ end
 local function updateStatus(text, color)
     StatusLabel.Text = text
     StatusLabel.TextColor3 = color or Color3.fromRGB(255, 255, 255)
+end
+
+-- Persistent Speed System
+local function maintainSpeed()
+    if speedEnabled then
+        local character = Player.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.WalkSpeed ~= 80 then
+                humanoid.WalkSpeed = 80
+            end
+        end
+    end
+end
+
+-- ESP System
+local espBoxes = {}
+
+local function createESP(player)
+    if player == Player then return end
+    
+    local character = player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    local box = Instance.new("BoxHandleAdornment")
+    box.Name = "ESP_" .. player.Name
+    box.Parent = rootPart
+    box.Size = rootPart.Size
+    box.Color3 = Color3.fromRGB(255, 0, 0)
+    box.Transparency = 0.5
+    box.AlwaysOnTop = true
+    box.ZIndex = 5
+    box.Adornee = rootPart
+    
+    local nameLabel = Instance.new("BillboardGui")
+    nameLabel.Name = "NameESP"
+    nameLabel.Parent = rootPart
+    nameLabel.Size = UDim2.new(0, 200, 0, 50)
+    nameLabel.Adornee = rootPart
+    nameLabel.AlwaysOnTop = true
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Parent = nameLabel
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = player.Name
+    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    textLabel.TextSize = 16
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.TextStrokeTransparency = 0
+    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    
+    espBoxes[player] = {box, nameLabel}
+end
+
+local function removeESP(player)
+    if espBoxes[player] then
+        for _, item in pairs(espBoxes[player]) do
+            if item then item:Destroy() end
+        end
+        espBoxes[player] = nil
+    end
+end
+
+local function toggleESP()
+    espEnabled = not espEnabled
+    ESPBtn.Text = espEnabled and "👀 PLAYER ESP: ON" or "👀 PLAYER ESP: OFF"
+    ESPBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(255, 100, 255) or Color3.fromRGB(55, 55, 65)
+    ESPBtn:SetAttribute("Active", espEnabled)
+    
+    if espEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            createESP(player)
+        end
+        
+        espConnection = RunService.Heartbeat:Connect(function()
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= Player and not espBoxes[player] then
+                    createESP(player)
+                end
+            end
+        end)
+    else
+        if espConnection then
+            espConnection:Disconnect()
+            espConnection = nil
+        end
+        for player, _ in pairs(espBoxes) do
+            removeESP(player)
+        end
+    end
+end
+
+local function findNearestLaser()
+    local character = Player.Character
+    if not character then return nil end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return nil end
+    
+    local nearestLaser = nil
+    local shortestDistance = math.huge
+    
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj.Name:lower():find("laser") and obj:IsA("BasePart") then
+            local distance = (rootPart.Position - obj.Position).Magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                nearestLaser = obj.Position
+            end
+        end
+    end
+    return nearestLaser
 end
 
 local function findNearestPlot()
@@ -298,18 +407,13 @@ local function bypassTeleport(targetPos)
     
     updateStatus("🔄 Bypassing anticheat...", Color3.fromRGB(255, 193, 7))
     
-    -- Multi-step bypass
     local originalPos = rootPart.CFrame
     
-    -- Step 1: Go up
+    -- Multi-step bypass
     rootPart.CFrame = CFrame.new(originalPos.Position + Vector3.new(0, 100, 0))
     wait(0.1)
-    
-    -- Step 2: Move to target at high Y
     rootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 100, 0))
     wait(0.1)
-    
-    -- Step 3: Go down to target
     rootPart.CFrame = CFrame.new(targetPos)
     
     updateStatus("✅ Teleported successfully!", Color3.fromRGB(100, 255, 100))
@@ -353,6 +457,27 @@ local function findAndGoToPlot()
         updateStatus("🎯 Found and going to plot!", Color3.fromRGB(100, 255, 100))
     else
         updateStatus("❌ No plot found!", Color3.fromRGB(255, 100, 100))
+    end
+end
+
+local function teleportToLaser()
+    local laserPos = findNearestLaser()
+    if laserPos then
+        updateStatus("🔴 Found laser, teleporting...", Color3.fromRGB(255, 193, 7))
+        local character = Player.Character
+        if character then
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                rootPart.CFrame = CFrame.new(laserPos)
+                wait(0.5)
+                -- Move forward 2 studs
+                local forwardPos = rootPart.Position + rootPart.CFrame.LookVector * 2
+                rootPart.CFrame = CFrame.new(forwardPos)
+                updateStatus("✅ Teleported to laser!", Color3.fromRGB(100, 255, 100))
+            end
+        end
+    else
+        updateStatus("❌ No laser found!", Color3.fromRGB(255, 100, 100))
     end
 end
 
@@ -404,7 +529,6 @@ local function toggleNoClip()
     elseif noclipConnection then
         noclipConnection:Disconnect()
         noclipConnection = nil
-        -- Restore collision
         local character = Player.Character
         if character then
             for _, part in pairs(character:GetDescendants()) do
@@ -422,11 +546,21 @@ local function toggleSpeed()
     SpeedBtn.BackgroundColor3 = speedEnabled and Color3.fromRGB(255, 193, 7) or Color3.fromRGB(55, 55, 65)
     SpeedBtn:SetAttribute("Active", speedEnabled)
     
-    local character = Player.Character
-    if character then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = speedEnabled and 80 or 16
+    if speedEnabled then
+        -- Start persistent speed monitoring
+        speedConnection = RunService.Heartbeat:Connect(maintainSpeed)
+        maintainSpeed()
+    else
+        if speedConnection then
+            speedConnection:Disconnect()
+            speedConnection = nil
+        end
+        local character = Player.Character
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = 16
+            end
         end
     end
 end
@@ -440,13 +574,29 @@ local function toggleInvisibility()
     local character = Player.Character
     if character then
         for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
                 part.Transparency = invisEnabled and 1 or 0
+                part.CanCollide = not invisEnabled
             elseif part:IsA("Accessory") then
                 local handle = part:FindFirstChild("Handle")
                 if handle then
                     handle.Transparency = invisEnabled and 1 or 0
                 end
+            elseif part:IsA("Decal") or part:IsA("Texture") then
+                part.Transparency = invisEnabled and 1 or 0
+            end
+        end
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            local bodyColors = character:FindFirstChildOfClass("BodyColors")
+            if bodyColors then
+                bodyColors.HeadColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.HeadColor3
+                bodyColors.LeftArmColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.LeftArmColor3
+                bodyColors.RightArmColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.RightArmColor3
+                bodyColors.LeftLegColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.LeftLegColor3
+                bodyColors.RightLegColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.RightLegColor3
+                bodyColors.TorsoColor3 = invisEnabled and Color3.new(1, 1, 1) or bodyColors.TorsoColor3
             end
         end
     end
@@ -455,7 +605,7 @@ end
 -- Minimize function
 local function toggleMinimize()
     isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 350, 0, 35) or UDim2.new(0, 350, 0, 260)
+    local targetSize = isMinimized and UDim2.new(0, 350, 0, 35) or UDim2.new(0, 350, 0, 280)
     
     MinimizeBtn.Text = isMinimized and "+" or "−"
     
@@ -464,7 +614,6 @@ local function toggleMinimize()
     })
     tween:Play()
     
-    -- Hide/show content
     for _, frame in pairs(contentFrames) do
         frame.Visible = not isMinimized and (frame == contentFrames[currentTab])
     end
@@ -472,31 +621,7 @@ local function toggleMinimize()
     StatusLabel.Visible = not isMinimized
 end
 
--- Drag functionality
-local function onDragStart(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        isDragging = true
-        local mousePos = UserInputService:GetMouseLocation()
-        dragOffset = Vector2.new(mousePos.X - MainFrame.AbsolutePosition.X, mousePos.Y - MainFrame.AbsolutePosition.Y)
-    end
-end
-
-local function onDragEnd(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        isDragging = false
-    end
-end
-
-UserInputService.InputChanged:Connect(function(input)
-    if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local mousePos = UserInputService:GetMouseLocation()
-        MainFrame.Position = UDim2.new(0, mousePos.X - dragOffset.X, 0, mousePos.Y - dragOffset.Y)
-    end
-end)
-
 -- Connect all events
-Header.InputBegan:Connect(onDragStart)
-Header.InputEnded:Connect(onDragEnd)
 MinimizeBtn.MouseButton1Click:Connect(toggleMinimize)
 CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
@@ -506,6 +631,7 @@ end)
 SetPosBtn.MouseButton1Click:Connect(setPosition)
 FlyBtn.MouseButton1Click:Connect(flyToPosition)
 FindPlotBtn.MouseButton1Click:Connect(findAndGoToPlot)
+LaserTPBtn.MouseButton1Click:Connect(teleportToLaser)
 
 -- Teleport tab connections
 InstantTPBtn.MouseButton1Click:Connect(instantTeleport)
@@ -516,13 +642,16 @@ NoClipBtn.MouseButton1Click:Connect(toggleNoClip)
 SpeedBtn.MouseButton1Click:Connect(toggleSpeed)
 InvisBtn.MouseButton1Click:Connect(toggleInvisibility)
 
+-- Visual tab connections
+ESPBtn.MouseButton1Click:Connect(toggleESP)
+
 -- Opening animation
 MainFrame.Size = UDim2.new(0, 0, 0, 0)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 
 local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 350, 0, 260),
-    Position = UDim2.new(0.5, -175, 0.5, -130)
+    Size = UDim2.new(0, 350, 0, 280),
+    Position = UDim2.new(0.5, -175, 0.5, -140)
 })
 openTween:Play()
 
@@ -530,12 +659,28 @@ openTween:Play()
 Player.CharacterAdded:Connect(function()
     wait(1)
     if speedEnabled then
-        local humanoid = Player.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = 80
-        end
+        maintainSpeed()
+        speedConnection = RunService.Heartbeat:Connect(maintainSpeed)
+    end
+    if invisEnabled then
+        toggleInvisibility()
+        toggleInvisibility()
     end
 end)
 
-print("⚡ SIGMA HUB v3.0 Enhanced - Loaded successfully!")
-updateStatus("⚡ SIGMA HUB v3.0 Loaded!", Color3.fromRGB(70, 130, 255))
+-- Player events for ESP
+Players.PlayerAdded:Connect(function(player)
+    if espEnabled then
+        player.CharacterAdded:Connect(function()
+            wait(1)
+            createESP(player)
+        end)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    removeESP(player)
+end)
+
+print("⚡ SIGMA HUB v3.1 Enhanced - Loaded successfully!")
+updateStatus("⚡ SIGMA HUB v3.1 Loaded!", Color3.fromRGB(70, 130, 255))
