@@ -1,4 +1,4 @@
--- RUBBA BRAINROT GUI - Sistema Perfetto con NoClip e Teleport Loop sul Model!
+-- RUBBA BRAINROT GUI - Sistema Perfetto con NoClip e Flying Teleport!
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -8,68 +8,10 @@ local RunService = game:GetService("RunService")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
--- === BRAINROT NAME LIST ===
-local brainrotNames = {
-    "Tralalero Tralala",
-    "Bombardiro Crocodilo",
-    "Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur",
-    "Lirilì Larilà",
-    "Boneca Ambalabu",
-    "Brr Brr Patapim",
-    "Chimpanzini Bananini",
-    "Bombombini Gusini",
-    "Cappuccino Assassino",
-    "Trippi Troppi Troppa Trippa",
-    "Frigo Camelo",
-    "La Vaca Saturno Saturnita",
-    "Ballerina Cappucina",
-    "U Din Din Din Din Dun Ma Din Din Din Dun",
-    "Trulimero Trulicina",
-    "Girafa Celestre",
-    "Bobrito Bandito",
-    "Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Sahur",
-    "Pot Hotspot",
-    "Frulli Frulla",
-    "Brri Brri Bicus Dicus Bombicus",
-    "Tric Trac Baraboom",
-    "Cocofanto Elefanto",
-    "Burbaloni Lulilolli",
-    "Orangutini Ananasini",
-    "Garamararamararaman dan Madudungdung tak tuntung perkuntung",
-    "Il Cacto Hipopotamo",
-    "Blueberrinni Octopussini",
-    "Glorbo Fruttodrillo",
-    "Rhino Toasterino",
-    "Zibra Zubra Zibralini",
-    "Graipussi Medussi",
-    "Tigrrullini Watermellini",
-    "Tracotucotulu Delapeladustuz",
-    "Gorillo Watermellondrillo",
-    "Bananita Dolfinita",
-    "Tigroligre Frutonni",
-    "Ballerino Lololo",
-    "Crocodildo Penisini",
-    "Makakini Bananini",
-    "Matteooooooooooooo",
-    "Špijuniro Golubiro",
-    "Elephantuchi Bananuchi",
-    "Crocodillo Ananasinno",
-    "Penguino Cocosino"
-}
-local function isBrainrotName(name)
-    for _, v in ipairs(brainrotNames) do
-        if v == name then return true end
-    end
-    return false
-end
-
 -- Variabili globali
 local deliveryPosition = nil
-local currentHeldObject = nil
-local currentHeldType = nil
 local isDragging = false
 local isMinimized = false
-local updateConnection = nil
 local noclipEnabled = false
 local noclipConnection = nil
 local teleporting = false
@@ -91,8 +33,8 @@ MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 40)
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -125)
-MainFrame.Size = UDim2.new(0, 350, 0, 250)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -100)
+MainFrame.Size = UDim2.new(0, 350, 0, 200)
 MainFrame.Active = true
 MainFrame.ClipsDescendants = true
 
@@ -192,15 +134,15 @@ local DeliveryCorner = Instance.new("UICorner")
 DeliveryCorner.CornerRadius = UDim.new(0, 8)
 DeliveryCorner.Parent = SetDeliveryBtn
 
--- Pulsante Teleport Brainrot
+-- Pulsante Flying Teleport
 local TeleportBtn = Instance.new("TextButton")
 TeleportBtn.Parent = Content
 TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
 TeleportBtn.BorderSizePixel = 0
-TeleportBtn.Position = UDim2.new(0.05, 0, 0.22, 0)
+TeleportBtn.Position = UDim2.new(0.05, 0, 0.3, 0)
 TeleportBtn.Size = UDim2.new(0.9, 0, 0, 35)
 TeleportBtn.Font = Enum.Font.GothamBold
-TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
+TeleportBtn.Text = "🌀 FLY TO DELIVERY"
 TeleportBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeleportBtn.TextSize = 12
 
@@ -213,7 +155,7 @@ local NoClipBtn = Instance.new("TextButton")
 NoClipBtn.Parent = Content
 NoClipBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 200)
 NoClipBtn.BorderSizePixel = 0
-NoClipBtn.Position = UDim2.new(0.05, 0, 0.39, 0)
+NoClipBtn.Position = UDim2.new(0.05, 0, 0.55, 0)
 NoClipBtn.Size = UDim2.new(0.9, 0, 0, 35)
 NoClipBtn.Font = Enum.Font.GothamBold
 NoClipBtn.Text = "👻 NOCLIP: OFF"
@@ -223,123 +165,6 @@ NoClipBtn.TextSize = 12
 local NoClipCorner = Instance.new("UICorner")
 NoClipCorner.CornerRadius = UDim.new(0, 8)
 NoClipCorner.Parent = NoClipBtn
-
--- Label Detection Status
-local DetectionLabel = Instance.new("TextLabel")
-DetectionLabel.Parent = Content
-DetectionLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-DetectionLabel.BorderSizePixel = 0
-DetectionLabel.Position = UDim2.new(0.05, 0, 0.58, 0)
-DetectionLabel.Size = UDim2.new(0.9, 0, 0, 30)
-DetectionLabel.Font = Enum.Font.GothamBold
-DetectionLabel.Text = "🔍 DETECTION: Scanning..."
-DetectionLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
-DetectionLabel.TextSize = 11
-
-local DetectCorner = Instance.new("UICorner")
-DetectCorner.CornerRadius = UDim.new(0, 6)
-DetectCorner.Parent = DetectionLabel
-
--- Label Holding
-local HoldingLabel = Instance.new("TextLabel")
-HoldingLabel.Parent = Content
-HoldingLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-HoldingLabel.BorderSizePixel = 0
-HoldingLabel.Position = UDim2.new(0.05, 0, 0.75, 0)
-HoldingLabel.Size = UDim2.new(0.9, 0, 0, 30)
-HoldingLabel.Font = Enum.Font.Gotham
-HoldingLabel.Text = "🤲 Holding: Nessun oggetto"
-HoldingLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
-HoldingLabel.TextSize = 11
-
-local HoldCorner = Instance.new("UICorner")
-HoldCorner.CornerRadius = UDim.new(0, 6)
-HoldCorner.Parent = HoldingLabel
-
--- SISTEMA DI RILEVAMENTO AVANZATO (IGNORA LEFT/RIGHT HAND E PARTI STANDARD, PRIORITÀ AL MODEL)
-local excluded_parts = {
-    ["Head"] = true, ["Torso"] = true, ["UpperTorso"] = true, ["LowerTorso"] = true,
-    ["Left Arm"] = true, ["Right Arm"] = true, ["Left Leg"] = true, ["Right Leg"] = true,
-    ["LeftUpperArm"] = true, ["LeftLowerArm"] = true, ["LeftHand"] = true,
-    ["RightUpperArm"] = true, ["RightLowerArm"] = true, ["RightHand"] = true,
-    ["LeftUpperLeg"] = true, ["LeftLowerLeg"] = true, ["LeftFoot"] = true,
-    ["RightUpperLeg"] = true, ["RightLowerLeg"] = true, ["RightFoot"] = true,
-    ["HumanoidRootPart"] = true,
-}
-
-local function detectHeldObject()
-    DetectionLabel.Text = "🔍 DETECTION: Scanning..."
-    DetectionLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
-
-    spawn(function()
-        wait(0.5)
-        local character = Player.Character
-        if not character then 
-            DetectionLabel.Text = "🔍 DETECTION: No Character"
-            DetectionLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-            return 
-        end
-
-        -- 1. Rileva Model IN MANO (non umanoide, non parti corpo, SOLO oggetti custom BRAINROT)
-        for _, child in ipairs(character:GetChildren()) do
-            if child:IsA("Model") and not child:FindFirstChildOfClass("Humanoid") and not excluded_parts[child.Name] and isBrainrotName(child.Name) then
-                currentHeldObject = child
-                currentHeldType = "Model"
-                DetectionLabel.Text = "🔍 DETECTION: Model Found!"
-                DetectionLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-                HoldingLabel.Text = "🤲 Holding: " .. child.Name .. " (Model)"
-                HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-                return
-            end
-        end
-
-        -- 2. Tool equipaggiato
-        local tool = character:FindFirstChildOfClass("Tool")
-        if tool then
-            currentHeldObject = tool
-            currentHeldType = "Tool"
-            DetectionLabel.Text = "🔍 DETECTION: Tool Found!"
-            DetectionLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            HoldingLabel.Text = "🤲 Holding: " .. tool.Name .. " (Tool)"
-            HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            return
-        end
-
-        -- 3. Accessory
-        for _, child in ipairs(character:GetChildren()) do
-            if child:IsA("Accessory") and not excluded_parts[child.Name] then
-                currentHeldObject = child
-                currentHeldType = "Accessory"
-                DetectionLabel.Text = "🔍 DETECTION: Accessory Found!"
-                DetectionLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-                HoldingLabel.Text = "🤲 Holding: " .. child.Name .. " (Accessory)"
-                HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-                return
-            end
-        end
-
-        -- 4. Part custom (no parti corpo standard)
-        for _, child in ipairs(character:GetChildren()) do
-            if child:IsA("BasePart") and not excluded_parts[child.Name] then
-                currentHeldObject = child
-                currentHeldType = "Part"
-                DetectionLabel.Text = "🔍 DETECTION: Part Found!"
-                DetectionLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-                HoldingLabel.Text = "🤲 Holding: " .. child.Name .. " (Part)"
-                HoldingLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-                return
-            end
-        end
-
-        -- Nessun oggetto trovato
-        currentHeldObject = nil
-        currentHeldType = nil
-        DetectionLabel.Text = "🔍 DETECTION: Nothing Found"
-        DetectionLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        HoldingLabel.Text = "🤲 Holding: Nessun oggetto"
-        HoldingLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
-    end)
-end
 
 -- NOCLIP SYSTEM
 local function toggleNoClip()
@@ -378,76 +203,78 @@ local function toggleNoClip()
     end
 end
 
--- TELEPORT LOOP: Prova a teletrasportare finché non va!
-local function tryTeleport()
-    local success = false
-    if currentHeldType == "Model" and currentHeldObject and currentHeldObject.PrimaryPart then
-        currentHeldObject:SetPrimaryPartCFrame(CFrame.new(deliveryPosition))
-        success = (currentHeldObject.PrimaryPart.Position - deliveryPosition).magnitude < 1
-    elseif currentHeldType == "Model" and currentHeldObject and currentHeldObject:FindFirstChild("Handle") then
-        currentHeldObject.Handle.CFrame = CFrame.new(deliveryPosition)
-        success = (currentHeldObject.Handle.Position - deliveryPosition).magnitude < 1
-    elseif currentHeldType == "Tool" and currentHeldObject and currentHeldObject:FindFirstChild("Handle") then
-        currentHeldObject.Handle.CFrame = CFrame.new(deliveryPosition)
-        success = (currentHeldObject.Handle.Position - deliveryPosition).magnitude < 1
-    elseif currentHeldType == "Accessory" and currentHeldObject and currentHeldObject:FindFirstChild("Handle") then
-        currentHeldObject.Handle.CFrame = CFrame.new(deliveryPosition)
-        success = (currentHeldObject.Handle.Position - deliveryPosition).magnitude < 1
-    elseif currentHeldType == "Part" and currentHeldObject then
-        currentHeldObject.CFrame = CFrame.new(deliveryPosition)
-        success = (currentHeldObject.Position - deliveryPosition).magnitude < 1
-    end
-    return success
-end
-
-local function teleportObjectToDelivery()
+-- FLYING TELEPORT SYSTEM
+local function flyToDelivery()
     if teleporting then return end
-    if not currentHeldObject then
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        TeleportBtn.Text = "❌ NO OBJECT HELD"
-        wait(1)
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-        TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
-        return
-    end
-
+    
     if not deliveryPosition then
         TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
         TeleportBtn.Text = "⚠️ SET DELIVERY FIRST"
         wait(1)
         TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-        TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
+        TeleportBtn.Text = "🌀 FLY TO DELIVERY"
         return
     end
 
+    local character = Player.Character
+    if not character then return end
+
+    local humanoid = character:FindFirstChild("Humanoid")
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not root then return end
+
     teleporting = true
     TeleportBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
-    TeleportBtn.Text = "🔁 TELEPORTING..."
+    TeleportBtn.Text = "🚀 FLYING..."
 
-    local maxTries = 50
-    local tries = 0
-
-    while teleporting and tries < maxTries do
-        if not currentHeldObject or not deliveryPosition then break end
-        if tryTeleport() then
-            TeleportBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-            TeleportBtn.Text = "✅ TELEPORTED!"
-            wait(1)
-            TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-            TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
-            break
-        end
-        tries = tries + 1
-        wait(0.1)
-    end
-
-    if tries >= maxTries then
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 50)
-        TeleportBtn.Text = "❌ TELEPORT FAILED"
-        wait(1)
-        TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
-        TeleportBtn.Text = "🌀 TELEPORT TO DELIVERY"
-    end
+    -- Save current state
+    local oldGravity = workspace.Gravity
+    local oldWalkSpeed = humanoid.WalkSpeed
+    local oldJumpPower = humanoid.JumpPower
+    
+    -- Flying mode
+    workspace.Gravity = 0
+    humanoid.WalkSpeed = 0
+    humanoid.JumpPower = 0
+    
+    -- Calculate height for arc flight
+    local distance = (deliveryPosition - root.Position).Magnitude
+    local arcHeight = math.min(distance * 0.5, 100) -- Max height of 100 studs
+    local midPoint = root.Position + (deliveryPosition - root.Position) * 0.5 + Vector3.new(0, arcHeight, 0)
+    
+    -- Create smooth flight path
+    local info = TweenInfo.new(
+        1, -- Time
+        Enum.EasingStyle.Linear, -- Style
+        Enum.EasingDirection.Out -- Direction
+    )
+    
+    -- First half of arc (going up)
+    local tween1 = TweenService:Create(root, info, {
+        CFrame = CFrame.new(midPoint, deliveryPosition)
+    })
+    
+    -- Second half of arc (coming down)
+    local tween2 = TweenService:Create(root, info, {
+        CFrame = CFrame.new(deliveryPosition)
+    })
+    
+    -- Execute flight path
+    tween1:Play()
+    tween1.Completed:Wait()
+    tween2:Play()
+    tween2.Completed:Wait()
+    
+    -- Restore normal state
+    workspace.Gravity = oldGravity
+    humanoid.WalkSpeed = oldWalkSpeed
+    humanoid.JumpPower = oldJumpPower
+    
+    TeleportBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+    TeleportBtn.Text = "✅ ARRIVED!"
+    wait(1)
+    TeleportBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+    TeleportBtn.Text = "🌀 FLY TO DELIVERY"
     teleporting = false
 end
 
@@ -497,12 +324,12 @@ SetDeliveryBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-TeleportBtn.MouseButton1Click:Connect(teleportObjectToDelivery)
+TeleportBtn.MouseButton1Click:Connect(flyToDelivery)
 NoClipBtn.MouseButton1Click:Connect(toggleNoClip)
 
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 350, 0, 35) or UDim2.new(0, 350, 0, 250)
+    local targetSize = isMinimized and UDim2.new(0, 350, 0, 35) or UDim2.new(0, 350, 0, 200)
     TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = targetSize}):Play()
     MinimizeBtn.Text = isMinimized and "+" or "−"
     Content.Visible = not isMinimized
@@ -517,14 +344,6 @@ CloseBtn.MouseButton1Click:Connect(function()
     }):Play()
     wait(0.3)
     ScreenGui:Destroy()
-end)
-
--- Avvia detection continua ogni 2 secondi
-spawn(function()
-    while ScreenGui.Parent do
-        detectHeldObject()
-        wait(2)
-    end
 end)
 
 print("🧠 Rubba Brainrot PRO - Sistema Perfetto Caricato!")
