@@ -8,6 +8,61 @@ local RunService = game:GetService("RunService")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
+-- === BRAINROT NAME LIST ===
+local brainrotNames = {
+    "Tralalero Tralala",
+    "Bombardiro Crocodilo",
+    "Tung Tung Tung Tung Tung Tung Tung Tung Tung Sahur",
+    "Lirilì Larilà",
+    "Boneca Ambalabu",
+    "Brr Brr Patapim",
+    "Chimpanzini Bananini",
+    "Bombombini Gusini",
+    "Cappuccino Assassino",
+    "Trippi Troppi Troppa Trippa",
+    "Frigo Camelo",
+    "La Vaca Saturno Saturnita",
+    "Ballerina Cappucina",
+    "U Din Din Din Din Dun Ma Din Din Din Dun",
+    "Trulimero Trulicina",
+    "Girafa Celestre",
+    "Bobrito Bandito",
+    "Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Ta Sahur",
+    "Pot Hotspot",
+    "Frulli Frulla",
+    "Brri Brri Bicus Dicus Bombicus",
+    "Tric Trac Baraboom",
+    "Cocofanto Elefanto",
+    "Burbaloni Lulilolli",
+    "Orangutini Ananasini",
+    "Garamararamararaman dan Madudungdung tak tuntung perkuntung",
+    "Il Cacto Hipopotamo",
+    "Blueberrinni Octopussini",
+    "Glorbo Fruttodrillo",
+    "Rhino Toasterino",
+    "Zibra Zubra Zibralini",
+    "Graipussi Medussi",
+    "Tigrrullini Watermellini",
+    "Tracotucotulu Delapeladustuz",
+    "Gorillo Watermellondrillo",
+    "Bananita Dolfinita",
+    "Tigroligre Frutonni",
+    "Ballerino Lololo",
+    "Crocodildo Penisini",
+    "Makakini Bananini",
+    "Matteooooooooooooo",
+    "Špijuniro Golubiro",
+    "Elephantuchi Bananuchi",
+    "Crocodillo Ananasinno",
+    "Penguino Cocosino"
+}
+local function isBrainrotName(name)
+    for _, v in ipairs(brainrotNames) do
+        if v == name then return true end
+    end
+    return false
+end
+
 -- Variabili globali
 local deliveryPosition = nil
 local currentHeldObject = nil
@@ -225,9 +280,9 @@ local function detectHeldObject()
             return 
         end
 
-        -- 1. Rileva Model IN MANO (non umanoide, non parti corpo, SOLO oggetti custom)
+        -- 1. Rileva Model IN MANO (non umanoide, non parti corpo, SOLO oggetti custom BRAINROT)
         for _, child in ipairs(character:GetChildren()) do
-            if child:IsA("Model") and not child:FindFirstChildOfClass("Humanoid") and not excluded_parts[child.Name] then
+            if child:IsA("Model") and not child:FindFirstChildOfClass("Humanoid") and not excluded_parts[child.Name] and isBrainrotName(child.Name) then
                 currentHeldObject = child
                 currentHeldType = "Model"
                 DetectionLabel.Text = "🔍 DETECTION: Model Found!"
