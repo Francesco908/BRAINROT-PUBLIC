@@ -79,7 +79,7 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.Size = UDim2.new(1, -80, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "🧠 RUBBA BRAINROT"
+Title.Text = "STEAL A BRAINROT"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -169,7 +169,7 @@ HoldingLabel.BorderSizePixel = 0
 HoldingLabel.Position = UDim2.new(0.05, 0, 0.7, 0)
 HoldingLabel.Size = UDim2.new(0.9, 0, 0, 25)
 HoldingLabel.Font = Enum.Font.Gotham
-HoldingLabel.Text = "🤲 Holding: Nessun oggetto"
+HoldingLabel.Text = "🤲 Holding: null"
 HoldingLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
 HoldingLabel.TextSize = 11
 
