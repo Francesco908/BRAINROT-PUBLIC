@@ -81,66 +81,230 @@ TeleportText.TextSize = 32
 TeleportText.TextScaled = true
 TeleportText.Parent = TeleportScreen
 
--- BYPASS LOGIC (Optimized)
-local function bypassAnticheat(character)
-    if not character then return false end
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-    if not humanoid or not rootPart then return false end
-    
-    local success = pcall(function()
-        rootPart.Anchored = true
-        humanoid.PlatformStand = true
-        humanoid.Sit = true
-        humanoid.WalkSpeed = 0
-        humanoid.JumpPower = 0
-        humanoid.AutoRotate = false
-        
-        -- Clean existing body movers
-        for _, obj in pairs(rootPart:GetChildren()) do
-            if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then 
-                obj:Destroy() 
-            end
-        end
-        
-        -- Add new body movers
-        local bv = Instance.new("BodyVelocity")
-        bv.MaxForce = Vector3.new(1e8, 1e8, 1e8)
-        bv.Velocity = Vector3.new(0, 0, 0)
-        bv.Parent = rootPart
-        
-        local bg = Instance.new("BodyGyro")
-        bg.MaxTorque = Vector3.new(1e8, 1e8, 1e8)
-        bg.CFrame = rootPart.CFrame
-        bg.Parent = rootPart
-    end)
-    
-    return success
-end
+-- ADVANCED BYPASS SYSTEM
+local BypassSystem = {
+    methods = {},
+    currentMethod = 1,
+    isActive = false,
+    antiDetection = true
+}
 
-local function restoreCharacter(character)
-    if not character then return end
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-    
-    pcall(function()
-        if rootPart then
-            rootPart.Anchored = false
+-- Method 1: Classic BodyMover Bypass
+BypassSystem.methods[1] = {
+    name = "BodyMover",
+    activate = function(character)
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+        if not humanoid or not rootPart then return false end
+        
+        pcall(function()
+            -- Store original values
+            rootPart:SetAttribute("OriginalCFrame", rootPart.CFrame)
+            humanoid:SetAttribute("OriginalWalkSpeed", humanoid.WalkSpeed)
+            
+            -- Apply bypass
+            rootPart.Anchored = true
+            humanoid.PlatformStand = true
+            humanoid.Sit = true
+            humanoid.WalkSpeed = 0
+            humanoid.JumpPower = 0
+            humanoid.AutoRotate = false
+            
+            -- Clean and add body movers
             for _, obj in pairs(rootPart:GetChildren()) do
-                if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then 
+                if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") or obj:IsA("BodyPosition") then 
                     obj:Destroy() 
                 end
             end
-        end
+            
+            local bv = Instance.new("BodyVelocity")
+            bv.MaxForce = Vector3.new(4000, 4000, 4000)
+            bv.Velocity = Vector3.new(0, 0, 0)
+            bv.Parent = rootPart
+            
+            local bg = Instance.new("BodyGyro")
+            bg.MaxTorque = Vector3.new(4000, 4000, 4000)
+            bg.CFrame = rootPart.CFrame
+            bg.D = 500
+            bg.P = 3000
+            bg.Parent = rootPart
+        end)
+        return true
+    end,
+    
+    restore = function(character)
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
         
-        if humanoid then
-            humanoid.PlatformStand = false
-            humanoid.Sit = false
-            humanoid.WalkSpeed = speedEnabled and 85 or 16
-            humanoid.JumpPower = 50
-            humanoid.AutoRotate = true
-        end
-    end)
+        pcall(function()
+            if rootPart then
+                rootPart.Anchored = false
+                for _, obj in pairs(rootPart:GetChildren()) do
+                    if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") or obj:IsA("BodyPosition") then 
+                        obj:Destroy() 
+                    end
+                end
+            end
+            
+            if humanoid then
+                humanoid.PlatformStand = false
+                humanoid.Sit = false
+                humanoid.WalkSpeed = speedEnabled and 85 or (humanoid:GetAttribute("OriginalWalkSpeed") or 16)
+                humanoid.JumpPower = 50
+                humanoid.AutoRotate = true
+            end
+        end)
+    end
+}
+
+-- Method 2: CFrame Manipulation Bypass
+BypassSystem.methods[2] = {
+    name = "CFrame",
+    activate = function(character)
+        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+        if not rootPart then return false end
+        
+        pcall(function()
+            rootPart:SetAttribute("OriginalCFrame", rootPart.CFrame)
+            rootPart.Anchored = true
+            
+            -- Create invisible part for smooth movement
+            local ghost = Instance.new("Part")
+            ghost.Name = "GhostPart"
+            ghost.Anchored = true
+            ghost.CanCollide = false
+            ghost.Transparency = 1
+            ghost.Size = Vector3.new(1, 1, 1)
+            ghost.CFrame = rootPart.CFrame
+            ghost.Parent = workspace
+            
+            rootPart:SetAttribute("GhostPart", ghost)
+        end)
+        return true
+    end,
+    
+    restore = function(character)
+        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+        
+        pcall(function()
+            if rootPart then
+                rootPart.Anchored = false
+                local ghost = rootPart:GetAttribute("GhostPart")
+                if ghost and ghost.Parent then
+                    ghost:Destroy()
+                end
+                rootPart:SetAttribute("GhostPart", nil)
+            end
+        end)
+    end
+}
+
+-- Method 3: Network Bypass (Advanced)
+BypassSystem.methods[3] = {
+    name = "Network",
+    activate = function(character)
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+        if not humanoid or not rootPart then return false end
+        
+        pcall(function()
+            -- Simulate network lag to confuse anticheat
+            rootPart:SetAttribute("NetworkBypass", true)
+            humanoid:SetAttribute("OriginalNetworkOwner", humanoid.NetworkOwner)
+            
+            -- Temporary disable network ownership
+            if humanoid.SetNetworkOwner then
+                humanoid:SetNetworkOwner(nil)
+            end
+            
+            -- Create decoy movements
+            for i = 1, 3 do
+                local decoy = rootPart:Clone()
+                decoy.Name = "DecoyPart" .. i
+                decoy.Transparency = 1
+                decoy.CanCollide = false
+                decoy.Parent = workspace
+                decoy.CFrame = rootPart.CFrame + Vector3.new(math.random(-10, 10), 0, math.random(-10, 10))
+                
+                spawn(function()
+                    wait(0.5)
+                    if decoy and decoy.Parent then
+                        decoy:Destroy()
+                    end
+                end)
+            end
+        end)
+        return true
+    end,
+    
+    restore = function(character)
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+        
+        pcall(function()
+            if rootPart then
+                rootPart:SetAttribute("NetworkBypass", nil)
+            end
+            
+            if humanoid then
+                local originalOwner = humanoid:GetAttribute("OriginalNetworkOwner")
+                if humanoid.SetNetworkOwner and originalOwner then
+                    humanoid:SetNetworkOwner(originalOwner)
+                end
+            end
+            
+            -- Clean decoys
+            for _, obj in pairs(workspace:GetChildren()) do
+                if obj.Name:match("DecoyPart") then
+                    obj:Destroy()
+                end
+            end
+        end)
+    end
+}
+
+-- Auto method switching for anti-detection
+local function getRandomMethod()
+    return math.random(1, #BypassSystem.methods)
+end
+
+-- Enhanced bypass function with method rotation
+local function advancedBypass(character)
+    if not character then return false end
+    
+    -- Rotate methods for anti-detection
+    if BypassSystem.antiDetection then
+        BypassSystem.currentMethod = getRandomMethod()
+    end
+    
+    local method = BypassSystem.methods[BypassSystem.currentMethod]
+    if method and method.activate then
+        BypassSystem.isActive = true
+        return method.activate(character)
+    end
+    
+    return false
+end
+
+-- Enhanced restore function
+local function advancedRestore(character)
+    if not character or not BypassSystem.isActive then return end
+    
+    local method = BypassSystem.methods[BypassSystem.currentMethod]
+    if method and method.restore then
+        method.restore(character)
+    end
+    
+    BypassSystem.isActive = false
+end
+
+-- Replace old bypass functions
+local function bypassAnticheat(character)
+    return advancedBypass(character)
+end
+
+local function restoreCharacter(character)
+    advancedRestore(character)
 end
 
 -- Main UI
@@ -155,8 +319,8 @@ MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 MainFrame.BackgroundTransparency = 0
 MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -250, 0.5, -200)
-MainFrame.Size = UDim2.new(0, 500, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -175, 0.5, -150)
+MainFrame.Size = UDim2.new(0, 350, 0, 300)
 MainFrame.Active = true
 MainFrame.ClipsDescendants = true
 
@@ -227,13 +391,13 @@ local TabContainer = Instance.new("Frame")
 TabContainer.Parent = MainFrame
 TabContainer.BackgroundTransparency = 1
 TabContainer.Position = UDim2.new(0, 0, 0, 50)
-TabContainer.Size = UDim2.new(0, 120, 1, -50)
+TabContainer.Size = UDim2.new(0, 90, 1, -50)
 
 local ContentContainer = Instance.new("Frame")
 ContentContainer.Parent = MainFrame
 ContentContainer.BackgroundTransparency = 1
-ContentContainer.Position = UDim2.new(0, 125, 0, 50)
-ContentContainer.Size = UDim2.new(1, -130, 1, -50)
+ContentContainer.Position = UDim2.new(0, 95, 0, 50)
+ContentContainer.Size = UDim2.new(1, -100, 1, -50)
 
 -- Tab Creation Function
 local tabs = {}
@@ -245,12 +409,12 @@ local function createTab(name, icon, yPos)
     tabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     tabBtn.BorderSizePixel = 0
     tabBtn.Position = UDim2.new(0, 5, 0, yPos)
-    tabBtn.Size = UDim2.new(1, -10, 0, 40)
+    tabBtn.Size = UDim2.new(1, -10, 0, 35)
     tabBtn.Font = Enum.Font.GothamBold
-    tabBtn.Text = icon .. " " .. name:upper()
+    tabBtn.Text = icon .. " " .. name:sub(1,4):upper()
     tabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    tabBtn.TextSize = 12
-    tabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    tabBtn.TextSize = 10
+    tabBtn.TextXAlignment = Enum.TextXAlignment.Center
     
     local tabCorner = Instance.new("UICorner")
     tabCorner.CornerRadius = UDim.new(0, 8)
@@ -270,9 +434,9 @@ end
 
 -- Create Tabs
 local mainTab, mainContent = createTab("main", "🏠", 5)
-local teleportTab, teleportContent = createTab("teleport", "🌀", 50)
-local playerTab, playerContent = createTab("player", "👤", 95)
-local settingsTab, settingsContent = createTab("settings", "⚙️", 140)
+local teleportTab, teleportContent = createTab("teleport", "🌀", 45)
+local playerTab, playerContent = createTab("player", "👤", 85)
+local settingsTab, settingsContent = createTab("settings", "⚙️", 125)
 
 -- Tab Switching Function
 local function switchTab(tabName)
@@ -364,31 +528,48 @@ infoLabel.TextXAlignment = Enum.TextXAlignment.Left
 infoLabel.TextYAlignment = Enum.TextYAlignment.Top
 
 -- TELEPORT TAB CONTENT
-local SetDeliveryBtn = createModernButton(teleportContent, UDim2.new(0, 10, 0, 10), UDim2.new(1, -20, 0, 35), "SET POSITION", "📍")
-local TeleportBtn = createModernButton(teleportContent, UDim2.new(0, 10, 0, 55), UDim2.new(1, -20, 0, 35), "FLY TO POSITION", "🚀")
-local ForwardBtn = createModernButton(teleportContent, UDim2.new(0, 10, 0, 100), UDim2.new(1, -20, 0, 35), "TP FORWARD", "➡️")
-local BaseTPBtn = createModernButton(teleportContent, UDim2.new(0, 10, 0, 145), UDim2.new(1, -20, 0, 35), "INSTANT TP", "✨")
+local SetDeliveryBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "SET POS", "📍")
+local TeleportBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 40), UDim2.new(1, -10, 0, 30), "FLY TO", "🚀")
+local ForwardBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 75), UDim2.new(1, -10, 0, 30), "TP FWD", "➡️")
+local BaseTPBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 110), UDim2.new(1, -10, 0, 30), "INSTANT", "✨")
+
+-- Add bypass method selector
+local BypassLabel = Instance.new("TextLabel")
+BypassLabel.Parent = teleportContent
+BypassLabel.BackgroundTransparency = 1
+BypassLabel.Position = UDim2.new(0, 5, 0, 145)
+BypassLabel.Size = UDim2.new(1, -10, 0, 15)
+BypassLabel.Font = Enum.Font.Gotham
+BypassLabel.Text = "Bypass: " .. BypassSystem.methods[BypassSystem.currentMethod].name
+BypassLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+BypassLabel.TextSize = 9
+BypassLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+local SwitchBypassBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 165), UDim2.new(1, -10, 0, 25), "SWITCH", "🔄")
 
 local teleportStatus = createStatusLabel(teleportContent)
 
 -- PLAYER TAB CONTENT
-local SpeedBtn = createModernButton(playerContent, UDim2.new(0, 10, 0, 10), UDim2.new(1, -20, 0, 35), "SUPER SPEED: OFF", "🏃‍♂️")
-local NoClipBtn = createModernButton(playerContent, UDim2.new(0, 10, 0, 55), UDim2.new(1, -20, 0, 35), "NOCLIP: OFF", "👻")
-local InvisBtn = createModernButton(playerContent, UDim2.new(0, 10, 0, 100), UDim2.new(1, -20, 0, 35), "INVISIBILITY: OFF", "👁️")
+local SpeedBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "SPEED: OFF", "🏃‍♂️")
+local NoClipBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 40), UDim2.new(1, -10, 0, 30), "NOCLIP: OFF", "👻")
+local InvisBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 75), UDim2.new(1, -10, 0, 30), "INVIS: OFF", "👁️")
+
+-- Anti-detection toggle
+local AntiDetectBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 110), UDim2.new(1, -10, 0, 30), "ANTI-DETECT: ON", "🛡️")
 
 local playerStatus = createStatusLabel(playerContent)
 
 -- SETTINGS TAB CONTENT
-local resetBtn = createModernButton(settingsContent, UDim2.new(0, 10, 0, 10), UDim2.new(1, -20, 0, 35), "RESET ALL", "🔄")
+local resetBtn = createModernButton(settingsContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "RESET ALL", "🔄")
 local aboutLabel = Instance.new("TextLabel")
 aboutLabel.Parent = settingsContent
 aboutLabel.BackgroundTransparency = 1
-aboutLabel.Position = UDim2.new(0, 10, 0, 60)
-aboutLabel.Size = UDim2.new(1, -20, 0, 100)
+aboutLabel.Position = UDim2.new(0, 5, 0, 45)
+aboutLabel.Size = UDim2.new(1, -10, 0, 80)
 aboutLabel.Font = Enum.Font.Gotham
-aboutLabel.Text = "SIGMA HUB v2.4\nOptimized Edition\n\nFeatures optimized performance\nand modern tab interface"
+aboutLabel.Text = "SIGMA HUB v2.4\nCompact Optimized\n\nAdvanced Bypass System\n3 Detection Methods"
 aboutLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-aboutLabel.TextSize = 12
+aboutLabel.TextSize = 10
 aboutLabel.TextXAlignment = Enum.TextXAlignment.Center
 
 -- TELEPORT FUNCTIONS
@@ -505,13 +686,13 @@ local function toggleSpeed()
     
     if speedEnabled then
         humanoid.WalkSpeed = 85
-        SpeedBtn.Text = "🏃‍♂️ SUPER SPEED: ON"
-        updateStatus(playerStatus, "🏃‍♂️ SUPER SPEED ACTIVATED!", Color3.fromRGB(255, 20, 147))
+        SpeedBtn.Text = "🏃‍♂️ SPEED: ON"
+        updateStatus(playerStatus, "🏃‍♂️ SUPER SPEED ON!", Color3.fromRGB(255, 20, 147))
         addConnection("speed", RunService.Heartbeat:Connect(maintainSpeed))
     else
         humanoid.WalkSpeed = 16
-        SpeedBtn.Text = "🏃‍♂️ SUPER SPEED: OFF"
-        updateStatus(playerStatus, "Speed restored to normal")
+        SpeedBtn.Text = "🏃‍♂️ SPEED: OFF"
+        updateStatus(playerStatus, "Speed normal")
         if connections["speed"] then
             connections["speed"]:Disconnect()
             connections["speed"] = nil
@@ -527,7 +708,7 @@ local function toggleNoClip()
     
     if noclipEnabled then
         NoClipBtn.Text = "👻 NOCLIP: ON"
-        updateStatus(playerStatus, "👻 NoClip activated!", Color3.fromRGB(0, 255, 0))
+        updateStatus(playerStatus, "👻 NoClip ON!", Color3.fromRGB(0, 255, 0))
         addConnection("noclip", RunService.Heartbeat:Connect(function()
             local character = Player.Character
             if character then
@@ -540,7 +721,7 @@ local function toggleNoClip()
         end))
     else
         NoClipBtn.Text = "👻 NOCLIP: OFF"
-        updateStatus(playerStatus, "👻 NoClip deactivated!")
+        updateStatus(playerStatus, "👻 NoClip OFF!")
         if connections["noclip"] then
             connections["noclip"]:Disconnect()
             connections["noclip"] = nil
@@ -586,7 +767,7 @@ local function toggleInvis()
         end
     end
     
-    InvisBtn.Text = invisEnabled and "👁️ INVISIBILITY: ON" or "👁️ INVISIBILITY: OFF"
+    InvisBtn.Text = invisEnabled and "👁️ INVIS: ON" or "👁️ INVIS: OFF"
     updateStatus(playerStatus, invisEnabled and "👁️ Invisible!" or "👁️ Visible!", invisEnabled and Color3.fromRGB(0, 255, 0) or nil)
     wait(2)
     updateStatus(playerStatus, "Ready!")
@@ -657,16 +838,24 @@ SpeedBtn.MouseButton1Click:Connect(addDebounce("speed", toggleSpeed, 1))
 NoClipBtn.MouseButton1Click:Connect(addDebounce("noclip", toggleNoClip, 1))
 InvisBtn.MouseButton1Click:Connect(addDebounce("invis", toggleInvis, 1))
 
--- Settings
-resetBtn.MouseButton1Click:Connect(addDebounce("reset", function()
-    -- Reset all features
-    if speedEnabled then toggleSpeed() end
-    if noclipEnabled then toggleNoClip() end
-    if invisEnabled then toggleInvis() end
-    deliveryPosition = nil
-    updateStatus(teleportStatus, "All features reset!")
-    updateStatus(playerStatus, "All features reset!")
-end, 2))
+-- Switch bypass method
+SwitchBypassBtn.MouseButton1Click:Connect(addDebounce("switchbypass", function()
+    BypassSystem.currentMethod = BypassSystem.currentMethod % #BypassSystem.methods + 1
+    BypassLabel.Text = "Bypass: " .. BypassSystem.methods[BypassSystem.currentMethod].name
+    updateStatus(teleportStatus, "Switched to " .. BypassSystem.methods[BypassSystem.currentMethod].name, Color3.fromRGB(0, 255, 255))
+    wait(2)
+    updateStatus(teleportStatus, "Ready!")
+end, 1))
+
+-- Toggle anti-detection
+AntiDetectBtn.MouseButton1Click:Connect(addDebounce("antidetect", function()
+    BypassSystem.antiDetection = not BypassSystem.antiDetection
+    AntiDetectBtn.Text = BypassSystem.antiDetection and "🛡️ ANTI-DETECT: ON" or "🛡️ ANTI-DETECT: OFF"
+    updateStatus(playerStatus, BypassSystem.antiDetection and "🛡️ Anti-Detection ON!" or "🛡️ Anti-Detection OFF!", 
+                BypassSystem.antiDetection and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 0))
+    wait(2)
+    updateStatus(playerStatus, "Ready!")
+end, 1))
 
 -- Window controls
 MinimizeBtn.MouseButton1Click:Connect(function()
@@ -718,4 +907,4 @@ local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingS
 openTween:Play()
 
 -- Success message
-print("⚡ SIGMA HUB v2.4 -! 🚀✨")
+print("⚡ SIGMA HUB v2.4 - OPTIMIZED TAB EDITION LOADED! 🚀✨")
