@@ -51,7 +51,10 @@ local function addDebounce(key, func, cooldown)
     return function(...)
         if debounce[key] then return end
         debounce[key] = true
-        func(...)
+        local success, err = pcall(func, ...)
+        if not success then
+            warn("Error in debounced function "..key..": "..err)
+        end
         spawn(function()
             wait(cooldown or 0.5)
             debounce[key] = false
@@ -410,9 +413,12 @@ local function optimizeGame()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= Player then
             pcall(function()
-                for _, part in ipairs(player.Character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                        part.Transparency = 0.5
+                local char = player.Character
+                if char then
+                    for _, part in ipairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                            part.Transparency = 0.5
+                        end
                     end
                 end
             end)
@@ -663,9 +669,11 @@ local function switchTab(tabName)
     
     -- Show new tab
     currentTab = tabName
-    tabs[currentTab].Visible = true
-    tabButtons[currentTab].BackgroundColor3 = Color3.fromRGB(255, 194, 0)
-    tabButtons[currentTab].TextColor3 = Color3.fromRGB(0, 0, 0)
+    if tabs[currentTab] then
+        tabs[currentTab].Visible = true
+        tabButtons[currentTab].BackgroundColor3 = Color3.fromRGB(255, 194, 0)
+        tabButtons[currentTab].TextColor3 = Color3.fromRGB(0, 0, 0)
+    end
 end
 
 -- Button Factory
@@ -950,13 +958,15 @@ end
 
 -- PLAYER FUNCTIONS
 local function maintainSpeed()
-    local character = Player.Character
-    if character and speedEnabled then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid and humanoid.WalkSpeed ~= 85 then
-            humanoid.WalkSpeed = 85
+    pcall(function()
+        local character = Player.Character
+        if character and speedEnabled then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.WalkSpeed ~= 85 then
+                humanoid.WalkSpeed = 85
+            end
         end
-    end
+    end)
 end
 
 local function toggleSpeed()
@@ -992,14 +1002,16 @@ local function toggleNoClip()
         NoClipBtn.Text = "👻 NOCLIP: ON"
         updateStatus(playerStatus, "👻 NoClip ON!", Color3.fromRGB(0, 255, 0))
         addConnection("noclip", RunService.Heartbeat:Connect(function()
-            local character = Player.Character
-            if character then
-                for _, part in pairs(character:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
+            pcall(function()
+                local character = Player.Character
+                if character then
+                    for _, part in pairs(character:GetChildren()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
                     end
                 end
-            end
+            end)
         end))
     else
         NoClipBtn.Text = "👻 NOCLIP: OFF"
@@ -1170,12 +1182,12 @@ end, 1))
 -- Settings functions
 optimizeBtn.MouseButton1Click:Connect(addDebounce("optimize", function()
     optimizeGame()
-    updateStatus(settingsContent, "Game optimized for performance!", Color3.fromRGB(0, 255, 0))
+    updateStatus(teleportStatus, "Game optimized for performance!", Color3.fromRGB(0, 255, 0))
 end))
 
 cheatBtn.MouseButton1Click:Connect(addDebounce("cheatopt", function()
     optimizeCheat()
-    updateStatus(settingsContent, "Cheat script optimized!", Color3.fromRGB(0, 255, 0))
+    updateStatus(teleportStatus, "Cheat script optimized!", Color3.fromRGB(0, 255, 0))
 end))
 
 -- Window controls
