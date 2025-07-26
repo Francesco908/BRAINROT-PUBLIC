@@ -1,13 +1,10 @@
--- SIGMA HUB v4.0 - Ultimate Anti-Detection Edition
+-- SIGMA HUB v2.4 - Optimized Tab Edition
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
-local HttpService = game:GetService("HttpService")
-local Stats = game:GetService("Stats")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
@@ -19,17 +16,12 @@ local isMinimized = false
 local noclipEnabled = false
 local speedEnabled = false
 local invisEnabled = false
-local antiHitEnabled = false
 local teleporting = false
-local optimized = false
 local currentTab = "main"
-local lastPerformanceCheck = 0
-local autoMethodEnabled = false
 
 -- Connection Management
 local connections = {}
 local debounce = {}
-local antiHitParts = {}
 
 local function addConnection(name, connection)
     if connections[name] then
@@ -40,7 +32,7 @@ end
 
 local function cleanupConnections()
     for name, connection in pairs(connections) do
-        if connection and connection.Connected then
+        if connection then
             connection:Disconnect()
         end
     end
@@ -51,10 +43,7 @@ local function addDebounce(key, func, cooldown)
     return function(...)
         if debounce[key] then return end
         debounce[key] = true
-        local success, err = pcall(func, ...)
-        if not success then
-            warn("Error in debounced function "..key..": "..err)
-        end
+        func(...)
         spawn(function()
             wait(cooldown or 0.5)
             debounce[key] = false
@@ -87,7 +76,7 @@ TeleportText.Position = UDim2.new(0, 0, 0.4, 0)
 TeleportText.Size = UDim2.new(1, 0, 0.2, 0)
 TeleportText.Font = Enum.Font.GothamBold
 TeleportText.Text = "TELEPORTING..."
-TeleportText.TextColor3 = Color3.fromRGB(255, 194, 0)
+TeleportText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeleportText.TextSize = 32
 TeleportText.TextScaled = true
 TeleportText.Parent = TeleportScreen
@@ -129,13 +118,11 @@ BypassSystem.methods[1] = {
             end
             
             local bv = Instance.new("BodyVelocity")
-            bv.Name = "SigmaBypassVelocity"
             bv.MaxForce = Vector3.new(4000, 4000, 4000)
             bv.Velocity = Vector3.new(0, 0, 0)
             bv.Parent = rootPart
             
             local bg = Instance.new("BodyGyro")
-            bg.Name = "SigmaBypassGyro"
             bg.MaxTorque = Vector3.new(4000, 4000, 4000)
             bg.CFrame = rootPart.CFrame
             bg.D = 500
@@ -276,79 +263,6 @@ BypassSystem.methods[3] = {
     end
 }
 
--- Method 4: Physics Simulation Bypass
-BypassSystem.methods[4] = {
-    name = "Physics",
-    activate = function(character)
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        if not rootPart then return false end
-        
-        pcall(function()
-            rootPart:SetAttribute("OriginalMass", rootPart.Mass)
-            rootPart:SetAttribute("OriginalCollision", rootPart.CanCollide)
-            
-            rootPart.Mass = 0.1
-            rootPart.CanCollide = false
-            
-            -- Create force field effect
-            local forceField = Instance.new("ForceField")
-            forceField.Name = "SigmaForceField"
-            forceField.Visible = false
-            forceField.Parent = character
-        end)
-        return true
-    end,
-    
-    restore = function(character)
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        
-        pcall(function()
-            if rootPart then
-                rootPart.Mass = rootPart:GetAttribute("OriginalMass") or 1
-                rootPart.CanCollide = rootPart:GetAttribute("OriginalCollision") == true
-            end
-            
-            local forceField = character:FindFirstChild("SigmaForceField")
-            if forceField then
-                forceField:Destroy()
-            end
-        end)
-    end
-}
-
--- Method 5: Render Priority Bypass
-BypassSystem.methods[5] = {
-    name = "Render",
-    activate = function(character)
-        pcall(function()
-            character:SetAttribute("OriginalPriority", character:GetAttribute("RenderPriority"))
-            character:SetAttribute("RenderPriority", Enum.RenderPriority.Last.Value)
-            
-            -- Create fake character
-            local fakeChar = character:Clone()
-            fakeChar.Name = "SigmaFakeCharacter"
-            for _, part in ipairs(fakeChar:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Transparency = 1
-                end
-            end
-            fakeChar.Parent = workspace
-        end)
-        return true
-    end,
-    
-    restore = function(character)
-        pcall(function()
-            character:SetAttribute("RenderPriority", character:GetAttribute("OriginalPriority") or Enum.RenderPriority.First.Value)
-            
-            local fakeChar = workspace:FindFirstChild("SigmaFakeCharacter")
-            if fakeChar then
-                fakeChar:Destroy()
-            end
-        end)
-    end
-}
-
 -- Auto method switching for anti-detection
 local function getRandomMethod()
     return math.random(1, #BypassSystem.methods)
@@ -358,11 +272,8 @@ end
 local function advancedBypass(character)
     if not character then return false end
     
-    -- Auto switch method if enabled
-    if autoMethodEnabled then
-        BypassSystem.currentMethod = getRandomMethod()
-    -- Manual rotation for anti-detection
-    elseif BypassSystem.antiDetection then
+    -- Rotate methods for anti-detection
+    if BypassSystem.antiDetection then
         BypassSystem.currentMethod = getRandomMethod()
     end
     
@@ -394,135 +305,6 @@ end
 
 local function restoreCharacter(character)
     advancedRestore(character)
-end
-
--- Performance optimization functions
-local function optimizeGame()
-    if optimized then return end
-    
-    -- Lighting optimization
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 100
-    Lighting.Brightness = 2
-    Lighting.Outlines = false
-    
-    -- Rendering settings
-    settings().Rendering.QualityLevel = 1
-    
-    -- Character rendering
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= Player then
-            pcall(function()
-                local char = player.Character
-                if char then
-                    for _, part in ipairs(char:GetDescendants()) do
-                        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                            part.Transparency = 0.5
-                        end
-                    end
-                end
-            end)
-        end
-    end
-    
-    optimized = true
-end
-
-local function optimizeCheat()
-    -- Clean up unused connections
-    for name, conn in pairs(connections) do
-        if not string.find(name, "essential") then
-            conn:Disconnect()
-            connections[name] = nil
-        end
-    end
-    
-    -- Reduce heartbeat checks
-    if connections["speed"] then
-        connections["speed"]:Disconnect()
-        connections["speed"] = nil
-    end
-    
-    if connections["noclip"] then
-        connections["noclip"]:Disconnect()
-        connections["noclip"] = nil
-    end
-end
-
--- Anti-Hit System
-local function enableAntiHit()
-    local character = Player.Character
-    if not character then return end
-    
-    -- Store original sizes
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part:SetAttribute("OriginalSize", part.Size)
-            part:SetAttribute("OriginalPosition", part.Position)
-            antiHitParts[part] = part.Size
-        end
-    end
-    
-    -- Make character very small but keep torso and head
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            if part.Name == "Head" or part.Name == "Torso" then
-                part.Size = Vector3.new(0.5, 0.5, 0.5)  -- Keep torso and head visible but small
-            else
-                part.Size = Vector3.new(0.01, 0.01, 0.01)  -- Make limbs invisible
-            end
-            part.CanCollide = false
-            part.CanTouch = false
-            part.CanQuery = false
-        end
-    end
-    
-    -- Make humanoid invulnerable
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid:SetAttribute("OriginalHealth", humanoid.Health)
-        humanoid.MaxHealth = math.huge
-        humanoid.Health = math.huge
-    end
-    
-    -- Create forcefield
-    local forceField = Instance.new("ForceField")
-    forceField.Visible = false
-    forceField.Parent = character
-    
-    antiHitEnabled = true
-end
-
-local function disableAntiHit()
-    local character = Player.Character
-    if not character then return end
-    
-    -- Restore original sizes
-    for part, originalSize in pairs(antiHitParts) do
-        if part and part.Parent then
-            part.Size = originalSize
-            part.CanCollide = true
-            part.CanTouch = true
-            part.CanQuery = true
-        end
-    end
-    
-    -- Restore humanoid health
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid.MaxHealth = 100
-        humanoid.Health = humanoid:GetAttribute("OriginalHealth") or 100
-    end
-    
-    -- Remove forcefield
-    for _, obj in ipairs(character:GetChildren()) do
-        if obj:IsA("ForceField") then
-            obj:Destroy()
-        end
-    end
-    
-    antiHitEnabled = false
-    antiHitParts = {}
 end
 
 -- Main UI
@@ -571,7 +353,7 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 20, 0, 0)
 Title.Size = UDim2.new(1, -120, 1, 0)
 Title.Font = Enum.Font.GothamBold
-Title.Text = "⚡ SIGMA HUB v4.0"
+Title.Text = "⚡ SIGMA HUB v2.4"
 Title.TextColor3 = Color3.fromRGB(255, 194, 0)
 Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
@@ -669,11 +451,9 @@ local function switchTab(tabName)
     
     -- Show new tab
     currentTab = tabName
-    if tabs[currentTab] then
-        tabs[currentTab].Visible = true
-        tabButtons[currentTab].BackgroundColor3 = Color3.fromRGB(255, 194, 0)
-        tabButtons[currentTab].TextColor3 = Color3.fromRGB(0, 0, 0)
-    end
+    tabs[currentTab].Visible = true
+    tabButtons[currentTab].BackgroundColor3 = Color3.fromRGB(255, 194, 0)
+    tabButtons[currentTab].TextColor3 = Color3.fromRGB(0, 0, 0)
 end
 
 -- Button Factory
@@ -729,7 +509,7 @@ welcomeLabel.BackgroundTransparency = 1
 welcomeLabel.Position = UDim2.new(0, 10, 0, 10)
 welcomeLabel.Size = UDim2.new(1, -20, 0, 60)
 welcomeLabel.Font = Enum.Font.GothamBold
-welcomeLabel.Text = "SIGMA HUB v4.0\nULTIMATE ANTI-DETECTION"
+welcomeLabel.Text = "Welcome to SIGMA HUB v2.4\nOptimized Edition"
 welcomeLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
 welcomeLabel.TextSize = 16
 welcomeLabel.TextXAlignment = Enum.TextXAlignment.Center
@@ -741,7 +521,7 @@ infoLabel.BackgroundTransparency = 1
 infoLabel.Position = UDim2.new(0, 10, 0, 80)
 infoLabel.Size = UDim2.new(1, -20, 0, 150)
 infoLabel.Font = Enum.Font.Gotham
-infoLabel.Text = "Features:\n• 5 Advanced Bypass Methods\n• Auto Method Switching\n• Anti-Hit Protection System\n• Optimize Game & Cheat\n• Speed Boost (85 WalkSpeed)\n• NoClip & Invisibility\n• Teleport System\n• Compact Interface"
+infoLabel.Text = "Features:\n• Advanced Teleportation System\n• Speed Boost (85 WalkSpeed)\n• NoClip & Invisibility\n• Optimized Performance\n• Clean Tab Interface"
 infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 infoLabel.TextSize = 12
 infoLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -766,7 +546,6 @@ BypassLabel.TextSize = 9
 BypassLabel.TextXAlignment = Enum.TextXAlignment.Center
 
 local SwitchBypassBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 165), UDim2.new(1, -10, 0, 25), "SWITCH", "🔄")
-local AutoMethodBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 195), UDim2.new(1, -10, 0, 25), "AUTO: OFF", "🔄")
 
 local teleportStatus = createStatusLabel(teleportContent)
 
@@ -774,25 +553,21 @@ local teleportStatus = createStatusLabel(teleportContent)
 local SpeedBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "SPEED: OFF", "🏃‍♂️")
 local NoClipBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 40), UDim2.new(1, -10, 0, 30), "NOCLIP: OFF", "👻")
 local InvisBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 75), UDim2.new(1, -10, 0, 30), "INVIS: OFF", "👁️")
-local AntiHitBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 110), UDim2.new(1, -10, 0, 30), "ANTI-HIT: OFF", "🛡️")
 
 -- Anti-detection toggle
-local AntiDetectBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 145), UDim2.new(1, -10, 0, 30), "ANTI-DETECT: ON", "🛡️")
+local AntiDetectBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 110), UDim2.new(1, -10, 0, 30), "ANTI-DETECT: ON", "🛡️")
 
 local playerStatus = createStatusLabel(playerContent)
 
 -- SETTINGS TAB CONTENT
 local resetBtn = createModernButton(settingsContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "RESET ALL", "🔄")
-local optimizeBtn = createModernButton(settingsContent, UDim2.new(0, 5, 0, 40), UDim2.new(1, -10, 0, 30), "OPTIMIZE GAME", "🔄")
-local cheatBtn = createModernButton(settingsContent, UDim2.new(0, 5, 0, 75), UDim2.new(1, -10, 0, 30), "OPTIMIZE CHEAT", "⚡")
-
 local aboutLabel = Instance.new("TextLabel")
 aboutLabel.Parent = settingsContent
 aboutLabel.BackgroundTransparency = 1
-aboutLabel.Position = UDim2.new(0, 5, 0, 110)
+aboutLabel.Position = UDim2.new(0, 5, 0, 45)
 aboutLabel.Size = UDim2.new(1, -10, 0, 80)
 aboutLabel.Font = Enum.Font.Gotham
-aboutLabel.Text = "SIGMA HUB v4.0\nUltimate Anti-Detection\n\n5 Bypass Methods\nAnti-Hit Protection"
+aboutLabel.Text = "SIGMA HUB v2.4\nCompact Optimized\n\nAdvanced Bypass System\n3 Detection Methods"
 aboutLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 aboutLabel.TextSize = 10
 aboutLabel.TextXAlignment = Enum.TextXAlignment.Center
@@ -805,7 +580,6 @@ local function updateStatus(label, text, color)
     end
 end
 
--- Enhanced teleport with auto method switching
 local function flyToDelivery()
     if teleporting or not deliveryPosition then
         updateStatus(teleportStatus, "⚠️ Set a position first!", Color3.fromRGB(255, 193, 7))
@@ -818,64 +592,26 @@ local function flyToDelivery()
     if not rootPart then return end
     
     teleporting = true
-    local maxRetries = 3
-    local retryCount = 0
-    local success = false
+    updateStatus(teleportStatus, "🚀 Flying to position...", Color3.fromRGB(0, 128, 255))
     
-    while not success and retryCount < maxRetries and teleporting do
-        updateStatus(teleportStatus, "🚀 Flying to position... ("..(retryCount+1).."/"..maxRetries..")", Color3.fromRGB(0, 128, 255))
-        
-        if not bypassAnticheat(character) then
-            updateStatus(teleportStatus, "❌ Bypass failed! Retrying...", Color3.fromRGB(255, 50, 50))
-            retryCount = retryCount + 1
-            wait(1)
-            goto continue
-        end
-        
-        local targetCFrame = CFrame.new(deliveryPosition)
-        local tweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-        local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
-        
-        tween:Play()
-        local completed = false
-        tween.Completed:Connect(function()
-            completed = true
-        end)
-        
-        -- Wait for tween to complete or timeout
-        local startTime = os.clock()
-        while not completed and os.clock() - startTime < 3 do
-            wait(0.1)
-        end
-        
-        -- Check if arrived
-        local distance = (rootPart.Position - deliveryPosition).Magnitude
-        if distance < 5 then
-            success = true
-        else
-            restoreCharacter(character)
-            retryCount = retryCount + 1
-            updateStatus(teleportStatus, "⚠️ Retry "..retryCount.."/"..maxRetries, Color3.fromRGB(255, 193, 7))
-            wait(1)
-        end
-        
-        ::continue::
+    if not bypassAnticheat(character) then
+        teleporting = false
+        return
     end
     
-    if success then
+    local targetCFrame = CFrame.new(deliveryPosition)
+    local tweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
+    
+    tween:Play()
+    tween.Completed:Connect(function()
         restoreCharacter(character)
         updateStatus(teleportStatus, "✅ Arrived successfully!", Color3.fromRGB(0, 255, 0))
-    else
-        restoreCharacter(character)
-        updateStatus(teleportStatus, "❌ Failed to teleport!", Color3.fromRGB(255, 0, 0))
-    end
-    
-    spawn(function()
-        wait(3)
-        if teleportStatus and teleportStatus.Parent then
+        spawn(function()
+            wait(3)
             updateStatus(teleportStatus, "Ready!")
-        end
-        teleporting = false
+            teleporting = false
+        end)
     end)
 end
 
@@ -892,46 +628,20 @@ local function instantTeleport()
     
     teleporting = true
     TeleportScreen.Enabled = true
-    local maxRetries = 3
-    local retryCount = 0
-    local success = false
+    updateStatus(teleportStatus, "⏳ Instant teleporting...", Color3.fromRGB(255, 215, 0))
     
-    while not success and retryCount < maxRetries and teleporting do
-        updateStatus(teleportStatus, "⏳ Teleporting... ("..(retryCount+1).."/"..maxRetries..")", Color3.fromRGB(255, 215, 0))
-        
+    spawn(function()
         bypassAnticheat(character)
-        wait(0.1)
+        wait(1)
         if rootPart and rootPart.Parent then
             rootPart.CFrame = CFrame.new(deliveryPosition)
         end
-        wait(0.5)
-        
-        -- Check if arrived
-        local distance = (rootPart.Position - deliveryPosition).Magnitude
-        if distance < 5 then
-            success = true
-        else
-            restoreCharacter(character)
-            retryCount = retryCount + 1
-            updateStatus(teleportStatus, "⚠️ Retry "..retryCount.."/"..maxRetries, Color3.fromRGB(255, 193, 7))
-            wait(1)
-        end
-    end
-    
-    TeleportScreen.Enabled = false
-    restoreCharacter(character)
-    
-    if success then
+        wait(1)
+        TeleportScreen.Enabled = false
+        restoreCharacter(character)
         updateStatus(teleportStatus, "✅ Teleported instantly!", Color3.fromRGB(0, 255, 0))
-    else
-        updateStatus(teleportStatus, "❌ Failed to teleport!", Color3.fromRGB(255, 0, 0))
-    end
-    
-    spawn(function()
         wait(3)
-        if teleportStatus and teleportStatus.Parent then
-            updateStatus(teleportStatus, "Ready!")
-        end
+        updateStatus(teleportStatus, "Ready!")
         teleporting = false
     end)
 end
@@ -958,15 +668,13 @@ end
 
 -- PLAYER FUNCTIONS
 local function maintainSpeed()
-    pcall(function()
-        local character = Player.Character
-        if character and speedEnabled then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.WalkSpeed ~= 85 then
-                humanoid.WalkSpeed = 85
-            end
+    local character = Player.Character
+    if character and speedEnabled then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.WalkSpeed ~= 85 then
+            humanoid.WalkSpeed = 85
         end
-    end)
+    end
 end
 
 local function toggleSpeed()
@@ -1002,16 +710,14 @@ local function toggleNoClip()
         NoClipBtn.Text = "👻 NOCLIP: ON"
         updateStatus(playerStatus, "👻 NoClip ON!", Color3.fromRGB(0, 255, 0))
         addConnection("noclip", RunService.Heartbeat:Connect(function()
-            pcall(function()
-                local character = Player.Character
-                if character then
-                    for _, part in pairs(character:GetChildren()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
+            local character = Player.Character
+            if character then
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
                     end
                 end
-            end)
+            end
         end))
     else
         NoClipBtn.Text = "👻 NOCLIP: OFF"
@@ -1063,23 +769,6 @@ local function toggleInvis()
     
     InvisBtn.Text = invisEnabled and "👁️ INVIS: ON" or "👁️ INVIS: OFF"
     updateStatus(playerStatus, invisEnabled and "👁️ Invisible!" or "👁️ Visible!", invisEnabled and Color3.fromRGB(0, 255, 0) or nil)
-    wait(2)
-    updateStatus(playerStatus, "Ready!")
-end
-
-local function toggleAntiHit()
-    antiHitEnabled = not antiHitEnabled
-    
-    if antiHitEnabled then
-        AntiHitBtn.Text = "🛡️ ANTI-HIT: ON"
-        updateStatus(playerStatus, "🛡️ ANTI-HIT ACTIVATED!", Color3.fromRGB(0, 255, 0))
-        enableAntiHit()
-    else
-        AntiHitBtn.Text = "🛡️ ANTI-HIT: OFF"
-        updateStatus(playerStatus, "Anti-Hit Deactivated")
-        disableAntiHit()
-    end
-    
     wait(2)
     updateStatus(playerStatus, "Ready!")
 end
@@ -1148,7 +837,6 @@ ForwardBtn.MouseButton1Click:Connect(addDebounce("forward", tpForward, 1))
 SpeedBtn.MouseButton1Click:Connect(addDebounce("speed", toggleSpeed, 1))
 NoClipBtn.MouseButton1Click:Connect(addDebounce("noclip", toggleNoClip, 1))
 InvisBtn.MouseButton1Click:Connect(addDebounce("invis", toggleInvis, 1))
-AntiHitBtn.MouseButton1Click:Connect(addDebounce("antihit", toggleAntiHit, 1))
 
 -- Switch bypass method
 SwitchBypassBtn.MouseButton1Click:Connect(addDebounce("switchbypass", function()
@@ -1158,16 +846,6 @@ SwitchBypassBtn.MouseButton1Click:Connect(addDebounce("switchbypass", function()
     wait(2)
     updateStatus(teleportStatus, "Ready!")
 end, 1))
-
--- Toggle auto method switching
-AutoMethodBtn.MouseButton1Click:Connect(function()
-    autoMethodEnabled = not autoMethodEnabled
-    AutoMethodBtn.Text = autoMethodEnabled and "AUTO: ON" or "AUTO: OFF"
-    updateStatus(teleportStatus, autoMethodEnabled and "🔄 Auto Method ON!" or "🔄 Auto Method OFF!", 
-                autoMethodEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 0))
-    wait(2)
-    updateStatus(teleportStatus, "Ready!")
-end)
 
 -- Toggle anti-detection
 AntiDetectBtn.MouseButton1Click:Connect(addDebounce("antidetect", function()
@@ -1179,21 +857,10 @@ AntiDetectBtn.MouseButton1Click:Connect(addDebounce("antidetect", function()
     updateStatus(playerStatus, "Ready!")
 end, 1))
 
--- Settings functions
-optimizeBtn.MouseButton1Click:Connect(addDebounce("optimize", function()
-    optimizeGame()
-    updateStatus(teleportStatus, "Game optimized for performance!", Color3.fromRGB(0, 255, 0))
-end))
-
-cheatBtn.MouseButton1Click:Connect(addDebounce("cheatopt", function()
-    optimizeCheat()
-    updateStatus(teleportStatus, "Cheat script optimized!", Color3.fromRGB(0, 255, 0))
-end))
-
 -- Window controls
 MinimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 350, 0, 45) or UDim2.new(0, 350, 0, 300)
+    local targetSize = isMinimized and UDim2.new(0, 500, 0, 45) or UDim2.new(0, 500, 0, 400)
     local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = targetSize})
     tween:Play()
     MinimizeBtn.Text = isMinimized and "+" or "−"
@@ -1222,23 +889,6 @@ Player.CharacterAdded:Connect(function(character)
         wait(0.5)
         humanoid.WalkSpeed = 85
     end
-    
-    if antiHitEnabled then
-        wait(1)
-        enableAntiHit()
-    end
-    
-    if noclipEnabled then
-        addConnection("noclip", RunService.Heartbeat:Connect(function()
-            if character then
-                for _, part in pairs(character:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end))
-    end
 end)
 
 -- Enable dragging
@@ -1251,21 +901,10 @@ switchTab("main")
 MainFrame.Size = UDim2.new(0, 0, 0, 0)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 350, 0, 300), 
-    Position = UDim2.new(0.5, -175, 0.5, -150)
+    Size = UDim2.new(0, 500, 0, 400), 
+    Position = UDim2.new(0.5, -250, 0.5, -200)
 })
 openTween:Play()
 
--- Performance monitoring
-addConnection("perf", RunService.Heartbeat:Connect(function()
-    if os.clock() - lastPerformanceCheck > 5 then
-        lastPerformanceCheck = os.clock()
-        local mem = Stats:GetMemoryUsageMbForTag(Enum.DeveloperMemoryTag.Script)
-        if mem > 50 then
-            optimizeCheat()
-        end
-    end
-end))
-
 -- Success message
-print("⚡ SIGMA HUB v4.0 - ULTIMATE ANTI-DETECTION LOADED! 🚀✨")
+print("⚡ SIGMA HUB v2.4 - OPTIMIZED TAB EDITION LOADED! 🚀✨")
