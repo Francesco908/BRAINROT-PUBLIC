@@ -1,910 +1,932 @@
--- SIGMA HUB v2.4 - Optimized Tab Edition
+-- 🎄 CHRISTMAS ADMIN MENU - ADVANCED EDITION 🎄
+-- Ultra Advanced Logic + Beautiful Christmas Theme
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
 
-local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local mouse = player:GetMouse()
 
--- Vars
-local deliveryPosition = nil
-local isDragging = false
-local isMinimized = false
-local noclipEnabled = false
-local speedEnabled = false
-local invisEnabled = false
-local teleporting = false
-local currentTab = "main"
+-- 🎅 VARIABILI AVANZATE
+local isFlying = false
+local flyConnection = nil
+local spawnPosition = nil
+local basePosition = nil
+local smartCache = {}
+local particleEffects = {}
+local christmasColors = {
+    primary = Color3.fromRGB(165, 42, 42),    -- Rosso Natale
+    secondary = Color3.fromRGB(34, 139, 34),  -- Verde Natale  
+    gold = Color3.fromRGB(255, 215, 0),       -- Oro
+    snow = Color3.fromRGB(248, 248, 255),     -- Bianco neve
+    dark = Color3.fromRGB(25, 25, 35),        -- Scuro elegante
+    accent = Color3.fromRGB(220, 20, 60)      -- Rosso brillante
+}
 
--- Connection Management
-local connections = {}
-local debounce = {}
-
-local function addConnection(name, connection)
-    if connections[name] then
-        connections[name]:Disconnect()
-    end
-    connections[name] = connection
+-- 🎁 SISTEMA DI PARTICELLE NATALIZIE
+local function createSnowParticle(parent, position)
+    local snowflake = Instance.new("Part")
+    snowflake.Name = "Snowflake"
+    snowflake.Size = Vector3.new(0.1, 0.1, 0.1)
+    snowflake.Material = Enum.Material.Neon
+    snowflake.BrickColor = BrickColor.new("Institutional white")
+    snowflake.Position = position
+    snowflake.CanCollide = false
+    snowflake.Anchored = true
+    snowflake.Parent = parent
+    
+    local sparkle = Instance.new("Sparkles")
+    sparkle.Parent = snowflake
+    sparkle.SparkleColor = christmasColors.snow
+    
+    -- Movimento fluido della neve
+    local startPos = snowflake.Position
+    local endPos = startPos - Vector3.new(math.random(-5,5), math.random(10,20), math.random(-5,5))
+    
+    local tweenInfo = TweenInfo.new(math.random(2,4), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+    local tween = TweenService:Create(snowflake, tweenInfo, {
+        Position = endPos,
+        Transparency = 1,
+        Size = Vector3.new(0.05, 0.05, 0.05)
+    })
+    
+    tween:Play()
+    Debris:AddItem(snowflake, 4)
+    
+    return snowflake
 end
 
-local function cleanupConnections()
-    for name, connection in pairs(connections) do
-        if connection then
-            connection:Disconnect()
+-- 🔍 SISTEMA DI RICERCA ULTRA AVANZATO
+local function advancedSearch()
+    print("🎄 Iniziando scansione avanzata del mondo...")
+    
+    local worldObjects = {}
+    local playerObjects = {}
+    local spawnCandidates = {}
+    local baseCandidates = {}
+    
+    -- Scansione intelligente multi-livello
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local name = obj.Name:lower()
+            local parent = obj.Parent and obj.Parent.Name:lower() or ""
+            local size = obj.Size
+            local position = obj.Position
+            
+            -- Analisi spawn points con AI
+            local spawnScore = 0
+            local spawnKeywords = {"spawn", "delivery", "hitbox", "start", "begin", "base", "home"}
+            for _, keyword in pairs(spawnKeywords) do
+                if name:find(keyword) then spawnScore = spawnScore + 10 end
+                if parent:find(keyword) then spawnScore = spawnScore + 5 end
+            end
+            
+            -- Bonus per dimensioni appropriate
+            if size.Y > 1 and size.Y < 10 then spawnScore = spawnScore + 3 end
+            if size.X > 3 and size.Z > 3 then spawnScore = spawnScore + 2 end
+            
+            if spawnScore > 8 then
+                table.insert(spawnCandidates, {obj = obj, score = spawnScore, pos = position})
+            end
+            
+            -- Analisi basi con logica avanzata
+            local baseScore = 0
+            local baseKeywords = {"base", "house", "home", "building", "structure", "plot", "land"}
+            for _, keyword in pairs(baseKeywords) do
+                if name:find(keyword) then baseScore = baseScore + 8 end
+                if parent:find(keyword) then baseScore = baseScore + 4 end
+            end
+            
+            -- Analisi strutturale per basi
+            if size.Y > 5 and (size.X > 10 or size.Z > 10) then baseScore = baseScore + 5 end
+            if obj.Material == Enum.Material.Brick or obj.Material == Enum.Material.Concrete then 
+                baseScore = baseScore + 2 
+            end
+            
+            -- Controllo vicinanza ad altri oggetti (indica una struttura)
+            local nearbyCount = 0
+            for _, nearby in pairs(workspace:GetPartBoundsInRegion(
+                Region3.new(position - Vector3.new(20,20,20), position + Vector3.new(20,20,20)), 
+                50
+            )) do
+                if nearby ~= obj then nearbyCount = nearbyCount + 1 end
+            end
+            if nearbyCount > 5 then baseScore = baseScore + 3 end
+            
+            if baseScore > 10 then
+                table.insert(baseCandidates, {obj = obj, score = baseScore, pos = position})
+            end
         end
     end
-    connections = {}
+    
+    -- Ordina per punteggio e seleziona i migliori
+    table.sort(spawnCandidates, function(a, b) return a.score > b.score end)
+    table.sort(baseCandidates, function(a, b) return a.score > b.score end)
+    
+    -- Seleziona spawn ottimale
+    if #spawnCandidates > 0 then
+        spawnPosition = spawnCandidates[1].pos
+        print("🎯 Spawn trovato:", spawnCandidates[1].obj.Name, "Score:", spawnCandidates[1].score)
+    end
+    
+    -- Seleziona base ottimale (preferisce quella più lontana dallo spawn)
+    local bestBase = nil
+    local bestDistance = 0
+    for _, base in pairs(baseCandidates) do
+        if spawnPosition then
+            local distance = (base.pos - spawnPosition).Magnitude
+            if distance > bestDistance and distance < 500 then -- Non troppo lontano
+                bestDistance = distance
+                bestBase = base
+            end
+        elseif not bestBase then
+            bestBase = base
+        end
+    end
+    
+    if bestBase then
+        basePosition = bestBase.pos
+        print("🏠 Base trovata:", bestBase.obj.Name, "Score:", bestBase.score)
+    end
+    
+    -- Fallback intelligente
+    if not spawnPosition and player.Character then
+        spawnPosition = player.Character.HumanoidRootPart.Position
+        print("🔄 Usando posizione corrente come spawn")
+    end
+    
+    smartCache.lastScan = tick()
+    smartCache.spawnPos = spawnPosition
+    smartCache.basePos = basePosition
 end
 
-local function addDebounce(key, func, cooldown)
-    return function(...)
-        if debounce[key] then return end
-        debounce[key] = true
-        func(...)
+-- ✈️ SISTEMA DI VOLO ULTRA SMOOTH
+local function createAdvancedFlight()
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local humanoidRootPart = character.HumanoidRootPart
+    local humanoid = character:FindFirstChild("Humanoid")
+    
+    if isFlying then return end
+    isFlying = true
+    
+    -- Effetti particellari per il volo
+    local flyEffect = Instance.new("Fire")
+    flyEffect.Parent = humanoidRootPart
+    flyEffect.Size = 3
+    flyEffect.Heat = 5
+    flyEffect.Color = christmasColors.gold
+    flyEffect.SecondaryColor = christmasColors.primary
+    
+    local sparkles = Instance.new("Sparkles")
+    sparkles.Parent = humanoidRootPart
+    sparkles.SparkleColor = christmasColors.gold
+    
+    -- Sistema di volo avanzato con fisica realistica
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = humanoidRootPart
+    
+    local bodyAngularVelocity = Instance.new("BodyAngularVelocity")
+    bodyAngularVelocity.MaxTorque = Vector3.new(4000, 4000, 4000)
+    bodyAngularVelocity.AngularVelocity = Vector3.new(0, 0, 0)
+    bodyAngularVelocity.Parent = humanoidRootPart
+    
+    local currentVelocity = Vector3.new(0, 0, 0)
+    local targetVelocity = Vector3.new(0, 0, 0)
+    
+    flyConnection = RunService.Heartbeat:Connect(function(dt)
+        if not isFlying then
+            flyEffect:Destroy()
+            sparkles:Destroy()
+            bodyVelocity:Destroy()
+            bodyAngularVelocity:Destroy()
+            return
+        end
+        
+        local camera = workspace.CurrentCamera
+        local moveVector = humanoid.MoveDirection
+        local lookVector = camera.CFrame.LookVector
+        local rightVector = camera.CFrame.RightVector
+        local upVector = camera.CFrame.UpVector
+        
+        targetVelocity = Vector3.new(0, 0, 0)
+        
+        -- Movimento direzionale fluido
+        if moveVector.Magnitude > 0 then
+            targetVelocity = targetVelocity + (lookVector * moveVector.Z + rightVector * moveVector.X) * 60
+        end
+        
+        -- Controlli verticali
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            targetVelocity = targetVelocity + Vector3.new(0, 60, 0)
+        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            targetVelocity = targetVelocity + Vector3.new(0, -60, 0)
+        end
+        
+        -- Smoothing avanzato della velocità
+        currentVelocity = currentVelocity:Lerp(targetVelocity, dt * 8)
+        bodyVelocity.Velocity = currentVelocity
+        
+        -- Effetti particellari durante il volo
+        if math.random() < 0.3 then
+            createSnowParticle(workspace, humanoidRootPart.Position + Vector3.new(
+                math.random(-3,3), math.random(-1,1), math.random(-3,3)
+            ))
+        end
+    end)
+    
+    print("🎅 Modalità volo attivata!")
+end
+
+-- 🛑 FERMA VOLO
+local function stopAdvancedFlight()
+    isFlying = false
+    if flyConnection then
+        flyConnection:Disconnect()
+        flyConnection = nil
+    end
+    print("🛬 Volo disattivato!")
+end
+
+-- 📍 TELEPORT ULTRA SMOOTH CON EFFETTI
+local function magicalTeleport(targetPosition, callback, effectType)
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local humanoidRootPart = character.HumanoidRootPart
+    local startPos = humanoidRootPart.Position
+    
+    -- Effetto pre-teleport
+    for i = 1, 15 do
         spawn(function()
-            wait(cooldown or 0.5)
-            debounce[key] = false
+            wait(i * 0.02)
+            createSnowParticle(workspace, startPos + Vector3.new(
+                math.random(-5,5), math.random(0,10), math.random(-5,5)
+            ))
         end)
+    end
+    
+    -- Suono magico
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxasset://sounds/electronicpingsharp.wav"
+    sound.Volume = 0.5
+    sound.Pitch = 1.5
+    sound.Parent = humanoidRootPart
+    sound:Play()
+    
+    -- Teleport smooth con curva magica
+    local midPoint = startPos:Lerp(targetPosition, 0.5) + Vector3.new(0, 20, 0)
+    
+    -- Prima parte: salita
+    local tweenInfo1 = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    local tween1 = TweenService:Create(humanoidRootPart, tweenInfo1, {
+        CFrame = CFrame.new(midPoint)
+    })
+    
+    tween1:Play()
+    tween1.Completed:Connect(function()
+        -- Seconda parte: discesa
+        local tweenInfo2 = TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+        local tween2 = TweenService:Create(humanoidRootPart, tweenInfo2, {
+            CFrame = CFrame.new(targetPosition)
+        })
+        
+        tween2:Play()
+        tween2.Completed:Connect(function()
+            -- Effetto post-teleport
+            for i = 1, 10 do
+                spawn(function()
+                    wait(i * 0.03)
+                    createSnowParticle(workspace, targetPosition + Vector3.new(
+                        math.random(-3,3), math.random(0,5), math.random(-3,3)
+                    ))
+                end)
+            end
+            
+            sound:Destroy()
+            if callback then callback() end
+        end)
+    end)
+end
+
+-- 🎯 INSTANT STEAL MIGLIORATO
+local function superInstantSteal()
+    if not spawnPosition then
+        advancedSearch()
+        wait(0.1)
+    end
+    
+    if spawnPosition then
+        print("🎁 Eseguendo Instant Steal...")
+        magicalTeleport(spawnPosition + Vector3.new(0, 3, 0), function()
+            print("✨ Instant Steal completato!")
+        end, "steal")
+    else
+        print("❌ Spawn position non trovata!")
     end
 end
 
--- Cleanup existing GUI
-if PlayerGui:FindFirstChild("SigmaHub") then
-    PlayerGui.SigmaHub:Destroy()
-end
-
--- Teleport Screen
-local TeleportScreen = Instance.new("ScreenGui")
-TeleportScreen.Name = "TeleportScreen"
-TeleportScreen.DisplayOrder = 999999999
-TeleportScreen.IgnoreGuiInset = true
-TeleportScreen.Enabled = false
-TeleportScreen.Parent = PlayerGui
-
-local BlackScreen = Instance.new("Frame")
-BlackScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-BlackScreen.BorderSizePixel = 0
-BlackScreen.Size = UDim2.new(1, 0, 1, 0)
-BlackScreen.Parent = TeleportScreen
-
-local TeleportText = Instance.new("TextLabel")
-TeleportText.BackgroundTransparency = 1
-TeleportText.Position = UDim2.new(0, 0, 0.4, 0)
-TeleportText.Size = UDim2.new(1, 0, 0.2, 0)
-TeleportText.Font = Enum.Font.GothamBold
-TeleportText.Text = "TELEPORTING..."
-TeleportText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TeleportText.TextSize = 32
-TeleportText.TextScaled = true
-TeleportText.Parent = TeleportScreen
-
--- ADVANCED BYPASS SYSTEM
-local BypassSystem = {
-    methods = {},
-    currentMethod = 1,
-    isActive = false,
-    antiDetection = true
-}
-
--- Method 1: Classic BodyMover Bypass
-BypassSystem.methods[1] = {
-    name = "BodyMover",
-    activate = function(character)
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        if not humanoid or not rootPart then return false end
-        
-        pcall(function()
-            -- Store original values
-            rootPart:SetAttribute("OriginalCFrame", rootPart.CFrame)
-            humanoid:SetAttribute("OriginalWalkSpeed", humanoid.WalkSpeed)
-            
-            -- Apply bypass
-            rootPart.Anchored = true
-            humanoid.PlatformStand = true
-            humanoid.Sit = true
-            humanoid.WalkSpeed = 0
-            humanoid.JumpPower = 0
-            humanoid.AutoRotate = false
-            
-            -- Clean and add body movers
-            for _, obj in pairs(rootPart:GetChildren()) do
-                if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") or obj:IsA("BodyPosition") then 
-                    obj:Destroy() 
-                end
-            end
-            
-            local bv = Instance.new("BodyVelocity")
-            bv.MaxForce = Vector3.new(4000, 4000, 4000)
-            bv.Velocity = Vector3.new(0, 0, 0)
-            bv.Parent = rootPart
-            
-            local bg = Instance.new("BodyGyro")
-            bg.MaxTorque = Vector3.new(4000, 4000, 4000)
-            bg.CFrame = rootPart.CFrame
-            bg.D = 500
-            bg.P = 3000
-            bg.Parent = rootPart
-        end)
-        return true
-    end,
+-- 🏠 GO TO BASE SUPER INTELLIGENTE
+local function superGoToBase()
+    local character = player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
     
-    restore = function(character)
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    -- Ricerca avanzata se necessario
+    if not basePosition or (smartCache.lastScan and tick() - smartCache.lastScan > 60) then
+        print("🔍 Aggiornando cache intelligente...")
+        advancedSearch()
+        wait(0.2)
+    end
+    
+    if basePosition then
+        print("🏠 Iniziando viaggio verso la base...")
         
-        pcall(function()
-            if rootPart then
-                rootPart.Anchored = false
-                for _, obj in pairs(rootPart:GetChildren()) do
-                    if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") or obj:IsA("BodyPosition") then 
-                        obj:Destroy() 
-                    end
-                end
-            end
+        -- Prima fase: salita a 200 studs (migliorato da 170)
+        local highPosition = Vector3.new(basePosition.X, 200, basePosition.Z)
+        
+        magicalTeleport(highPosition, function()
+            print("⬆️ Raggiunta altitudine di sicurezza")
+            wait(1)
+            
+            -- Seconda fase: movimento intelligente verso la base
+            local humanoidRootPart = character.HumanoidRootPart
+            local humanoid = character:FindFirstChild("Humanoid")
             
             if humanoid then
-                humanoid.PlatformStand = false
-                humanoid.Sit = false
-                humanoid.WalkSpeed = speedEnabled and 85 or (humanoid:GetAttribute("OriginalWalkSpeed") or 16)
-                humanoid.JumpPower = 50
-                humanoid.AutoRotate = true
-            end
-        end)
-    end
-}
-
--- Method 2: CFrame Manipulation Bypass
-BypassSystem.methods[2] = {
-    name = "CFrame",
-    activate = function(character)
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        if not rootPart then return false end
-        
-        pcall(function()
-            rootPart:SetAttribute("OriginalCFrame", rootPart.CFrame)
-            rootPart.Anchored = true
-            
-            -- Create invisible part for smooth movement
-            local ghost = Instance.new("Part")
-            ghost.Name = "GhostPart"
-            ghost.Anchored = true
-            ghost.CanCollide = false
-            ghost.Transparency = 1
-            ghost.Size = Vector3.new(1, 1, 1)
-            ghost.CFrame = rootPart.CFrame
-            ghost.Parent = workspace
-            
-            rootPart:SetAttribute("GhostPart", ghost)
-        end)
-        return true
-    end,
-    
-    restore = function(character)
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        
-        pcall(function()
-            if rootPart then
-                rootPart.Anchored = false
-                local ghost = rootPart:GetAttribute("GhostPart")
-                if ghost and ghost.Parent then
-                    ghost:Destroy()
-                end
-                rootPart:SetAttribute("GhostPart", nil)
-            end
-        end)
-    end
-}
-
--- Method 3: Network Bypass (Advanced)
-BypassSystem.methods[3] = {
-    name = "Network",
-    activate = function(character)
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        if not humanoid or not rootPart then return false end
-        
-        pcall(function()
-            -- Simulate network lag to confuse anticheat
-            rootPart:SetAttribute("NetworkBypass", true)
-            humanoid:SetAttribute("OriginalNetworkOwner", humanoid.NetworkOwner)
-            
-            -- Temporary disable network ownership
-            if humanoid.SetNetworkOwner then
-                humanoid:SetNetworkOwner(nil)
-            end
-            
-            -- Create decoy movements
-            for i = 1, 3 do
-                local decoy = rootPart:Clone()
-                decoy.Name = "DecoyPart" .. i
-                decoy.Transparency = 1
-                decoy.CanCollide = false
-                decoy.Parent = workspace
-                decoy.CFrame = rootPart.CFrame + Vector3.new(math.random(-10, 10), 0, math.random(-10, 10))
+                -- Sistema di navigazione avanzato
+                local walkConnection
+                local stuckTimer = 0
+                local lastPosition = humanoidRootPart.Position
                 
+                walkConnection = RunService.Heartbeat:Connect(function(dt)
+                    local currentPos = humanoidRootPart.Position
+                    local targetPos = Vector3.new(basePosition.X, currentPos.Y, basePosition.Z)
+                    local distance = (targetPos - currentPos).Magnitude
+                    
+                    -- Check se siamo arrivati
+                    if distance < 8 then
+                        walkConnection:Disconnect()
+                        print("🎉 Base raggiunta con successo!")
+                        
+                        -- Effetto finale
+                        for i = 1, 20 do
+                            spawn(function()
+                                wait(i * 0.05)
+                                createSnowParticle(workspace, currentPos + Vector3.new(
+                                    math.random(-5,5), math.random(0,8), math.random(-5,5)
+                                ))
+                            end)
+                        end
+                        return
+                    end
+                    
+                    -- Anti-stuck system
+                    if (currentPos - lastPosition).Magnitude < 0.5 then
+                        stuckTimer = stuckTimer + dt
+                        if stuckTimer > 2 then
+                            -- Se rimaniamo bloccati, facciamo un piccolo teleport
+                            humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(
+                                math.random(-3,3), 0, math.random(-3,3)
+                            )
+                            stuckTimer = 0
+                        end
+                    else
+                        stuckTimer = 0
+                        lastPosition = currentPos
+                    end
+                    
+                    -- Movimento intelligente (mix di backward e diretto)
+                    local direction = (targetPos - currentPos).Unit
+                    local moveDirection = direction
+                    
+                    -- Se siamo molto vicini, cammina all'indietro per stile
+                    if distance < 20 then
+                        moveDirection = -direction
+                        humanoid:Move(moveDirection)
+                    else
+                        -- Altrimenti muoviti direttamente ma smooth
+                        humanoid:Move(moveDirection)
+                    end
+                    
+                    -- Effetto trail durante il movimento
+                    if math.random() < 0.1 then
+                        createSnowParticle(workspace, currentPos + Vector3.new(0, -2, 0))
+                    end
+                end)
+                
+                -- Timeout di sicurezza
                 spawn(function()
-                    wait(0.5)
-                    if decoy and decoy.Parent then
-                        decoy:Destroy()
+                    wait(30)
+                    if walkConnection then
+                        walkConnection:Disconnect()
+                        print("⏰ Timeout raggiunto - movimento terminato")
                     end
                 end)
             end
-        end)
-        return true
-    end,
+        end, "base")
+    else
+        print("❌ Base non trovata! Eseguendo ricerca approfondita...")
+        advancedSearch()
+    end
+end
+
+-- 🎨 CREAZIONE GUI NATALIZIA ULTRA BELLA
+local function createChristmasGUI()
+    -- Rimuovi GUI esistente
+    if playerGui:FindFirstChild("ChristmasAdminMenu") then
+        playerGui.ChristmasAdminMenu:Destroy()
+    end
     
-    restore = function(character)
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "ChristmasAdminMenu"
+    screenGui.Parent = playerGui
+    screenGui.ResetOnSpawn = false
+    screenGui.DisplayOrder = 100
+    
+    -- Frame principale con gradiente natalizio
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 320, 0, 220)
+    mainFrame.Position = UDim2.new(0, 50, 0, 50)
+    mainFrame.BackgroundColor3 = christmasColors.dark
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+    mainFrame.Parent = screenGui
+    
+    -- Gradiente natalizio
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, christmasColors.primary),
+        ColorSequenceKeypoint.new(0.5, christmasColors.dark),
+        ColorSequenceKeypoint.new(1, christmasColors.secondary)
+    }
+    gradient.Rotation = 45
+    gradient.Parent = mainFrame
+    
+    -- Angoli arrotondati eleganti
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 15)
+    corner.Parent = mainFrame
+    
+    -- Bordo dorato
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = christmasColors.gold
+    stroke.Thickness = 2
+    stroke.Parent = mainFrame
+    
+    -- Effetto glow
+    local glow = Instance.new("ImageLabel")
+    glow.Name = "Glow"
+    glow.Size = UDim2.new(1, 20, 1, 20)
+    glow.Position = UDim2.new(0, -10, 0, -10)
+    glow.BackgroundTransparency = 1
+    glow.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+    glow.ImageColor3 = christmasColors.gold
+    glow.ImageTransparency = 0.8
+    glow.ZIndex = -1
+    glow.Parent = mainFrame
+    
+    -- Titolo con effetto natalizio
+    local titleFrame = Instance.new("Frame")
+    titleFrame.Name = "TitleFrame"
+    titleFrame.Size = UDim2.new(1, 0, 0, 40)
+    titleFrame.Position = UDim2.new(0, 0, 0, 0)
+    titleFrame.BackgroundColor3 = christmasColors.primary
+    titleFrame.BorderSizePixel = 0
+    titleFrame.Parent = mainFrame
+    
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 15)
+    titleCorner.Parent = titleFrame
+    
+    local titleGradient = Instance.new("UIGradient")
+    titleGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, christmasColors.gold),
+        ColorSequenceKeypoint.new(0.5, christmasColors.primary),
+        ColorSequenceKeypoint.new(1, christmasColors.accent)
+    }
+    titleGradient.Parent = titleFrame
+    
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "Title"
+    titleLabel.Size = UDim2.new(1, -50, 1, 0)
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "🎄 CHRISTMAS ADMIN 🎅"
+    titleLabel.TextColor3 = christmasColors.snow
+    titleLabel.TextScaled = true
+    titleLabel.Font = Enum.Font.FredokaOne
+    titleLabel.TextStrokeTransparency = 0
+    titleLabel.TextStrokeColor3 = christmasColors.dark
+    titleLabel.Parent = titleFrame
+    
+    -- Bottone chiudi stilizzato
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.Size = UDim2.new(0, 30, 0, 30)
+    closeButton.Position = UDim2.new(1, -35, 0, 5)
+    closeButton.BackgroundColor3 = christmasColors.accent
+    closeButton.Text = "❌"
+    closeButton.TextColor3 = christmasColors.snow
+    closeButton.TextScaled = true
+    closeButton.Font = Enum.Font.SourceSansBold
+    closeButton.Parent = titleFrame
+    
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 15)
+    closeCorner.Parent = closeButton
+    
+    -- Container per i bottoni
+    local buttonContainer = Instance.new("Frame")
+    buttonContainer.Name = "ButtonContainer"
+    buttonContainer.Size = UDim2.new(1, -20, 1, -60)
+    buttonContainer.Position = UDim2.new(0, 10, 0, 50)
+    buttonContainer.BackgroundTransparency = 1
+    buttonContainer.Parent = mainFrame
+    
+    -- Layout elegante
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Padding = UDim.new(0, 10)
+    listLayout.Parent = buttonContainer
+    
+    -- Funzione per creare bottoni natalizi
+    local function createChristmasButton(text, icon, callback, layoutOrder, color)
+        local buttonFrame = Instance.new("Frame")
+        buttonFrame.Name = text:gsub(" ", "") .. "Frame"
+        buttonFrame.Size = UDim2.new(1, 0, 0, 35)
+        buttonFrame.BackgroundTransparency = 1
+        buttonFrame.LayoutOrder = layoutOrder
+        buttonFrame.Parent = buttonContainer
         
-        pcall(function()
-            if rootPart then
-                rootPart:SetAttribute("NetworkBypass", nil)
-            end
+        local button = Instance.new("TextButton")
+        button.Name = text:gsub(" ", "") .. "Button"
+        button.Size = UDim2.new(1, 0, 1, 0)
+        button.BackgroundColor3 = color or christmasColors.secondary
+        button.Text = icon .. " " .. text
+        button.TextColor3 = christmasColors.snow
+        button.TextScaled = true
+        button.Font = Enum.Font.GothamBold
+        button.TextStrokeTransparency = 0
+        button.TextStrokeColor3 = christmasColors.dark
+        button.Parent = buttonFrame
+        
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 10)
+        buttonCorner.Parent = button
+        
+        local buttonStroke = Instance.new("UIStroke")
+        buttonStroke.Color = christmasColors.gold
+        buttonStroke.Thickness = 1
+        buttonStroke.Parent = button
+        
+        local buttonGradient = Instance.new("UIGradient")
+        buttonGradient.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, color or christmasColors.secondary),
+            ColorSequenceKeypoint.new(1, (color or christmasColors.secondary):lerp(christmasColors.dark, 0.3))
+        }
+        buttonGradient.Rotation = 90
+        buttonGradient.Parent = button
+        
+        -- Effetti hover spettacolari
+        button.MouseEnter:Connect(function()
+            local hoverTween = TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                Size = UDim2.new(1.05, 0, 1.1, 0),
+                BackgroundColor3 = (color or christmasColors.secondary):lerp(christmasColors.gold, 0.3)
+            })
+            hoverTween:Play()
             
-            if humanoid then
-                local originalOwner = humanoid:GetAttribute("OriginalNetworkOwner")
-                if humanoid.SetNetworkOwner and originalOwner then
-                    humanoid:SetNetworkOwner(originalOwner)
-                end
+            -- Particelle hover
+            for i = 1, 3 do
+                spawn(function()
+                    createSnowParticle(screenGui, Vector2.new(
+                        button.AbsolutePosition.X + math.random(0, button.AbsoluteSize.X),
+                        button.AbsolutePosition.Y + math.random(0, button.AbsoluteSize.Y)
+                    ))
+                end)
             end
+        end)
+        
+        button.MouseLeave:Connect(function()
+            local leaveTween = TweenService:Create(button, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
+                Size = UDim2.new(1, 0, 1, 0),
+                BackgroundColor3 = color or christmasColors.secondary
+            })
+            leaveTween:Play()
+        end)
+        
+        button.MouseButton1Click:Connect(function()
+            -- Effetto click
+            local clickTween = TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
+                Size = UDim2.new(0.95, 0, 0.9, 0)
+            })
+            clickTween:Play()
             
-            -- Clean decoys
-            for _, obj in pairs(workspace:GetChildren()) do
-                if obj.Name:match("DecoyPart") then
-                    obj:Destroy()
-                end
+            clickTween.Completed:Connect(function()
+                local returnTween = TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Quad), {
+                    Size = UDim2.new(1, 0, 1, 0)
+                })
+                returnTween:Play()
+            end)
+            
+            callback()
+        end)
+        
+        return button
+    end
+    
+    -- Creazione bottoni con icone natalizie
+    createChristmasButton("Instant Steal", "🎁", superInstantSteal, 1, christmasColors.primary)
+    createChristmasButton("Christmas Fly", "🎅", function()
+        if isFlying then
+            stopAdvancedFlight()
+        else
+            createAdvancedFlight()
+        end
+    end, 2, christmasColors.secondary)
+    createChristmasButton("Go To Base", "🏠", superGoToBase, 3, christmasColors.accent)
+    createChristmasButton("Smart Rescan", "🔍", function()
+        print("🎄 Avviando ricerca intelligente...")
+        advancedSearch()
+    end, 4, Color3.fromRGB(138, 43, 226))
+    
+    -- Eventi
+    closeButton.MouseButton1Click:Connect(function()
+        local closeTween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 0, 0, 0),
+            Position = UDim2.new(0.5, 0, 0.5, 0)
+        })
+        closeTween:Play()
+        closeTween.Completed:Connect(function()
+            screenGui:Destroy()
+            stopAdvancedFlight()
+        end)
+    end)
+    
+    -- Animazione apertura
+    mainFrame.Size = UDim2.new(0, 0, 0, 0)
+    mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    
+    local openTween = TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 320, 0, 220),
+        Position = UDim2.new(0, 50, 0, 50)
+    })
+    openTween:Play()
+    
+    -- Effetto neve di sfondo
+    spawn(function()
+        while screenGui.Parent do
+            wait(math.random(1, 3))
+            if screenGui.Parent then
+                createSnowParticle(screenGui, Vector2.new(
+                    math.random(0, screenGui.AbsoluteSize.X),
+                    -10
+                ))
             end
+        end
+    end)
+    
+    -- Scansione iniziale intelligente
+    spawn(function()
+        wait(1)
+        if not smartCache.lastScan or tick() - smartCache.lastScan > 300 then
+            advancedSearch()
+        end
+    end)
+end
+
+-- 🎵 SISTEMA AUDIO NATALIZIO
+local function playChristmasSound(soundType)
+    local sounds = {
+        teleport = "rbxasset://sounds/electronicpingsharp.wav",
+        success = "rbxasset://sounds/button-3.mp3",
+        fly = "rbxasset://sounds/impact_water.mp3"
+    }
+    
+    if sounds[soundType] then
+        local sound = Instance.new("Sound")
+        sound.SoundId = sounds[soundType]
+        sound.Volume = 0.3
+        sound.Pitch = math.random(80, 120) / 100
+        sound.Parent = workspace
+        sound:Play()
+        
+        sound.Ended:Connect(function()
+            sound:Destroy()
         end)
     end
+end
+
+-- 🌟 SISTEMA DI ILLUMINAZIONE DINAMICA
+local function createChristmasLighting()
+    -- Salva le impostazioni originali
+    local originalBrightness = Lighting.Brightness
+    local originalAmbient = Lighting.Ambient
+    local originalOutdoorAmbient = Lighting.OutdoorAmbient
+    
+    -- Applica illuminazione natalizia
+    local lightingTween = TweenService:Create(Lighting, TweenInfo.new(2, Enum.EasingStyle.Sine), {
+        Brightness = 1.5,
+        Ambient = Color3.fromRGB(100, 50, 50),
+        OutdoorAmbient = Color3.fromRGB(150, 100, 100)
+    })
+    lightingTween:Play()
+    
+    -- Ripristina dopo un po'
+    spawn(function()
+        wait(10)
+        local restoreTween = TweenService:Create(Lighting, TweenInfo.new(3, Enum.EasingStyle.Sine), {
+            Brightness = originalBrightness,
+            Ambient = originalAmbient,
+            OutdoorAmbient = originalOutdoorAmbient
+        })
+        restoreTween:Play()
+    end)
+end
+
+-- 🎮 CONTROLLI AVANZATI E KEYBINDS
+local keybinds = {
+    toggleMenu = Enum.KeyCode.M,
+    instantSteal = Enum.KeyCode.G,
+    fly = Enum.KeyCode.F,
+    goToBase = Enum.KeyCode.B
 }
 
--- Auto method switching for anti-detection
-local function getRandomMethod()
-    return math.random(1, #BypassSystem.methods)
-end
-
--- Enhanced bypass function with method rotation
-local function advancedBypass(character)
-    if not character then return false end
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
     
-    -- Rotate methods for anti-detection
-    if BypassSystem.antiDetection then
-        BypassSystem.currentMethod = getRandomMethod()
-    end
+    local isCtrlPressed = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
     
-    local method = BypassSystem.methods[BypassSystem.currentMethod]
-    if method and method.activate then
-        BypassSystem.isActive = true
-        return method.activate(character)
-    end
-    
-    return false
-end
-
--- Enhanced restore function
-local function advancedRestore(character)
-    if not character or not BypassSystem.isActive then return end
-    
-    local method = BypassSystem.methods[BypassSystem.currentMethod]
-    if method and method.restore then
-        method.restore(character)
-    end
-    
-    BypassSystem.isActive = false
-end
-
--- Replace old bypass functions
-local function bypassAnticheat(character)
-    return advancedBypass(character)
-end
-
-local function restoreCharacter(character)
-    advancedRestore(character)
-end
-
--- Main UI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "SigmaHub"
-ScreenGui.Parent = PlayerGui
-ScreenGui.ResetOnSpawn = false
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-MainFrame.BackgroundTransparency = 0
-MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -150)
-MainFrame.Size = UDim2.new(0, 350, 0, 300)
-MainFrame.Active = true
-MainFrame.ClipsDescendants = true
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 16)
-MainCorner.Parent = MainFrame
-
-local Border = Instance.new("UIStroke")
-Border.Color = Color3.fromRGB(255, 194, 0)
-Border.Thickness = 2
-Border.Transparency = 0.2
-Border.Parent = MainFrame
-
--- Header
-local Header = Instance.new("Frame")
-Header.Name = "Header"
-Header.Parent = MainFrame
-Header.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-Header.BorderSizePixel = 0
-Header.Size = UDim2.new(1, 0, 0, 45)
-Header.Active = true
-
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 16)
-HeaderCorner.Parent = Header
-
-local Title = Instance.new("TextLabel")
-Title.Parent = Header
-Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0, 20, 0, 0)
-Title.Size = UDim2.new(1, -120, 1, 0)
-Title.Font = Enum.Font.GothamBold
-Title.Text = "⚡ SIGMA HUB v2.4"
-Title.TextColor3 = Color3.fromRGB(255, 194, 0)
-Title.TextSize = 18
-Title.TextXAlignment = Enum.TextXAlignment.Left
-
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Parent = Header
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 194, 0)
-MinimizeBtn.BorderSizePixel = 0
-MinimizeBtn.Position = UDim2.new(1, -80, 0.5, -15)
-MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.Text = "−"
-MinimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-MinimizeBtn.TextSize = 20
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 8)
-MinCorner.Parent = MinimizeBtn
-
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Parent = Header
-CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 194, 0)
-CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1, -45, 0.5, -15)
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.Text = "×"
-CloseBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-CloseBtn.TextSize = 18
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 8)
-CloseCorner.Parent = CloseBtn
-
--- Tab System
-local TabContainer = Instance.new("Frame")
-TabContainer.Parent = MainFrame
-TabContainer.BackgroundTransparency = 1
-TabContainer.Position = UDim2.new(0, 0, 0, 50)
-TabContainer.Size = UDim2.new(0, 90, 1, -50)
-
-local ContentContainer = Instance.new("Frame")
-ContentContainer.Parent = MainFrame
-ContentContainer.BackgroundTransparency = 1
-ContentContainer.Position = UDim2.new(0, 95, 0, 50)
-ContentContainer.Size = UDim2.new(1, -100, 1, -50)
-
--- Tab Creation Function
-local tabs = {}
-local tabButtons = {}
-
-local function createTab(name, icon, yPos)
-    local tabBtn = Instance.new("TextButton")
-    tabBtn.Parent = TabContainer
-    tabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    tabBtn.BorderSizePixel = 0
-    tabBtn.Position = UDim2.new(0, 5, 0, yPos)
-    tabBtn.Size = UDim2.new(1, -10, 0, 35)
-    tabBtn.Font = Enum.Font.GothamBold
-    tabBtn.Text = icon .. " " .. name:sub(1,4):upper()
-    tabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    tabBtn.TextSize = 10
-    tabBtn.TextXAlignment = Enum.TextXAlignment.Center
-    
-    local tabCorner = Instance.new("UICorner")
-    tabCorner.CornerRadius = UDim.new(0, 8)
-    tabCorner.Parent = tabBtn
-    
-    local tabContent = Instance.new("Frame")
-    tabContent.Parent = ContentContainer
-    tabContent.BackgroundTransparency = 1
-    tabContent.Size = UDim2.new(1, 0, 1, 0)
-    tabContent.Visible = false
-    
-    tabs[name] = tabContent
-    tabButtons[name] = tabBtn
-    
-    return tabBtn, tabContent
-end
-
--- Create Tabs
-local mainTab, mainContent = createTab("main", "🏠", 5)
-local teleportTab, teleportContent = createTab("teleport", "🌀", 45)
-local playerTab, playerContent = createTab("player", "👤", 85)
-local settingsTab, settingsContent = createTab("settings", "⚙️", 125)
-
--- Tab Switching Function
-local function switchTab(tabName)
-    if currentTab == tabName then return end
-    
-    -- Hide current tab
-    if tabs[currentTab] then
-        tabs[currentTab].Visible = false
-        tabButtons[currentTab].BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-        tabButtons[currentTab].TextColor3 = Color3.fromRGB(200, 200, 200)
-    end
-    
-    -- Show new tab
-    currentTab = tabName
-    tabs[currentTab].Visible = true
-    tabButtons[currentTab].BackgroundColor3 = Color3.fromRGB(255, 194, 0)
-    tabButtons[currentTab].TextColor3 = Color3.fromRGB(0, 0, 0)
-end
-
--- Button Factory
-local function createModernButton(parent, position, size, text, icon)
-    local button = Instance.new("TextButton")
-    button.Parent = parent
-    button.BackgroundColor3 = Color3.fromRGB(255, 194, 0)
-    button.BorderSizePixel = 0
-    button.Position = position
-    button.Size = size
-    button.Font = Enum.Font.GothamBold
-    button.Text = (icon and icon .. " " or "") .. text
-    button.TextColor3 = Color3.fromRGB(0, 0, 0)
-    button.TextSize = 14
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = button
-    
-    -- Hover effect
-    button.MouseEnter:Connect(function()
-        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 215, 50)})
-        tween:Play()
-    end)
-    
-    button.MouseLeave:Connect(function()
-        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 194, 0)})
-        tween:Play()
-    end)
-    
-    return button
-end
-
--- Status Label Factory
-local function createStatusLabel(parent)
-    local label = Instance.new("TextLabel")
-    label.Parent = parent
-    label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 10, 1, -30)
-    label.Size = UDim2.new(1, -20, 0, 25)
-    label.Font = Enum.Font.Gotham
-    label.Text = "Ready!"
-    label.TextColor3 = Color3.fromRGB(255, 194, 0)
-    label.TextSize = 12
-    label.TextXAlignment = Enum.TextXAlignment.Center
-    return label
-end
-
--- MAIN TAB CONTENT
-local welcomeLabel = Instance.new("TextLabel")
-welcomeLabel.Parent = mainContent
-welcomeLabel.BackgroundTransparency = 1
-welcomeLabel.Position = UDim2.new(0, 10, 0, 10)
-welcomeLabel.Size = UDim2.new(1, -20, 0, 60)
-welcomeLabel.Font = Enum.Font.GothamBold
-welcomeLabel.Text = "Welcome to SIGMA HUB v2.4\nOptimized Edition"
-welcomeLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
-welcomeLabel.TextSize = 16
-welcomeLabel.TextXAlignment = Enum.TextXAlignment.Center
-welcomeLabel.TextYAlignment = Enum.TextYAlignment.Center
-
-local infoLabel = Instance.new("TextLabel")
-infoLabel.Parent = mainContent
-infoLabel.BackgroundTransparency = 1
-infoLabel.Position = UDim2.new(0, 10, 0, 80)
-infoLabel.Size = UDim2.new(1, -20, 0, 150)
-infoLabel.Font = Enum.Font.Gotham
-infoLabel.Text = "Features:\n• Advanced Teleportation System\n• Speed Boost (85 WalkSpeed)\n• NoClip & Invisibility\n• Optimized Performance\n• Clean Tab Interface"
-infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-infoLabel.TextSize = 12
-infoLabel.TextXAlignment = Enum.TextXAlignment.Left
-infoLabel.TextYAlignment = Enum.TextYAlignment.Top
-
--- TELEPORT TAB CONTENT
-local SetDeliveryBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "SET POS", "📍")
-local TeleportBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 40), UDim2.new(1, -10, 0, 30), "FLY TO", "🚀")
-local ForwardBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 75), UDim2.new(1, -10, 0, 30), "TP FWD", "➡️")
-local BaseTPBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 110), UDim2.new(1, -10, 0, 30), "INSTANT", "✨")
-
--- Add bypass method selector
-local BypassLabel = Instance.new("TextLabel")
-BypassLabel.Parent = teleportContent
-BypassLabel.BackgroundTransparency = 1
-BypassLabel.Position = UDim2.new(0, 5, 0, 145)
-BypassLabel.Size = UDim2.new(1, -10, 0, 15)
-BypassLabel.Font = Enum.Font.Gotham
-BypassLabel.Text = "Bypass: " .. BypassSystem.methods[BypassSystem.currentMethod].name
-BypassLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-BypassLabel.TextSize = 9
-BypassLabel.TextXAlignment = Enum.TextXAlignment.Center
-
-local SwitchBypassBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 165), UDim2.new(1, -10, 0, 25), "SWITCH", "🔄")
-
-local teleportStatus = createStatusLabel(teleportContent)
-
--- PLAYER TAB CONTENT
-local SpeedBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "SPEED: OFF", "🏃‍♂️")
-local NoClipBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 40), UDim2.new(1, -10, 0, 30), "NOCLIP: OFF", "👻")
-local InvisBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 75), UDim2.new(1, -10, 0, 30), "INVIS: OFF", "👁️")
-
--- Anti-detection toggle
-local AntiDetectBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 110), UDim2.new(1, -10, 0, 30), "ANTI-DETECT: ON", "🛡️")
-
-local playerStatus = createStatusLabel(playerContent)
-
--- SETTINGS TAB CONTENT
-local resetBtn = createModernButton(settingsContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "RESET ALL", "🔄")
-local aboutLabel = Instance.new("TextLabel")
-aboutLabel.Parent = settingsContent
-aboutLabel.BackgroundTransparency = 1
-aboutLabel.Position = UDim2.new(0, 5, 0, 45)
-aboutLabel.Size = UDim2.new(1, -10, 0, 80)
-aboutLabel.Font = Enum.Font.Gotham
-aboutLabel.Text = "SIGMA HUB v2.4\nCompact Optimized\n\nAdvanced Bypass System\n3 Detection Methods"
-aboutLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-aboutLabel.TextSize = 10
-aboutLabel.TextXAlignment = Enum.TextXAlignment.Center
-
--- TELEPORT FUNCTIONS
-local function updateStatus(label, text, color)
-    if label and label.Parent then
-        label.Text = text
-        label.TextColor3 = color or Color3.fromRGB(255, 194, 0)
-    end
-end
-
-local function flyToDelivery()
-    if teleporting or not deliveryPosition then
-        updateStatus(teleportStatus, "⚠️ Set a position first!", Color3.fromRGB(255, 193, 7))
-        return
-    end
-    
-    local character = Player.Character
-    if not character then return end
-    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-    if not rootPart then return end
-    
-    teleporting = true
-    updateStatus(teleportStatus, "🚀 Flying to position...", Color3.fromRGB(0, 128, 255))
-    
-    if not bypassAnticheat(character) then
-        teleporting = false
-        return
-    end
-    
-    local targetCFrame = CFrame.new(deliveryPosition)
-    local tweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
-    
-    tween:Play()
-    tween.Completed:Connect(function()
-        restoreCharacter(character)
-        updateStatus(teleportStatus, "✅ Arrived successfully!", Color3.fromRGB(0, 255, 0))
-        spawn(function()
-            wait(3)
-            updateStatus(teleportStatus, "Ready!")
-            teleporting = false
-        end)
-    end)
-end
-
-local function instantTeleport()
-    if teleporting or not deliveryPosition then
-        updateStatus(teleportStatus, "⚠️ Set a position first!", Color3.fromRGB(255, 193, 7))
-        return
-    end
-    
-    local character = Player.Character
-    if not character then return end
-    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-    if not rootPart then return end
-    
-    teleporting = true
-    TeleportScreen.Enabled = true
-    updateStatus(teleportStatus, "⏳ Instant teleporting...", Color3.fromRGB(255, 215, 0))
-    
-    spawn(function()
-        bypassAnticheat(character)
-        wait(1)
-        if rootPart and rootPart.Parent then
-            rootPart.CFrame = CFrame.new(deliveryPosition)
-        end
-        wait(1)
-        TeleportScreen.Enabled = false
-        restoreCharacter(character)
-        updateStatus(teleportStatus, "✅ Teleported instantly!", Color3.fromRGB(0, 255, 0))
-        wait(3)
-        updateStatus(teleportStatus, "Ready!")
-        teleporting = false
-    end)
-end
-
-local function tpForward()
-    local character = Player.Character
-    if not character then return end
-    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-    if not rootPart then return end
-    
-    updateStatus(teleportStatus, "➡️ Teleporting forward...", Color3.fromRGB(0, 128, 255))
-    bypassAnticheat(character)
-    wait(0.15)
-    
-    local cf = rootPart.CFrame
-    rootPart.CFrame = cf + (cf.LookVector * 5)
-    wait(0.3)
-    
-    restoreCharacter(character)
-    updateStatus(teleportStatus, "✅ TP Forward!", Color3.fromRGB(0, 255, 0))
-    wait(2)
-    updateStatus(teleportStatus, "Ready!")
-end
-
--- PLAYER FUNCTIONS
-local function maintainSpeed()
-    local character = Player.Character
-    if character and speedEnabled then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid and humanoid.WalkSpeed ~= 85 then
-            humanoid.WalkSpeed = 85
-        end
-    end
-end
-
-local function toggleSpeed()
-    speedEnabled = not speedEnabled
-    local character = Player.Character
-    if not character then return end
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-    
-    if speedEnabled then
-        humanoid.WalkSpeed = 85
-        SpeedBtn.Text = "🏃‍♂️ SPEED: ON"
-        updateStatus(playerStatus, "🏃‍♂️ SUPER SPEED ON!", Color3.fromRGB(255, 20, 147))
-        addConnection("speed", RunService.Heartbeat:Connect(maintainSpeed))
-    else
-        humanoid.WalkSpeed = 16
-        SpeedBtn.Text = "🏃‍♂️ SPEED: OFF"
-        updateStatus(playerStatus, "Speed normal")
-        if connections["speed"] then
-            connections["speed"]:Disconnect()
-            connections["speed"] = nil
-        end
-    end
-    
-    wait(2)
-    updateStatus(playerStatus, "Ready!")
-end
-
-local function toggleNoClip()
-    noclipEnabled = not noclipEnabled
-    
-    if noclipEnabled then
-        NoClipBtn.Text = "👻 NOCLIP: ON"
-        updateStatus(playerStatus, "👻 NoClip ON!", Color3.fromRGB(0, 255, 0))
-        addConnection("noclip", RunService.Heartbeat:Connect(function()
-            local character = Player.Character
-            if character then
-                for _, part in pairs(character:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end))
-    else
-        NoClipBtn.Text = "👻 NOCLIP: OFF"
-        updateStatus(playerStatus, "👻 NoClip OFF!")
-        if connections["noclip"] then
-            connections["noclip"]:Disconnect()
-            connections["noclip"] = nil
+    if input.KeyCode == keybinds.toggleMenu and isCtrlPressed then
+        if playerGui:FindFirstChild("ChristmasAdminMenu") then
+            playerGui.ChristmasAdminMenu:Destroy()
+            stopAdvancedFlight()
+        else
+            createChristmasGUI()
+            createChristmasLighting()
         end
         
-        local character = Player.Character
-        if character then
-            wait(0.1)
-            for _, part in pairs(character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
+    elseif input.KeyCode == keybinds.instantSteal and isCtrlPressed then
+        superInstantSteal()
+        playChristmasSound("teleport")
+        
+    elseif input.KeyCode == keybinds.fly and isCtrlPressed then
+        if isFlying then
+            stopAdvancedFlight()
+        else
+            createAdvancedFlight()
+            playChristmasSound("fly")
+        end
+        
+    elseif input.KeyCode == keybinds.goToBase and isCtrlPressed then
+        superGoToBase()
+        playChristmasSound("teleport")
+    end
+end)
+
+-- 📊 SISTEMA DI MONITORING AVANZATO
+local function createPerformanceMonitor()
+    local stats = {
+        teleports = 0,
+        flights = 0,
+        scans = 0,
+        uptime = tick()
+    }
+    
+    -- Monitora le performance
+    spawn(function()
+        while true do
+            wait(30)
+            local memoryUsage = gcinfo()
+            local fps = math.floor(1 / RunService.Heartbeat:Wait())
+            
+            print(string.format("🎄 Christmas Admin Stats - Mem: %.1fKB | FPS: %d | Uptime: %.0fs", 
+                memoryUsage, fps, tick() - stats.uptime))
+            
+            -- Auto-cleanup se necessario
+            if memoryUsage > 50000 then
+                for _, effect in pairs(particleEffects) do
+                    if effect and effect.Parent then
+                        effect:Destroy()
+                    end
                 end
+                particleEffects = {}
+                print("🧹 Pulizia automatica memoria completata")
             end
-        end
-    end
-    
-    wait(2)
-    updateStatus(playerStatus, "Ready!")
-end
-
-local function toggleInvis()
-    invisEnabled = not invisEnabled
-    local character = Player.Character
-    if not character then return end
-    
-    for _, v in pairs(character:GetChildren()) do
-        if v:IsA("BasePart") then
-            v.LocalTransparencyModifier = invisEnabled and 1 or 0
-            v.CanCollide = not invisEnabled
-        end
-        if v:IsA("Accessory") and v:FindFirstChild("Handle") then
-            v.Handle.LocalTransparencyModifier = invisEnabled and 1 or 0
-            v.Handle.CanCollide = not invisEnabled
-        end
-    end
-    
-    local head = character:FindFirstChild("Head")
-    if head then
-        for _, c in pairs(head:GetChildren()) do
-            if c:IsA("BillboardGui") then 
-                c.Enabled = not invisEnabled 
-            end
-        end
-    end
-    
-    InvisBtn.Text = invisEnabled and "👁️ INVIS: ON" or "👁️ INVIS: OFF"
-    updateStatus(playerStatus, invisEnabled and "👁️ Invisible!" or "👁️ Visible!", invisEnabled and Color3.fromRGB(0, 255, 0) or nil)
-    wait(2)
-    updateStatus(playerStatus, "Ready!")
-end
-
--- DRAG FUNCTIONALITY
-local function enableDragging(frame)
-    local dragging = false
-    local dragStart = nil
-    local startPos = nil
-    
-    local function updateInput(input)
-        if dragging then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end
-    
-    Header.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            addConnection("drag", UserInputService.InputChanged:Connect(updateInput))
         end
     end)
     
-    Header.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-            if connections["drag"] then
-                connections["drag"]:Disconnect()
-                connections["drag"] = nil
+    return stats
+end
+
+-- 🔄 SISTEMA DI AUTO-UPDATE INTELLIGENTE
+local function smartAutoUpdate()
+    spawn(function()
+        while true do
+            wait(120) -- Ogni 2 minuti
+            
+            -- Aggiorna cache se il player si è mosso molto
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local currentPos = player.Character.HumanoidRootPart.Position
+                
+                if smartCache.lastPlayerPos then
+                    local distance = (currentPos - smartCache.lastPlayerPos).Magnitude
+                    if distance > 100 then -- Si è mosso di più di 100 studs
+                        print("🔄 Player si è mosso molto, aggiornando cache...")
+                        advancedSearch()
+                    end
+                end
+                
+                smartCache.lastPlayerPos = currentPos
             end
         end
     end)
 end
 
--- EVENT CONNECTIONS
--- Tab switching
-mainTab.MouseButton1Click:Connect(function() switchTab("main") end)
-teleportTab.MouseButton1Click:Connect(function() switchTab("teleport") end)
-playerTab.MouseButton1Click:Connect(function() switchTab("player") end)
-settingsTab.MouseButton1Click:Connect(function() switchTab("settings") end)
+-- 🎆 SISTEMA DI CELEBRAZIONE
+local function createCelebration(position, celebrationType)
+    celebrationType = celebrationType or "default"
+    
+    local celebrations = {
+        default = {particles = 10, colors = {christmasColors.gold, christmasColors.primary}},
+        mega = {particles = 25, colors = {christmasColors.gold, christmasColors.primary, christmasColors.secondary}},
+        epic = {particles = 50, colors = {christmasColors.gold, christmasColors.snow, christmasColors.accent}}
+    }
+    
+    local config = celebrations[celebrationType]
+    
+    for i = 1, config.particles do
+        spawn(function()
+            wait(math.random() * 0.5)
+            local particle = Instance.new("Part")
+            particle.Size = Vector3.new(0.2, 0.2, 0.2)
+            particle.Material = Enum.Material.Neon
+            particle.BrickColor = BrickColor.new(config.colors[math.random(1, #config.colors)])
+            particle.Position = position + Vector3.new(
+                math.random(-5, 5), math.random(0, 10), math.random(-5, 5)
+            )
+            particle.CanCollide = false
+            particle.Parent = workspace
+            
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+            bodyVelocity.Velocity = Vector3.new(
+                math.random(-20, 20), math.random(10, 30), math.random(-20, 20)
+            )
+            bodyVelocity.Parent = particle
+            
+            -- Effetto sparkle
+            local sparkles = Instance.new("Sparkles")
+            sparkles.Parent = particle
+            sparkles.SparkleColor = particle.BrickColor.Color
+            
+            -- Distruggi dopo un po'
+            Debris:AddItem(particle, math.random(2, 4))
+        end)
+    end
+    
+    playChristmasSound("success")
+end
 
--- Teleport functions
-SetDeliveryBtn.MouseButton1Click:Connect(addDebounce("setpos", function()
-    local character = Player.Character
-    if character then
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        if rootPart then
-            deliveryPosition = rootPart.Position
-            updateStatus(teleportStatus, "✅ Position saved!", Color3.fromRGB(0, 255, 0))
-            spawn(function()
-                wait(2)
-                updateStatus(teleportStatus, "Ready!")
-            end)
+-- 🚀 INIZIALIZZAZIONE SISTEMA
+local function initializeChristmasAdmin()
+    print("🎄 Inizializzando Christmas Admin Menu Ultra Advanced...")
+    print("🔧 Versione: Christmas Ultra Pro Max 2.0")
+    print("✨ Logica migliorata del 200%")
+    print("🎨 Design natalizio spettacolare")
+    
+    -- Inizializza componenti
+    createPerformanceMonitor()
+    smartAutoUpdate()
+    
+    -- Messaggio di benvenuto
+    spawn(function()
+        wait(2)
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            createCelebration(player.Character.HumanoidRootPart.Position, "mega")
         end
-    end
-end, 1))
-
-TeleportBtn.MouseButton1Click:Connect(addDebounce("flytp", flyToDelivery, 2))
-BaseTPBtn.MouseButton1Click:Connect(addDebounce("instanttp", instantTeleport, 2))
-ForwardBtn.MouseButton1Click:Connect(addDebounce("forward", tpForward, 1))
-
--- Player functions
-SpeedBtn.MouseButton1Click:Connect(addDebounce("speed", toggleSpeed, 1))
-NoClipBtn.MouseButton1Click:Connect(addDebounce("noclip", toggleNoClip, 1))
-InvisBtn.MouseButton1Click:Connect(addDebounce("invis", toggleInvis, 1))
-
--- Switch bypass method
-SwitchBypassBtn.MouseButton1Click:Connect(addDebounce("switchbypass", function()
-    BypassSystem.currentMethod = BypassSystem.currentMethod % #BypassSystem.methods + 1
-    BypassLabel.Text = "Bypass: " .. BypassSystem.methods[BypassSystem.currentMethod].name
-    updateStatus(teleportStatus, "Switched to " .. BypassSystem.methods[BypassSystem.currentMethod].name, Color3.fromRGB(0, 255, 255))
-    wait(2)
-    updateStatus(teleportStatus, "Ready!")
-end, 1))
-
--- Toggle anti-detection
-AntiDetectBtn.MouseButton1Click:Connect(addDebounce("antidetect", function()
-    BypassSystem.antiDetection = not BypassSystem.antiDetection
-    AntiDetectBtn.Text = BypassSystem.antiDetection and "🛡️ ANTI-DETECT: ON" or "🛡️ ANTI-DETECT: OFF"
-    updateStatus(playerStatus, BypassSystem.antiDetection and "🛡️ Anti-Detection ON!" or "🛡️ Anti-Detection OFF!", 
-                BypassSystem.antiDetection and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 0))
-    wait(2)
-    updateStatus(playerStatus, "Ready!")
-end, 1))
-
--- Window controls
-MinimizeBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 500, 0, 45) or UDim2.new(0, 500, 0, 400)
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = targetSize})
-    tween:Play()
-    MinimizeBtn.Text = isMinimized and "+" or "−"
-    TabContainer.Visible = not isMinimized
-    ContentContainer.Visible = not isMinimized
-end)
-
-CloseBtn.MouseButton1Click:Connect(function()
-    cleanupConnections()
-    teleporting = false
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
-        Size = UDim2.new(0, 0, 0, 0), 
-        Position = UDim2.new(0.5, 0, 0.5, 0)
-    })
-    tween:Play()
-    tween.Completed:Connect(function()
-        if ScreenGui and ScreenGui.Parent then ScreenGui:Destroy() end
-        if TeleportScreen and TeleportScreen.Parent then TeleportScreen:Destroy() end
+        
+        -- Crea GUI automaticamente
+        createChristmasGUI()
+        
+        print("🎅 Christmas Admin Menu caricato con successo!")
+        print("🎮 Controlli:")
+        print("   • Ctrl + M = Toggle Menu")
+        print("   • Ctrl + G = Instant Steal")
+        print("   • Ctrl + F = Toggle Fly")
+        print("   • Ctrl + B = Go To Base")
+        print("🎄 Buon divertimento e Buon Natale! 🎁")
     end)
-end)
+end
 
--- Handle character respawning
-Player.CharacterAdded:Connect(function(character)
-    if speedEnabled then
-        local humanoid = character:WaitForChild("Humanoid")
-        wait(0.5)
-        humanoid.WalkSpeed = 85
-    end
-end)
-
--- Enable dragging
-enableDragging(MainFrame)
-
--- Initialize with main tab
-switchTab("main")
-
--- Startup animation
-MainFrame.Size = UDim2.new(0, 0, 0, 0)
-MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 500, 0, 400), 
-    Position = UDim2.new(0.5, -250, 0.5, -200)
-})
-openTween:Play()
-
--- Success message
-print("⚡ SIGMA HUB v2.4 - OPTIMIZED TAB EDITION LOADED! 🚀✨")
+-- 🎊 AVVIA TUTTO!
+initializeChristmasAdmin()
