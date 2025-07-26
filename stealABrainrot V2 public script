@@ -718,4 +718,4 @@ local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingS
 openTween:Play()
 
 -- Success message
-print("⚡ SIGMA HUB v2.4 - OPTIMIZED TAB EDITION LOADED! 🚀✨")
+print("⚡ SIGMA HUB v2.4 -! 🚀✨")
