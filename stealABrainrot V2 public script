@@ -1,1163 +1,285 @@
--- SIGMA HUB v3.0 - Ultimate Anti-Detection Edition
+-- Advanced Teleport System per Roblox
+-- Sistema anti-detection con movimento naturale
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
-local HttpService = game:GetService("HttpService")
-local Stats = game:GetService("Stats")
+local UserInputService = game:GetService("UserInputService")
 
-local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Vars
-local deliveryPosition = nil
-local isDragging = false
-local isMinimized = false
-local noclipEnabled = false
-local speedEnabled = false
-local invisEnabled = false
-local antiHitEnabled = false
-local teleporting = false
-local optimized = false
-local currentTab = "main"
-local lastPerformanceCheck = 0
+-- Variabili globali
+local basePosition = nil
+local isMoving = false
+local gui = nil
 
--- Connection Management
-local connections = {}
-local debounce = {}
-local antiHitParts = {}
+-- Configurazione movimento
+local MOVE_HEIGHT = 50 -- Altezza di volo
+local MOVE_SPEED = 16 -- Velocità movimento
+local STEP_DISTANCE = 20 -- Distanza per ogni "passo"
+local HOVER_TIME = 0.1 -- Tempo di hover tra i movimenti
+local ANTI_DETECT_DELAY = 0.05 -- Delay anti-detection
 
-local function addConnection(name, connection)
-    if connections[name] then
-        connections[name]:Disconnect()
-    end
-    connections[name] = connection
-end
-
-local function cleanupConnections()
-    for name, connection in pairs(connections) do
-        if connection and connection.Connected then
-            connection:Disconnect()
-        end
-    end
-    connections = {}
-end
-
-local function addDebounce(key, func, cooldown)
-    return function(...)
-        if debounce[key] then return end
-        debounce[key] = true
-        func(...)
-        spawn(function()
-            wait(cooldown or 0.5)
-            debounce[key] = false
-        end)
-    end
-end
-
--- Cleanup existing GUI
-if PlayerGui:FindFirstChild("SigmaHub") then
-    PlayerGui.SigmaHub:Destroy()
-end
-
--- Teleport Screen
-local TeleportScreen = Instance.new("ScreenGui")
-TeleportScreen.Name = "TeleportScreen"
-TeleportScreen.DisplayOrder = 999999999
-TeleportScreen.IgnoreGuiInset = true
-TeleportScreen.Enabled = false
-TeleportScreen.Parent = PlayerGui
-
-local BlackScreen = Instance.new("Frame")
-BlackScreen.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-BlackScreen.BorderSizePixel = 0
-BlackScreen.Size = UDim2.new(1, 0, 1, 0)
-BlackScreen.Parent = TeleportScreen
-
-local TeleportText = Instance.new("TextLabel")
-TeleportText.BackgroundTransparency = 1
-TeleportText.Position = UDim2.new(0, 0, 0.4, 0)
-TeleportText.Size = UDim2.new(1, 0, 0.2, 0)
-TeleportText.Font = Enum.Font.GothamBold
-TeleportText.Text = "TELEPORTING..."
-TeleportText.TextColor3 = Color3.fromRGB(255, 194, 0)
-TeleportText.TextSize = 32
-TeleportText.TextScaled = true
-TeleportText.Parent = TeleportScreen
-
--- ADVANCED BYPASS SYSTEM
-local BypassSystem = {
-    methods = {},
-    currentMethod = 1,
-    isActive = false,
-    antiDetection = true
-}
-
--- Method 1: Classic BodyMover Bypass
-BypassSystem.methods[1] = {
-    name = "BodyMover",
-    activate = function(character)
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        if not humanoid or not rootPart then return false end
-        
-        pcall(function()
-            -- Store original values
-            rootPart:SetAttribute("OriginalCFrame", rootPart.CFrame)
-            humanoid:SetAttribute("OriginalWalkSpeed", humanoid.WalkSpeed)
-            
-            -- Apply bypass
-            rootPart.Anchored = true
-            humanoid.PlatformStand = true
-            humanoid.Sit = true
-            humanoid.WalkSpeed = 0
-            humanoid.JumpPower = 0
-            humanoid.AutoRotate = false
-            
-            -- Clean and add body movers
-            for _, obj in pairs(rootPart:GetChildren()) do
-                if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") or obj:IsA("BodyPosition") then 
-                    obj:Destroy() 
-                end
-            end
-            
-            local bv = Instance.new("BodyVelocity")
-            bv.Name = "SigmaBypassVelocity"
-            bv.MaxForce = Vector3.new(4000, 4000, 4000)
-            bv.Velocity = Vector3.new(0, 0, 0)
-            bv.Parent = rootPart
-            
-            local bg = Instance.new("BodyGyro")
-            bg.Name = "SigmaBypassGyro"
-            bg.MaxTorque = Vector3.new(4000, 4000, 4000)
-            bg.CFrame = rootPart.CFrame
-            bg.D = 500
-            bg.P = 3000
-            bg.Parent = rootPart
-        end)
-        return true
-    end,
-    
-    restore = function(character)
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        
-        pcall(function()
-            if rootPart then
-                rootPart.Anchored = false
-                for _, obj in pairs(rootPart:GetChildren()) do
-                    if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") or obj:IsA("BodyPosition") then 
-                        obj:Destroy() 
-                    end
-                end
-            end
-            
-            if humanoid then
-                humanoid.PlatformStand = false
-                humanoid.Sit = false
-                humanoid.WalkSpeed = speedEnabled and 85 or (humanoid:GetAttribute("OriginalWalkSpeed") or 16)
-                humanoid.JumpPower = 50
-                humanoid.AutoRotate = true
-            end
-        end)
-    end
-}
-
--- Method 2: CFrame Manipulation Bypass
-BypassSystem.methods[2] = {
-    name = "CFrame",
-    activate = function(character)
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        if not rootPart then return false end
-        
-        pcall(function()
-            rootPart:SetAttribute("OriginalCFrame", rootPart.CFrame)
-            rootPart.Anchored = true
-            
-            -- Create invisible part for smooth movement
-            local ghost = Instance.new("Part")
-            ghost.Name = "GhostPart"
-            ghost.Anchored = true
-            ghost.CanCollide = false
-            ghost.Transparency = 1
-            ghost.Size = Vector3.new(1, 1, 1)
-            ghost.CFrame = rootPart.CFrame
-            ghost.Parent = workspace
-            
-            rootPart:SetAttribute("GhostPart", ghost)
-        end)
-        return true
-    end,
-    
-    restore = function(character)
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        
-        pcall(function()
-            if rootPart then
-                rootPart.Anchored = false
-                local ghost = rootPart:GetAttribute("GhostPart")
-                if ghost and ghost.Parent then
-                    ghost:Destroy()
-                end
-                rootPart:SetAttribute("GhostPart", nil)
-            end
-        end)
-    end
-}
-
--- Method 3: Network Bypass (Advanced)
-BypassSystem.methods[3] = {
-    name = "Network",
-    activate = function(character)
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        if not humanoid or not rootPart then return false end
-        
-        pcall(function()
-            -- Simulate network lag to confuse anticheat
-            rootPart:SetAttribute("NetworkBypass", true)
-            humanoid:SetAttribute("OriginalNetworkOwner", humanoid.NetworkOwner)
-            
-            -- Temporary disable network ownership
-            if humanoid.SetNetworkOwner then
-                humanoid:SetNetworkOwner(nil)
-            end
-            
-            -- Create decoy movements
-            for i = 1, 3 do
-                local decoy = rootPart:Clone()
-                decoy.Name = "DecoyPart" .. i
-                decoy.Transparency = 1
-                decoy.CanCollide = false
-                decoy.Parent = workspace
-                decoy.CFrame = rootPart.CFrame + Vector3.new(math.random(-10, 10), 0, math.random(-10, 10))
-                
-                spawn(function()
-                    wait(0.5)
-                    if decoy and decoy.Parent then
-                        decoy:Destroy()
-                    end
-                end)
-            end
-        end)
-        return true
-    end,
-    
-    restore = function(character)
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        
-        pcall(function()
-            if rootPart then
-                rootPart:SetAttribute("NetworkBypass", nil)
-            end
-            
-            if humanoid then
-                local originalOwner = humanoid:GetAttribute("OriginalNetworkOwner")
-                if humanoid.SetNetworkOwner and originalOwner then
-                    humanoid:SetNetworkOwner(originalOwner)
-                end
-            end
-            
-            -- Clean decoys
-            for _, obj in pairs(workspace:GetChildren()) do
-                if obj.Name:match("DecoyPart") then
-                    obj:Destroy()
-                end
-            end
-        end)
-    end
-}
-
--- Method 4: Physics Simulation Bypass
-BypassSystem.methods[4] = {
-    name = "Physics",
-    activate = function(character)
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        if not rootPart then return false end
-        
-        pcall(function()
-            rootPart:SetAttribute("OriginalMass", rootPart.Mass)
-            rootPart:SetAttribute("OriginalCollision", rootPart.CanCollide)
-            
-            rootPart.Mass = 0.1
-            rootPart.CanCollide = false
-            
-            -- Create force field effect
-            local forceField = Instance.new("ForceField")
-            forceField.Name = "SigmaForceField"
-            forceField.Visible = false
-            forceField.Parent = character
-        end)
-        return true
-    end,
-    
-    restore = function(character)
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        
-        pcall(function()
-            if rootPart then
-                rootPart.Mass = rootPart:GetAttribute("OriginalMass") or 1
-                rootPart.CanCollide = rootPart:GetAttribute("OriginalCollision") == true
-            end
-            
-            local forceField = character:FindFirstChild("SigmaForceField")
-            if forceField then
-                forceField:Destroy()
-            end
-        end)
-    end
-}
-
--- Method 5: Render Priority Bypass
-BypassSystem.methods[5] = {
-    name = "Render",
-    activate = function(character)
-        pcall(function()
-            character:SetAttribute("OriginalPriority", character:GetAttribute("RenderPriority"))
-            character:SetAttribute("RenderPriority", Enum.RenderPriority.Last.Value)
-            
-            -- Create fake character
-            local fakeChar = character:Clone()
-            fakeChar.Name = "SigmaFakeCharacter"
-            for _, part in ipairs(fakeChar:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Transparency = 1
-                end
-            end
-            fakeChar.Parent = workspace
-        end)
-        return true
-    end,
-    
-    restore = function(character)
-        pcall(function()
-            character:SetAttribute("RenderPriority", character:GetAttribute("OriginalPriority") or Enum.RenderPriority.First.Value)
-            
-            local fakeChar = workspace:FindFirstChild("SigmaFakeCharacter")
-            if fakeChar then
-                fakeChar:Destroy()
-            end
-        end)
-    end
-}
-
--- Auto method switching for anti-detection
-local function getRandomMethod()
-    return math.random(1, #BypassSystem.methods)
-end
-
--- Enhanced bypass function with method rotation
-local function advancedBypass(character)
-    if not character then return false end
-    
-    -- Rotate methods for anti-detection
-    if BypassSystem.antiDetection then
-        BypassSystem.currentMethod = getRandomMethod()
+-- Funzione per creare la GUI
+local function createGUI()
+    -- Rimuovi GUI esistente se presente
+    if gui then
+        gui:Destroy()
     end
     
-    local method = BypassSystem.methods[BypassSystem.currentMethod]
-    if method and method.activate then
-        BypassSystem.isActive = true
-        return method.activate(character)
-    end
+    -- Crea ScreenGui principale
+    gui = Instance.new("ScreenGui")
+    gui.Name = "AdvancedTPSystem"
+    gui.ResetOnSpawn = false
+    gui.Parent = player:WaitForChild("PlayerGui")
     
-    return false
-end
-
--- Enhanced restore function
-local function advancedRestore(character)
-    if not character or not BypassSystem.isActive then return end
+    -- Frame principale
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 200, 0, 120)
+    mainFrame.Position = UDim2.new(1, -220, 0.5, -60)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = gui
     
-    local method = BypassSystem.methods[BypassSystem.currentMethod]
-    if method and method.restore then
-        method.restore(character)
-    end
-    
-    BypassSystem.isActive = false
-end
-
--- Replace old bypass functions
-local function bypassAnticheat(character)
-    return advancedBypass(character)
-end
-
-local function restoreCharacter(character)
-    advancedRestore(character)
-end
-
--- Performance optimization functions
-local function optimizeGame()
-    if optimized then return end
-    
-    -- Lighting optimization
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 100
-    Lighting.Brightness = 2
-    Lighting.Outlines = false
-    
-    -- Rendering settings
-    settings().Rendering.QualityLevel = 1
-    
-    -- Character rendering
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= Player then
-            pcall(function()
-                for _, part in ipairs(player.Character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                        part.Transparency = 0.5
-                    end
-                end
-            end)
-        end
-    end
-    
-    optimized = true
-end
-
-local function optimizeCheat()
-    -- Clean up unused connections
-    for name, conn in pairs(connections) do
-        if not string.find(name, "essential") then
-            conn:Disconnect()
-            connections[name] = nil
-        end
-    end
-    
-    -- Reduce heartbeat checks
-    if connections["speed"] then
-        connections["speed"]:Disconnect()
-        connections["speed"] = nil
-    end
-    
-    if connections["noclip"] then
-        connections["noclip"]:Disconnect()
-        connections["noclip"] = nil
-    end
-end
-
--- Anti-Hit System
-local function enableAntiHit()
-    local character = Player.Character
-    if not character then return end
-    
-    -- Store original sizes
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part:SetAttribute("OriginalSize", part.Size)
-            part:SetAttribute("OriginalPosition", part.Position)
-            antiHitParts[part] = part.Size
-        end
-    end
-    
-    -- Make character very small
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.Size = Vector3.new(0.01, 0.01, 0.01)
-            part.CanCollide = false
-            part.CanTouch = false
-            part.CanQuery = false
-        end
-    end
-    
-    -- Make humanoid invulnerable
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid:SetAttribute("OriginalHealth", humanoid.Health)
-        humanoid.MaxHealth = math.huge
-        humanoid.Health = math.huge
-    end
-    
-    -- Create forcefield
-    local forceField = Instance.new("ForceField")
-    forceField.Visible = false
-    forceField.Parent = character
-    
-    antiHitEnabled = true
-end
-
-local function disableAntiHit()
-    local character = Player.Character
-    if not character then return end
-    
-    -- Restore original sizes
-    for part, originalSize in pairs(antiHitParts) do
-        if part and part.Parent then
-            part.Size = originalSize
-            part.CanCollide = true
-            part.CanTouch = true
-            part.CanQuery = true
-        end
-    end
-    
-    -- Restore humanoid health
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid.MaxHealth = 100
-        humanoid.Health = humanoid:GetAttribute("OriginalHealth") or 100
-    end
-    
-    -- Remove forcefield
-    for _, obj in ipairs(character:GetChildren()) do
-        if obj:IsA("ForceField") then
-            obj:Destroy()
-        end
-    end
-    
-    antiHitEnabled = false
-    antiHitParts = {}
-end
-
--- Main UI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "SigmaHub"
-ScreenGui.Parent = PlayerGui
-ScreenGui.ResetOnSpawn = false
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-MainFrame.BackgroundTransparency = 0
-MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -175, 0.5, -150)
-MainFrame.Size = UDim2.new(0, 350, 0, 300)
-MainFrame.Active = true
-MainFrame.ClipsDescendants = true
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 16)
-MainCorner.Parent = MainFrame
-
-local Border = Instance.new("UIStroke")
-Border.Color = Color3.fromRGB(255, 194, 0)
-Border.Thickness = 2
-Border.Transparency = 0.2
-Border.Parent = MainFrame
-
--- Header
-local Header = Instance.new("Frame")
-Header.Name = "Header"
-Header.Parent = MainFrame
-Header.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-Header.BorderSizePixel = 0
-Header.Size = UDim2.new(1, 0, 0, 45)
-Header.Active = true
-
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 16)
-HeaderCorner.Parent = Header
-
-local Title = Instance.new("TextLabel")
-Title.Parent = Header
-Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0, 20, 0, 0)
-Title.Size = UDim2.new(1, -120, 1, 0)
-Title.Font = Enum.Font.GothamBold
-Title.Text = "⚡ SIGMA HUB v3.0"
-Title.TextColor3 = Color3.fromRGB(255, 194, 0)
-Title.TextSize = 18
-Title.TextXAlignment = Enum.TextXAlignment.Left
-
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Parent = Header
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 194, 0)
-MinimizeBtn.BorderSizePixel = 0
-MinimizeBtn.Position = UDim2.new(1, -80, 0.5, -15)
-MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.Text = "−"
-MinimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-MinimizeBtn.TextSize = 20
-local MinCorner = Instance.new("UICorner")
-MinCorner.CornerRadius = UDim.new(0, 8)
-MinCorner.Parent = MinimizeBtn
-
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Parent = Header
-CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 194, 0)
-CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1, -45, 0.5, -15)
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.Text = "×"
-CloseBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
-CloseBtn.TextSize = 18
-local CloseCorner = Instance.new("UICorner")
-CloseCorner.CornerRadius = UDim.new(0, 8)
-CloseCorner.Parent = CloseBtn
-
--- Tab System
-local TabContainer = Instance.new("Frame")
-TabContainer.Parent = MainFrame
-TabContainer.BackgroundTransparency = 1
-TabContainer.Position = UDim2.new(0, 0, 0, 50)
-TabContainer.Size = UDim2.new(0, 90, 1, -50)
-
-local ContentContainer = Instance.new("Frame")
-ContentContainer.Parent = MainFrame
-ContentContainer.BackgroundTransparency = 1
-ContentContainer.Position = UDim2.new(0, 95, 0, 50)
-ContentContainer.Size = UDim2.new(1, -100, 1, -50)
-
--- Tab Creation Function
-local tabs = {}
-local tabButtons = {}
-
-local function createTab(name, icon, yPos)
-    local tabBtn = Instance.new("TextButton")
-    tabBtn.Parent = TabContainer
-    tabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    tabBtn.BorderSizePixel = 0
-    tabBtn.Position = UDim2.new(0, 5, 0, yPos)
-    tabBtn.Size = UDim2.new(1, -10, 0, 35)
-    tabBtn.Font = Enum.Font.GothamBold
-    tabBtn.Text = icon .. " " .. name:sub(1,4):upper()
-    tabBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-    tabBtn.TextSize = 10
-    tabBtn.TextXAlignment = Enum.TextXAlignment.Center
-    
-    local tabCorner = Instance.new("UICorner")
-    tabCorner.CornerRadius = UDim.new(0, 8)
-    tabCorner.Parent = tabBtn
-    
-    local tabContent = Instance.new("Frame")
-    tabContent.Parent = ContentContainer
-    tabContent.BackgroundTransparency = 1
-    tabContent.Size = UDim2.new(1, 0, 1, 0)
-    tabContent.Visible = false
-    
-    tabs[name] = tabContent
-    tabButtons[name] = tabBtn
-    
-    return tabBtn, tabContent
-end
-
--- Create Tabs
-local mainTab, mainContent = createTab("main", "🏠", 5)
-local teleportTab, teleportContent = createTab("teleport", "🌀", 45)
-local playerTab, playerContent = createTab("player", "👤", 85)
-local settingsTab, settingsContent = createTab("settings", "⚙️", 125)
-
--- Tab Switching Function
-local function switchTab(tabName)
-    if currentTab == tabName then return end
-    
-    -- Hide current tab
-    if tabs[currentTab] then
-        tabs[currentTab].Visible = false
-        tabButtons[currentTab].BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-        tabButtons[currentTab].TextColor3 = Color3.fromRGB(200, 200, 200)
-    end
-    
-    -- Show new tab
-    currentTab = tabName
-    tabs[currentTab].Visible = true
-    tabButtons[currentTab].BackgroundColor3 = Color3.fromRGB(255, 194, 0)
-    tabButtons[currentTab].TextColor3 = Color3.fromRGB(0, 0, 0)
-end
-
--- Button Factory
-local function createModernButton(parent, position, size, text, icon)
-    local button = Instance.new("TextButton")
-    button.Parent = parent
-    button.BackgroundColor3 = Color3.fromRGB(255, 194, 0)
-    button.BorderSizePixel = 0
-    button.Position = position
-    button.Size = size
-    button.Font = Enum.Font.GothamBold
-    button.Text = (icon and icon .. " " or "") .. text
-    button.TextColor3 = Color3.fromRGB(0, 0, 0)
-    button.TextSize = 14
-    
+    -- Corner radius
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = button
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = mainFrame
     
-    -- Hover effect
-    button.MouseEnter:Connect(function()
-        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 215, 50)})
-        tween:Play()
-    end)
+    -- Titolo
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.Position = UDim2.new(0, 0, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "Advanced TP System"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextScaled = true
+    title.Font = Enum.Font.GothamBold
+    title.Parent = mainFrame
     
-    button.MouseLeave:Connect(function()
-        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 194, 0)})
-        tween:Play()
-    end)
+    -- Pulsante Set Position
+    local setPositionBtn = Instance.new("TextButton")
+    setPositionBtn.Name = "SetPositionBtn"
+    setPositionBtn.Size = UDim2.new(1, -20, 0, 30)
+    setPositionBtn.Position = UDim2.new(0, 10, 0, 40)
+    setPositionBtn.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    setPositionBtn.BorderSizePixel = 0
+    setPositionBtn.Text = "Set Base Position"
+    setPositionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    setPositionBtn.TextScaled = true
+    setPositionBtn.Font = Enum.Font.Gotham
+    setPositionBtn.Parent = mainFrame
     
-    return button
+    local setCorner = Instance.new("UICorner")
+    setCorner.CornerRadius = UDim.new(0, 6)
+    setCorner.Parent = setPositionBtn
+    
+    -- Pulsante TP to Base
+    local tpToBaseBtn = Instance.new("TextButton")
+    tpToBaseBtn.Name = "TPToBaseBtn"
+    tpToBaseBtn.Size = UDim2.new(1, -20, 0, 30)
+    tpToBaseBtn.Position = UDim2.new(0, 10, 0, 80)
+    tpToBaseBtn.BackgroundColor3 = Color3.fromRGB(255, 87, 87)
+    tpToBaseBtn.BorderSizePixel = 0
+    tpToBaseBtn.Text = "TP to Base"
+    tpToBaseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tpToBaseBtn.TextScaled = true
+    tpToBaseBtn.Font = Enum.Font.Gotham
+    tpToBaseBtn.Parent = mainFrame
+    
+    local tpCorner = Instance.new("UICorner")
+    tpCorner.CornerRadius = UDim.new(0, 6)
+    tpCorner.Parent = tpToBaseBtn
+    
+    -- Status indicator
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Name = "StatusLabel"
+    statusLabel.Size = UDim2.new(1, 0, 0, 15)
+    statusLabel.Position = UDim2.new(0, 0, 1, -15)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = "Ready"
+    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    statusLabel.TextScaled = true
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.Parent = mainFrame
+    
+    return setPositionBtn, tpToBaseBtn, statusLabel
 end
 
--- Status Label Factory
-local function createStatusLabel(parent)
-    local label = Instance.new("TextLabel")
-    label.Parent = parent
-    label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 10, 1, -30)
-    label.Size = UDim2.new(1, -20, 0, 25)
-    label.Font = Enum.Font.Gotham
-    label.Text = "Ready!"
-    label.TextColor3 = Color3.fromRGB(255, 194, 0)
-    label.TextSize = 12
-    label.TextXAlignment = Enum.TextXAlignment.Center
-    return label
+-- Funzione per creare un BodyVelocity temporaneo
+local function createBodyVelocity(velocity)
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyVelocity.Velocity = velocity
+    bodyVelocity.Parent = rootPart
+    return bodyVelocity
 end
 
--- MAIN TAB CONTENT
-local welcomeLabel = Instance.new("TextLabel")
-welcomeLabel.Parent = mainContent
-welcomeLabel.BackgroundTransparency = 1
-welcomeLabel.Position = UDim2.new(0, 10, 0, 10)
-welcomeLabel.Size = UDim2.new(1, -20, 0, 60)
-welcomeLabel.Font = Enum.Font.GothamBold
-welcomeLabel.Text = "SIGMA HUB v3.0\nULTIMATE ANTI-DETECTION"
-welcomeLabel.TextColor3 = Color3.fromRGB(255, 194, 0)
-welcomeLabel.TextSize = 16
-welcomeLabel.TextXAlignment = Enum.TextXAlignment.Center
-welcomeLabel.TextYAlignment = Enum.TextYAlignment.Center
-
-local infoLabel = Instance.new("TextLabel")
-infoLabel.Parent = mainContent
-infoLabel.BackgroundTransparency = 1
-infoLabel.Position = UDim2.new(0, 10, 0, 80)
-infoLabel.Size = UDim2.new(1, -20, 0, 150)
-infoLabel.Font = Enum.Font.Gotham
-infoLabel.Text = "Features:\n• 5 Advanced Bypass Methods\n• Anti-Hit Protection System\n• Optimize Game & Cheat\n• Speed Boost (85 WalkSpeed)\n• NoClip & Invisibility\n• Teleport System\n• Compact Interface"
-infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-infoLabel.TextSize = 12
-infoLabel.TextXAlignment = Enum.TextXAlignment.Left
-infoLabel.TextYAlignment = Enum.TextYAlignment.Top
-
--- TELEPORT TAB CONTENT
-local SetDeliveryBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "SET POS", "📍")
-local TeleportBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 40), UDim2.new(1, -10, 0, 30), "FLY TO", "🚀")
-local ForwardBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 75), UDim2.new(1, -10, 0, 30), "TP FWD", "➡️")
-local BaseTPBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 110), UDim2.new(1, -10, 0, 30), "INSTANT", "✨")
-
--- Add bypass method selector
-local BypassLabel = Instance.new("TextLabel")
-BypassLabel.Parent = teleportContent
-BypassLabel.BackgroundTransparency = 1
-BypassLabel.Position = UDim2.new(0, 5, 0, 145)
-BypassLabel.Size = UDim2.new(1, -10, 0, 15)
-BypassLabel.Font = Enum.Font.Gotham
-BypassLabel.Text = "Bypass: " .. BypassSystem.methods[BypassSystem.currentMethod].name
-BypassLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-BypassLabel.TextSize = 9
-BypassLabel.TextXAlignment = Enum.TextXAlignment.Center
-
-local SwitchBypassBtn = createModernButton(teleportContent, UDim2.new(0, 5, 0, 165), UDim2.new(1, -10, 0, 25), "SWITCH", "🔄")
-
-local teleportStatus = createStatusLabel(teleportContent)
-
--- PLAYER TAB CONTENT
-local SpeedBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "SPEED: OFF", "🏃‍♂️")
-local NoClipBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 40), UDim2.new(1, -10, 0, 30), "NOCLIP: OFF", "👻")
-local InvisBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 75), UDim2.new(1, -10, 0, 30), "INVIS: OFF", "👁️")
-local AntiHitBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 110), UDim2.new(1, -10, 0, 30), "ANTI-HIT: OFF", "🛡️")
-
--- Anti-detection toggle
-local AntiDetectBtn = createModernButton(playerContent, UDim2.new(0, 5, 0, 145), UDim2.new(1, -10, 0, 30), "ANTI-DETECT: ON", "🛡️")
-
-local playerStatus = createStatusLabel(playerContent)
-
--- SETTINGS TAB CONTENT
-local resetBtn = createModernButton(settingsContent, UDim2.new(0, 5, 0, 5), UDim2.new(1, -10, 0, 30), "RESET ALL", "🔄")
-local optimizeBtn = createModernButton(settingsContent, UDim2.new(0, 5, 0, 40), UDim2.new(1, -10, 0, 30), "OPTIMIZE GAME", "🔄")
-local cheatBtn = createModernButton(settingsContent, UDim2.new(0, 5, 0, 75), UDim2.new(1, -10, 0, 30), "OPTIMIZE CHEAT", "⚡")
-
-local aboutLabel = Instance.new("TextLabel")
-aboutLabel.Parent = settingsContent
-aboutLabel.BackgroundTransparency = 1
-aboutLabel.Position = UDim2.new(0, 5, 0, 110)
-aboutLabel.Size = UDim2.new(1, -10, 0, 80)
-aboutLabel.Font = Enum.Font.Gotham
-aboutLabel.Text = "SIGMA HUB v3.0\nUltimate Anti-Detection\n\n5 Bypass Methods\nAnti-Hit Protection"
-aboutLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-aboutLabel.TextSize = 10
-aboutLabel.TextXAlignment = Enum.TextXAlignment.Center
-
--- TELEPORT FUNCTIONS
-local function updateStatus(label, text, color)
-    if label and label.Parent then
-        label.Text = text
-        label.TextColor3 = color or Color3.fromRGB(255, 194, 0)
+-- Funzione per movimento fluido con anti-detection
+local function smoothMove(targetPosition, callback)
+    if isMoving then return end
+    isMoving = true
+    
+    local startPosition = rootPart.Position
+    local distance = (targetPosition - startPosition).Magnitude
+    local direction = (targetPosition - startPosition).Unit
+    
+    -- Calcola il numero di passi necessari
+    local steps = math.ceil(distance / STEP_DISTANCE)
+    local currentStep = 0
+    
+    -- Disabilita temporaneamente la gravità
+    local bodyPosition = Instance.new("BodyPosition")
+    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyPosition.Position = startPosition
+    bodyPosition.Parent = rootPart
+    
+    -- Funzione ricorsiva per movimento step-by-step
+    local function moveStep()
+        currentStep = currentStep + 1
+        
+        if currentStep > steps then
+            -- Movimento completato
+            bodyPosition:Destroy()
+            isMoving = false
+            if callback then callback() end
+            return
+        end
+        
+        -- Calcola la prossima posizione
+        local progress = currentStep / steps
+        local nextPos
+        
+        if currentStep < steps then
+            nextPos = startPosition + (direction * STEP_DISTANCE * currentStep)
+            nextPos = Vector3.new(nextPos.X, MOVE_HEIGHT, nextPos.Z)
+        else
+            nextPos = targetPosition
+        end
+        
+        -- Applica movimento graduale
+        bodyPosition.Position = nextPos
+        
+        -- Anti-detection: piccola pausa casuale
+        wait(ANTI_DETECT_DELAY + math.random() * 0.02)
+        
+        -- Continua con il prossimo passo
+        moveStep()
     end
+    
+    -- Inizia il movimento
+    moveStep()
 end
 
-local function flyToDelivery()
-    if teleporting or not deliveryPosition then
-        updateStatus(teleportStatus, "⚠️ Set a position first!", Color3.fromRGB(255, 193, 7))
-        return
+-- Funzione per il teleport avanzato alla base
+local function advancedTPToBase()
+    if not basePosition or isMoving then 
+        return 
     end
     
-    local character = Player.Character
-    if not character then return end
-    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-    if not rootPart then return end
+    local statusLabel = gui.MainFrame.StatusLabel
+    statusLabel.Text = "Moving to base..."
+    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
     
-    teleporting = true
-    updateStatus(teleportStatus, "🚀 Flying to position...", Color3.fromRGB(0, 128, 255))
+    -- Step 1: Vai in alto
+    local currentPos = rootPart.Position
+    local highPosition = Vector3.new(currentPos.X, MOVE_HEIGHT, currentPos.Z)
     
-    if not bypassAnticheat(character) then
-        teleporting = false
-        return
-    end
-    
-    local targetCFrame = CFrame.new(deliveryPosition)
-    local tweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
-    local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = targetCFrame})
-    
-    tween:Play()
-    tween.Completed:Connect(function()
-        restoreCharacter(character)
-        updateStatus(teleportStatus, "✅ Arrived successfully!", Color3.fromRGB(0, 255, 0))
-        spawn(function()
-            wait(3)
-            updateStatus(teleportStatus, "Ready!")
-            teleporting = false
+    smoothMove(highPosition, function()
+        wait(HOVER_TIME)
+        
+        -- Step 2: Movimento verso la base con pattern anti-detection
+        local baseHigh = Vector3.new(basePosition.X, MOVE_HEIGHT, basePosition.Z)
+        
+        smoothMove(baseHigh, function()
+            wait(HOVER_TIME)
+            
+            -- Step 3: Scendi alla base
+            smoothMove(basePosition, function()
+                statusLabel.Text = "Arrived at base!"
+                statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+                
+                wait(2)
+                statusLabel.Text = "Ready"
+            end)
         end)
     end)
 end
 
-local function instantTeleport()
-    if teleporting or not deliveryPosition then
-        updateStatus(teleportStatus, "⚠️ Set a position first!", Color3.fromRGB(255, 193, 7))
-        return
-    end
-    
-    local character = Player.Character
-    if not character then return end
-    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-    if not rootPart then return end
-    
-    teleporting = true
-    TeleportScreen.Enabled = true
-    updateStatus(teleportStatus, "⏳ Instant teleporting...", Color3.fromRGB(255, 215, 0))
-    
-    spawn(function()
-        bypassAnticheat(character)
-        wait(1)
-        if rootPart and rootPart.Parent then
-            rootPart.CFrame = CFrame.new(deliveryPosition)
-        end
-        wait(1)
-        TeleportScreen.Enabled = false
-        restoreCharacter(character)
-        updateStatus(teleportStatus, "✅ Teleported instantly!", Color3.fromRGB(0, 255, 0))
-        wait(3)
-        updateStatus(teleportStatus, "Ready!")
-        teleporting = false
-    end)
-end
-
-local function tpForward()
-    local character = Player.Character
-    if not character then return end
-    local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-    if not rootPart then return end
-    
-    updateStatus(teleportStatus, "➡️ Teleporting forward...", Color3.fromRGB(0, 128, 255))
-    bypassAnticheat(character)
-    wait(0.15)
-    
-    local cf = rootPart.CFrame
-    rootPart.CFrame = cf + (cf.LookVector * 5)
-    wait(0.3)
-    
-    restoreCharacter(character)
-    updateStatus(teleportStatus, "✅ TP Forward!", Color3.fromRGB(0, 255, 0))
-    wait(2)
-    updateStatus(teleportStatus, "Ready!")
-end
-
--- PLAYER FUNCTIONS
-local function maintainSpeed()
-    local character = Player.Character
-    if character and speedEnabled then
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid and humanoid.WalkSpeed ~= 85 then
-            humanoid.WalkSpeed = 85
-        end
-    end
-end
-
-local function toggleSpeed()
-    speedEnabled = not speedEnabled
-    local character = Player.Character
-    if not character then return end
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-    
-    if speedEnabled then
-        humanoid.WalkSpeed = 85
-        SpeedBtn.Text = "🏃‍♂️ SPEED: ON"
-        updateStatus(playerStatus, "🏃‍♂️ SUPER SPEED ON!", Color3.fromRGB(255, 20, 147))
-        addConnection("speed", RunService.Heartbeat:Connect(maintainSpeed))
-    else
-        humanoid.WalkSpeed = 16
-        SpeedBtn.Text = "🏃‍♂️ SPEED: OFF"
-        updateStatus(playerStatus, "Speed normal")
-        if connections["speed"] then
-            connections["speed"]:Disconnect()
-            connections["speed"] = nil
-        end
-    end
+-- Funzione per settare la posizione base
+local function setBasePosition()
+    basePosition = rootPart.Position
+    local statusLabel = gui.MainFrame.StatusLabel
+    statusLabel.Text = "Base position set!"
+    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
     
     wait(2)
-    updateStatus(playerStatus, "Ready!")
+    statusLabel.Text = "Ready"
 end
 
-local function toggleNoClip()
-    noclipEnabled = not noclipEnabled
-    
-    if noclipEnabled then
-        NoClipBtn.Text = "👻 NOCLIP: ON"
-        updateStatus(playerStatus, "👻 NoClip ON!", Color3.fromRGB(0, 255, 0))
-        addConnection("noclip", RunService.Heartbeat:Connect(function()
-            local character = Player.Character
-            if character then
-                for _, part in pairs(character:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end))
-    else
-        NoClipBtn.Text = "👻 NOCLIP: OFF"
-        updateStatus(playerStatus, "👻 NoClip OFF!")
-        if connections["noclip"] then
-            connections["noclip"]:Disconnect()
-            connections["noclip"] = nil
-        end
-        
-        local character = Player.Character
-        if character then
-            wait(0.1)
-            for _, part in pairs(character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
+-- Funzione principale di inizializzazione
+local function initialize()
+    -- Aggiorna character e componenti quando il player respawna
+    local function updateCharacter()
+        character = player.Character or player.CharacterAdded:Wait()
+        humanoid = character:WaitForChild("Humanoid")
+        rootPart = character:WaitForChild("HumanoidRootPart")
     end
     
-    wait(2)
-    updateStatus(playerStatus, "Ready!")
-end
-
-local function toggleInvis()
-    invisEnabled = not invisEnabled
-    local character = Player.Character
-    if not character then return end
+    player.CharacterAdded:Connect(updateCharacter)
     
-    for _, v in pairs(character:GetChildren()) do
-        if v:IsA("BasePart") then
-            v.LocalTransparencyModifier = invisEnabled and 1 or 0
-            v.CanCollide = not invisEnabled
-        end
-        if v:IsA("Accessory") and v:FindFirstChild("Handle") then
-            v.Handle.LocalTransparencyModifier = invisEnabled and 1 or 0
-            v.Handle.CanCollide = not invisEnabled
-        end
-    end
+    -- Crea GUI
+    local setBtn, tpBtn, statusLabel = createGUI()
     
-    local head = character:FindFirstChild("Head")
-    if head then
-        for _, c in pairs(head:GetChildren()) do
-            if c:IsA("BillboardGui") then 
-                c.Enabled = not invisEnabled 
-            end
-        end
-    end
-    
-    InvisBtn.Text = invisEnabled and "👁️ INVIS: ON" or "👁️ INVIS: OFF"
-    updateStatus(playerStatus, invisEnabled and "👁️ Invisible!" or "👁️ Visible!", invisEnabled and Color3.fromRGB(0, 255, 0) or nil)
-    wait(2)
-    updateStatus(playerStatus, "Ready!")
-end
-
-local function toggleAntiHit()
-    antiHitEnabled = not antiHitEnabled
-    
-    if antiHitEnabled then
-        AntiHitBtn.Text = "🛡️ ANTI-HIT: ON"
-        updateStatus(playerStatus, "🛡️ ANTI-HIT ACTIVATED!", Color3.fromRGB(0, 255, 0))
-        enableAntiHit()
-    else
-        AntiHitBtn.Text = "🛡️ ANTI-HIT: OFF"
-        updateStatus(playerStatus, "Anti-Hit Deactivated")
-        disableAntiHit()
-    end
-    
-    wait(2)
-    updateStatus(playerStatus, "Ready!")
-end
-
--- DRAG FUNCTIONALITY
-local function enableDragging(frame)
-    local dragging = false
-    local dragStart = nil
-    local startPos = nil
-    
-    local function updateInput(input)
-        if dragging then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end
-    
-    Header.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            addConnection("drag", UserInputService.InputChanged:Connect(updateInput))
+    -- Connetti eventi
+    setBtn.Activated:Connect(function()
+        if not isMoving then
+            setBasePosition()
         end
     end)
     
-    Header.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-            if connections["drag"] then
-                connections["drag"]:Disconnect()
-                connections["drag"] = nil
-            end
+    tpBtn.Activated:Connect(function()
+        if not isMoving then
+            advancedTPToBase()
         end
     end)
+    
+    -- Effetti hover per i pulsanti
+    setBtn.MouseEnter:Connect(function()
+        setBtn.BackgroundColor3 = Color3.fromRGB(0, 142, 235)
+    end)
+    
+    setBtn.MouseLeave:Connect(function()
+        setBtn.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+    end)
+    
+    tpBtn.MouseEnter:Connect(function()
+        tpBtn.BackgroundColor3 = Color3.fromRGB(235, 67, 67)
+    end)
+    
+    tpBtn.MouseLeave:Connect(function()
+        tpBtn.BackgroundColor3 = Color3.fromRGB(255, 87, 87)
+    end)
+    
+    print("Advanced TP System inizializzato!")
 end
 
--- EVENT CONNECTIONS
--- Tab switching
-mainTab.MouseButton1Click:Connect(function() switchTab("main") end)
-teleportTab.MouseButton1Click:Connect(function() switchTab("teleport") end)
-playerTab.MouseButton1Click:Connect(function() switchTab("player") end)
-settingsTab.MouseButton1Click:Connect(function() switchTab("settings") end)
+-- Avvia il sistema
+initialize()
 
--- Teleport functions
-SetDeliveryBtn.MouseButton1Click:Connect(addDebounce("setpos", function()
-    local character = Player.Character
-    if character then
-        local rootPart = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Torso")
-        if rootPart then
-            deliveryPosition = rootPart.Position
-            updateStatus(teleportStatus, "✅ Position saved!", Color3.fromRGB(0, 255, 0))
-            spawn(function()
-                wait(2)
-                updateStatus(teleportStatus, "Ready!")
-            end)
-        end
-    end
-end, 1))
-
-TeleportBtn.MouseButton1Click:Connect(addDebounce("flytp", flyToDelivery, 2))
-BaseTPBtn.MouseButton1Click:Connect(addDebounce("instanttp", instantTeleport, 2))
-ForwardBtn.MouseButton1Click:Connect(addDebounce("forward", tpForward, 1))
-
--- Player functions
-SpeedBtn.MouseButton1Click:Connect(addDebounce("speed", toggleSpeed, 1))
-NoClipBtn.MouseButton1Click:Connect(addDebounce("noclip", toggleNoClip, 1))
-InvisBtn.MouseButton1Click:Connect(addDebounce("invis", toggleInvis, 1))
-AntiHitBtn.MouseButton1Click:Connect(addDebounce("antihit", toggleAntiHit, 1))
-
--- Switch bypass method
-SwitchBypassBtn.MouseButton1Click:Connect(addDebounce("switchbypass", function()
-    BypassSystem.currentMethod = BypassSystem.currentMethod % #BypassSystem.methods + 1
-    BypassLabel.Text = "Bypass: " .. BypassSystem.methods[BypassSystem.currentMethod].name
-    updateStatus(teleportStatus, "Switched to " .. BypassSystem.methods[BypassSystem.currentMethod].name, Color3.fromRGB(0, 255, 255))
-    wait(2)
-    updateStatus(teleportStatus, "Ready!")
-end, 1))
-
--- Toggle anti-detection
-AntiDetectBtn.MouseButton1Click:Connect(addDebounce("antidetect", function()
-    BypassSystem.antiDetection = not BypassSystem.antiDetection
-    AntiDetectBtn.Text = BypassSystem.antiDetection and "🛡️ ANTI-DETECT: ON" or "🛡️ ANTI-DETECT: OFF"
-    updateStatus(playerStatus, BypassSystem.antiDetection and "🛡️ Anti-Detection ON!" or "🛡️ Anti-Detection OFF!", 
-                BypassSystem.antiDetection and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 255, 0))
-    wait(2)
-    updateStatus(playerStatus, "Ready!")
-end, 1))
-
--- Settings functions
-optimizeBtn.MouseButton1Click:Connect(addDebounce("optimize", function()
-    optimizeGame()
-    updateStatus(settingsContent, "Game optimized for performance!", Color3.fromRGB(0, 255, 0))
-end))
-
-cheatBtn.MouseButton1Click:Connect(addDebounce("cheatopt", function()
-    optimizeCheat()
-    updateStatus(settingsContent, "Cheat script optimized!", Color3.fromRGB(0, 255, 0))
-end))
-
--- Window controls
-MinimizeBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 500, 0, 45) or UDim2.new(0, 500, 0, 400)
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = targetSize})
-    tween:Play()
-    MinimizeBtn.Text = isMinimized and "+" or "−"
-    TabContainer.Visible = not isMinimized
-    ContentContainer.Visible = not isMinimized
-end)
-
-CloseBtn.MouseButton1Click:Connect(function()
-    cleanupConnections()
-    teleporting = false
-    local tween = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
-        Size = UDim2.new(0, 0, 0, 0), 
-        Position = UDim2.new(0.5, 0, 0.5, 0)
-    })
-    tween:Play()
-    tween.Completed:Connect(function()
-        if ScreenGui and ScreenGui.Parent then ScreenGui:Destroy() end
-        if TeleportScreen and TeleportScreen.Parent then TeleportScreen:Destroy() end
-    end)
-end)
-
--- Handle character respawning
-Player.CharacterAdded:Connect(function(character)
-    if speedEnabled then
-        local humanoid = character:WaitForChild("Humanoid")
-        wait(0.5)
-        humanoid.WalkSpeed = 85
-    end
+-- Comando per rimuovere il sistema (opzionale)
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
     
-    if antiHitEnabled then
-        wait(1)
-        enableAntiHit()
+    if input.KeyCode == Enum.KeyCode.Delete then
+        if gui then
+            gui:Destroy()
+            print("Advanced TP System rimosso!")
+        end
     end
 end)
-
--- Enable dragging
-enableDragging(MainFrame)
-
--- Initialize with main tab
-switchTab("main")
-
--- Startup animation
-MainFrame.Size = UDim2.new(0, 0, 0, 0)
-MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 500, 0, 400), 
-    Position = UDim2.new(0.5, -250, 0.5, -200)
-})
-openTween:Play()
-
--- Performance monitoring
-addConnection("perf", RunService.Heartbeat:Connect(function()
-    if os.clock() - lastPerformanceCheck > 5 then
-        lastPerformanceCheck = os.clock()
-        local mem = Stats:GetMemoryUsageMbForTag(Enum.DeveloperMemoryTag.Script)
-        if mem > 50 then
-            optimizeCheat()
-        end
-    end
-end))
-
--- Success message
-print("⚡ SIGMA HUB v3.0 - ULTIMATE ANTI-DETECTION LOADED! 🚀✨")
