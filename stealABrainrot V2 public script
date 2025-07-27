@@ -1,387 +1,423 @@
--- Advanced Roblox Teleport & Jump System
--- Ottimizzato per performance e funzionalità avanzate
+-- 🔥 ADVANCED HACKER TP SYSTEM V2.0 🔥
+-- Ultra-optimized with hacker aesthetic
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-local character = player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
+local mouse = player:GetMouse()
 
--- Variabili globali del sistema
-local AdvancedTPSystem = {
+-- Wait for character
+local function getCharacter()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function getHumanoid()
+    local char = getCharacter()
+    return char:WaitForChild("Humanoid")
+end
+
+local function getRootPart()
+    local char = getCharacter()
+    return char:WaitForChild("HumanoidRootPart")
+end
+
+-- Global system variables
+local HackerTP = {
     basePosition = nil,
     isJumping = false,
     isFloating = false,
-    jumpConnection = nil,
-    floatConnection = nil,
+    connections = {},
     gui = nil,
-    tabOpen = false,
-    jumpPower = 50,
-    floatHeight = 16,
-    safetyChecks = true,
-    antiKick = true,
-    smartPath = true
+    menuOpen = false,
+    jumpPower = 75,
+    floatHeight = 20,
+    safetyMode = true,
+    hackMode = true
 }
 
--- Funzione per creare l'interfaccia GUI avanzata
-local function createAdvancedGUI()
-    -- Rimuovi GUI esistente se presente
-    if AdvancedTPSystem.gui then
-        AdvancedTPSystem.gui:Destroy()
+-- Hacker colors
+local COLORS = {
+    bg = Color3.fromRGB(10, 10, 15),
+    accent = Color3.fromRGB(0, 255, 65),
+    danger = Color3.fromRGB(255, 50, 50),
+    warning = Color3.fromRGB(255, 200, 0),
+    info = Color3.fromRGB(50, 150, 255),
+    text = Color3.fromRGB(200, 255, 200),
+    border = Color3.fromRGB(0, 150, 40)
+}
+
+-- Notification system
+local function notify(title, text, color)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "🔰 " .. title,
+            Text = text,
+            Duration = 3,
+        })
+    end)
+end
+
+-- Advanced GUI Creation
+local function createHackerGUI()
+    -- Remove existing GUI
+    if HackerTP.gui then
+        HackerTP.gui:Destroy()
     end
     
-    -- Crea ScreenGui principale
+    -- Create main ScreenGui
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AdvancedTPSystem"
-    screenGui.Parent = playerGui
+    screenGui.Name = "HackerTPSystem"
     screenGui.ResetOnSpawn = false
+    screenGui.IgnoreGuiInset = true
     
-    -- Frame principale (nascosto inizialmente)
+    -- Ensure GUI is created properly
+    pcall(function()
+        screenGui.Parent = player:WaitForChild("PlayerGui")
+    end)
+    
+    -- Main container (hidden initially)
     local mainFrame = Instance.new("Frame")
-    mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 300, 0, 400)
-    mainFrame.Position = UDim2.new(1, -320, 0.5, -200)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Visible = false
+    mainFrame.Name = "MainContainer"
+    mainFrame.Size = UDim2.new(0, 350, 0, 450)
+    mainFrame.Position = UDim2.new(1, -10, 0.5, -225) -- Start off-screen
+    mainFrame.BackgroundColor3 = COLORS.bg
+    mainFrame.BorderSizePixel = 2
+    mainFrame.BorderColor3 = COLORS.accent
+    mainFrame.Visible = true
     mainFrame.Parent = screenGui
     
-    -- Effetto arrotondato
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = mainFrame
+    -- Hacker-style header
+    local header = Instance.new("Frame")
+    header.Name = "Header"
+    header.Size = UDim2.new(1, 0, 0, 60)
+    header.Position = UDim2.new(0, 0, 0, 0)
+    header.BackgroundColor3 = Color3.fromRGB(5, 5, 10)
+    header.BorderSizePixel = 1
+    header.BorderColor3 = COLORS.accent
+    header.Parent = mainFrame
     
-    -- Effetto ombra
-    local shadow = Instance.new("Frame")
-    shadow.Name = "Shadow"
-    shadow.Size = UDim2.new(1, 6, 1, 6)
-    shadow.Position = UDim2.new(0, -3, 0, -3)
-    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.BackgroundTransparency = 0.7
-    shadow.ZIndex = mainFrame.ZIndex - 1
-    shadow.Parent = mainFrame
+    local titleText = Instance.new("TextLabel")
+    titleText.Name = "Title"
+    titleText.Size = UDim2.new(1, -20, 1, 0)
+    titleText.Position = UDim2.new(0, 10, 0, 0)
+    titleText.BackgroundTransparency = 1
+    titleText.Text = ">>> HACKER.TP.SYS <<<"
+    titleText.TextColor3 = COLORS.accent
+    titleText.TextScaled = true
+    titleText.Font = Enum.Font.Code
+    titleText.Parent = header
     
-    local shadowCorner = Instance.new("UICorner")
-    shadowCorner.CornerRadius = UDim.new(0, 12)
-    shadowCorner.Parent = shadow
+    -- Animated cursor effect
+    spawn(function()
+        while titleText.Parent do
+            titleText.Text = ">>> HACKER.TP.SYS <<<"
+            wait(0.8)
+            if titleText.Parent then
+                titleText.Text = ">>> HACKER.TP.SYS <<<_"
+                wait(0.8)
+            end
+        end
+    end)
     
-    -- Titolo
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Name = "Title"
-    titleLabel.Size = UDim2.new(1, 0, 0, 50)
-    titleLabel.Position = UDim2.new(0, 0, 0, 0)
-    titleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-    titleLabel.BorderSizePixel = 0
-    titleLabel.Text = "🚀 Advanced TP System"
-    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    titleLabel.TextScaled = true
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.Parent = mainFrame
+    -- Scrolling content area
+    local scrollFrame = Instance.new("ScrollingFrame")
+    scrollFrame.Name = "Content"
+    scrollFrame.Size = UDim2.new(1, -20, 1, -80)
+    scrollFrame.Position = UDim2.new(0, 10, 0, 70)
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.BorderSizePixel = 0
+    scrollFrame.ScrollBarThickness = 8
+    scrollFrame.ScrollBarImageColor3 = COLORS.accent
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 500)
+    scrollFrame.Parent = mainFrame
     
-    local titleCorner = Instance.new("UICorner")
-    titleCorner.CornerRadius = UDim.new(0, 12)
-    titleCorner.Parent = titleLabel
-    
-    -- Container per i pulsanti
-    local buttonContainer = Instance.new("ScrollingFrame")
-    buttonContainer.Name = "ButtonContainer"
-    buttonContainer.Size = UDim2.new(1, -20, 1, -70)
-    buttonContainer.Position = UDim2.new(0, 10, 0, 60)
-    buttonContainer.BackgroundTransparency = 1
-    buttonContainer.BorderSizePixel = 0
-    buttonContainer.ScrollBarThickness = 8
-    buttonContainer.Parent = mainFrame
-    
-    -- Layout per i pulsanti
+    -- Button layout
     local listLayout = Instance.new("UIListLayout")
     listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Padding = UDim.new(0, 10)
-    listLayout.Parent = buttonContainer
+    listLayout.Padding = UDim.new(0, 8)
+    listLayout.Parent = scrollFrame
     
-    -- Funzione per creare pulsanti avanzati
-    local function createButton(text, color, callback, layoutOrder)
+    -- Hacker button creation function
+    local function createHackerButton(text, color, callback, order)
         local button = Instance.new("TextButton")
-        button.Name = text:gsub(" ", "")
-        button.Size = UDim2.new(1, 0, 0, 50)
-        button.BackgroundColor3 = color
-        button.BorderSizePixel = 0
-        button.Text = text
-        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        button.Name = text:gsub(" ", ""):gsub("[^%w]", "")
+        button.Size = UDim2.new(1, 0, 0, 45)
+        button.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+        button.BorderSizePixel = 1
+        button.BorderColor3 = color
+        button.Text = "> " .. text:upper() .. " <"
+        button.TextColor3 = color
         button.TextScaled = true
-        button.Font = Enum.Font.Gotham
-        button.LayoutOrder = layoutOrder
-        button.Parent = buttonContainer
+        button.Font = Enum.Font.Code
+        button.LayoutOrder = order
+        button.Parent = scrollFrame
         
-        local buttonCorner = Instance.new("UICorner")
-        buttonCorner.CornerRadius = UDim.new(0, 8)
-        buttonCorner.Parent = button
-        
-        -- Effetti hover
+        -- Hover effects
+        local isHovering = false
         button.MouseEnter:Connect(function()
-            local tween = TweenService:Create(button, TweenInfo.new(0.2), {
-                BackgroundColor3 = Color3.new(color.R + 0.1, color.G + 0.1, color.B + 0.1)
-            })
-            tween:Play()
+            isHovering = true
+            button.BackgroundColor3 = Color3.fromRGB(color.R * 50, color.G * 50, color.B * 50)
+            button.Text = ">> " .. text:upper() .. " <<"
         end)
         
         button.MouseLeave:Connect(function()
-            local tween = TweenService:Create(button, TweenInfo.new(0.2), {
-                BackgroundColor3 = color
-            })
-            tween:Play()
+            isHovering = false
+            button.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+            button.Text = "> " .. text:upper() .. " <"
         end)
         
-        button.MouseButton1Click:Connect(callback)
+        -- Click effect
+        button.MouseButton1Click:Connect(function()
+            button.BackgroundColor3 = color
+            button.TextColor3 = Color3.fromRGB(0, 0, 0)
+            spawn(function()
+                wait(0.1)
+                if not isHovering then
+                    button.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+                    button.TextColor3 = color
+                else
+                    button.BackgroundColor3 = Color3.fromRGB(color.R * 50, color.G * 50, color.B * 50)
+                    button.TextColor3 = color
+                end
+            end)
+            callback()
+        end)
         
         return button
     end
     
-    -- Pulsante Tab per aprire/chiudere
-    local tabButton = Instance.new("TextButton")
-    tabButton.Name = "TabButton"
-    tabButton.Size = UDim2.new(0, 60, 0, 30)
-    tabButton.Position = UDim2.new(1, -80, 0.5, -15)
-    tabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-    tabButton.BorderSizePixel = 0
-    tabButton.Text = "TAB"
-    tabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    tabButton.TextScaled = true
-    tabButton.Font = Enum.Font.GothamBold
-    tabButton.Parent = screenGui
-    
-    local tabCorner = Instance.new("UICorner")
-    tabCorner.CornerRadius = UDim.new(0, 8)
-    tabCorner.Parent = tabButton
-    
-    -- Pulsanti principali
-    createButton("📍 Set Base Position", Color3.fromRGB(50, 150, 50), function()
-        AdvancedTPSystem.basePosition = rootPart.Position
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Base Set!";
-            Text = "Position saved: " .. tostring(AdvancedTPSystem.basePosition);
-            Duration = 3;
-        })
+    -- Create all buttons
+    createHackerButton("Set Base Location", COLORS.accent, function()
+        local rootPart = getRootPart()
+        HackerTP.basePosition = rootPart.Position
+        notify("BASE.SET", "Location locked: " .. tostring(HackerTP.basePosition), COLORS.accent)
     end, 1)
     
-    createButton("⚡ Instant TP to Base", Color3.fromRGB(150, 50, 50), function()
-        if AdvancedTPSystem.basePosition then
+    createHackerButton("Instant Teleport", COLORS.danger, function()
+        if HackerTP.basePosition then
             instantTeleport()
         else
-            game.StarterGui:SetCore("SendNotification", {
-                Title = "Error";
-                Text = "Base position not set!";
-                Duration = 3;
-            })
+            notify("ERROR", "Base location not set!", COLORS.danger)
         end
     end, 2)
     
-    createButton("🦘 Smart Jump to Base", Color3.fromRGB(50, 100, 200), function()
-        if AdvancedTPSystem.basePosition then
-            startSmartJump()
+    createHackerButton("Smart Jump System", COLORS.info, function()
+        if HackerTP.basePosition then
+            if HackerTP.isJumping then
+                stopSmartJump()
+            else
+                startSmartJump()
+            end
         else
-            game.StarterGui:SetCore("SendNotification", {
-                Title = "Error";
-                Text = "Base position not set!";
-                Duration = 3;
-            })
+            notify("ERROR", "Base location not set!", COLORS.danger)
         end
     end, 3)
     
-    createButton("🎈 Toggle Float Mode", Color3.fromRGB(150, 100, 50), function()
+    createHackerButton("Float Mode Toggle", COLORS.warning, function()
         toggleFloat()
     end, 4)
     
-    createButton("⚙️ Jump Power: " .. AdvancedTPSystem.jumpPower, Color3.fromRGB(100, 100, 100), function()
-        AdvancedTPSystem.jumpPower = AdvancedTPSystem.jumpPower == 50 and 100 or 50
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Jump Power";
-            Text = "Set to: " .. AdvancedTPSystem.jumpPower;
-            Duration = 2;
-        })
+    createHackerButton("Jump Power: " .. HackerTP.jumpPower, COLORS.accent, function()
+        HackerTP.jumpPower = HackerTP.jumpPower >= 100 and 50 or HackerTP.jumpPower + 25
+        notify("POWER.SET", "Jump power: " .. HackerTP.jumpPower, COLORS.info)
+        -- Update button text
+        scrollFrame:FindFirstChild("JumpPower" .. HackerTP.jumpPower).Text = "> JUMP POWER: " .. HackerTP.jumpPower .. " <"
     end, 5)
     
-    createButton("🛡️ Toggle Safety", Color3.fromRGB(100, 50, 150), function()
-        AdvancedTPSystem.safetyChecks = not AdvancedTPSystem.safetyChecks
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Safety Mode";
-            Text = AdvancedTPSystem.safetyChecks and "Enabled" or "Disabled";
-            Duration = 2;
-        })
+    createHackerButton("Safety Mode: " .. (HackerTP.safetyMode and "ON" or "OFF"), COLORS.warning, function()
+        HackerTP.safetyMode = not HackerTP.safetyMode
+        notify("SAFETY.MODE", HackerTP.safetyMode and "ENABLED" or "DISABLED", COLORS.warning)
     end, 6)
     
-    -- Funzione toggle Tab
-    local function toggleTab()
-        AdvancedTPSystem.tabOpen = not AdvancedTPSystem.tabOpen
+    createHackerButton("Hack Mode: " .. (HackerTP.hackMode and "ON" or "OFF"), COLORS.danger, function()
+        HackerTP.hackMode = not HackerTP.hackMode
+        notify("HACK.MODE", HackerTP.hackMode and "ACTIVATED" or "DEACTIVATED", COLORS.danger)
+    end, 7)
+    
+    -- Tab button for opening/closing
+    local tabButton = Instance.new("TextButton")
+    tabButton.Name = "TabToggle"
+    tabButton.Size = UDim2.new(0, 100, 0, 40)
+    tabButton.Position = UDim2.new(1, -120, 0, 20)
+    tabButton.BackgroundColor3 = COLORS.bg
+    tabButton.BorderSizePixel = 2
+    tabButton.BorderColor3 = COLORS.accent
+    tabButton.Text = "[ OPEN ]"
+    tabButton.TextColor3 = COLORS.accent
+    tabButton.TextScaled = true
+    tabButton.Font = Enum.Font.Code
+    tabButton.Parent = screenGui
+    
+    -- Toggle function
+    local function toggleMenu()
+        HackerTP.menuOpen = not HackerTP.menuOpen
         
-        local targetPos = AdvancedTPSystem.tabOpen and 
-            UDim2.new(1, -320, 0.5, -200) or 
-            UDim2.new(1, 20, 0.5, -200)
+        local targetPos = HackerTP.menuOpen and 
+            UDim2.new(1, -360, 0.5, -225) or 
+            UDim2.new(1, -10, 0.5, -225)
         
-        local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
-            Position = targetPos
-        })
+        local tween = TweenService:Create(mainFrame, 
+            TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+            {Position = targetPos}
+        )
         tween:Play()
         
-        mainFrame.Visible = true
-        tabButton.Text = AdvancedTPSystem.tabOpen and "❮" or "TAB"
+        tabButton.Text = HackerTP.menuOpen and "[ CLOSE ]" or "[ OPEN ]"
+        
+        -- Update tab button color
+        tabButton.BorderColor3 = HackerTP.menuOpen and COLORS.danger or COLORS.accent
+        tabButton.TextColor3 = HackerTP.menuOpen and COLORS.danger or COLORS.accent
     end
     
-    tabButton.MouseButton1Click:Connect(toggleTab)
+    tabButton.MouseButton1Click:Connect(toggleMenu)
     
-    AdvancedTPSystem.gui = screenGui
+    HackerTP.gui = screenGui
+    return true
 end
 
--- Funzione teleport istantaneo avanzato
+-- Advanced teleport system
 function instantTeleport()
-    if not AdvancedTPSystem.basePosition then return end
+    if not HackerTP.basePosition then return end
     
-    local safePosition = AdvancedTPSystem.basePosition + Vector3.new(0, 5, 0)
+    local rootPart = getRootPart()
+    local safePos = HackerTP.basePosition + Vector3.new(0, 5, 0)
     
-    if AdvancedTPSystem.safetyChecks then
-        -- Controlli di sicurezza
-        local raycast = workspace:Raycast(safePosition, Vector3.new(0, -10, 0))
-        if raycast then
-            safePosition = raycast.Position + Vector3.new(0, 3, 0)
+    if HackerTP.safetyMode then
+        -- Raycast for safe landing
+        local rayResult = workspace:Raycast(safePos, Vector3.new(0, -20, 0))
+        if rayResult then
+            safePos = rayResult.Position + Vector3.new(0, 4, 0)
         end
     end
     
-    -- Teleport con effetto
-    local originalCFrame = rootPart.CFrame
-    rootPart.CFrame = CFrame.new(safePosition)
+    -- Teleport with effect
+    rootPart.CFrame = CFrame.new(safePos)
     
-    -- Effetto particelle (se disponibile)
-    spawn(function()
-        for i = 1, 10 do
-            local effect = Instance.new("Explosion")
-            effect.Position = safePosition
-            effect.BlastRadius = 0
-            effect.BlastPressure = 0
-            effect.Visible = false
-            effect.Parent = workspace
-            wait(0.1)
-        end
-    end)
+    -- Visual effect
+    if HackerTP.hackMode then
+        spawn(function()
+            for i = 1, 5 do
+                local part = Instance.new("Part")
+                part.Name = "TeleportEffect"
+                part.Size = Vector3.new(1, 1, 1)
+                part.Position = safePos + Vector3.new(math.random(-3, 3), math.random(-1, 3), math.random(-3, 3))
+                part.BrickColor = BrickColor.new("Bright green")
+                part.Material = Enum.Material.Neon
+                part.Anchored = true
+                part.CanCollide = false
+                part.Parent = workspace
+                
+                local tween = TweenService:Create(part, TweenInfo.new(1), {
+                    Transparency = 1,
+                    Size = Vector3.new(0.1, 0.1, 0.1)
+                })
+                tween:Play()
+                
+                spawn(function()
+                    wait(1)
+                    part:Destroy()
+                end)
+                
+                wait(0.1)
+            end
+        end)
+    end
     
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "Teleported!";
-        Text = "Arrived at base instantly";
-        Duration = 2;
-    })
+    notify("TELEPORT.SUCCESS", "Warped to base location", COLORS.accent)
 end
 
--- Sistema di jump intelligente avanzato
+-- Smart jump system
 function startSmartJump()
-    if AdvancedTPSystem.isJumping then
-        stopSmartJump()
-        return
-    end
+    if HackerTP.isJumping then return end
     
-    AdvancedTPSystem.isJumping = true
+    HackerTP.isJumping = true
     
-    local function calculateDirection()
-        local currentPos = rootPart.Position
-        local targetPos = AdvancedTPSystem.basePosition
-        local direction = (targetPos - currentPos).Unit
+    local function performJump()
+        if not HackerTP.isJumping then return end
         
-        -- Aggiungi componente verticale se necessario
-        if (targetPos - currentPos).Magnitude > 50 then
-            direction = direction + Vector3.new(0, 0.3, 0)
-        end
+        local rootPart = getRootPart()
+        local humanoid = getHumanoid()
         
-        return direction
-    end
-    
-    local function performSmartJump()
-        if not AdvancedTPSystem.isJumping then return end
+        local distance = (HackerTP.basePosition - rootPart.Position).Magnitude
         
-        local distance = (AdvancedTPSystem.basePosition - rootPart.Position).Magnitude
-        
-        -- Se siamo vicini alla base, fermati
-        if distance < 10 then
+        if distance < 8 then
             stopSmartJump()
-            instantTeleport() -- Teleport finale preciso
+            wait(0.5)
+            instantTeleport()
             return
         end
         
-        -- Calcola direzione intelligente
-        local direction = calculateDirection()
+        -- Calculate smart direction
+        local direction = (HackerTP.basePosition - rootPart.Position).Unit
         
-        -- Jump con direzione
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyVelocity.Velocity = direction * AdvancedTPSystem.jumpPower
-        bodyVelocity.Parent = rootPart
+        -- Add vertical component for long distances
+        if distance > 30 then
+            direction = direction + Vector3.new(0, 0.4, 0)
+        end
         
-        -- Rimuovi velocity dopo un momento
+        -- Backward movement (anti-detection)
         spawn(function()
-            wait(0.5)
-            if bodyVelocity then
-                bodyVelocity:Destroy()
-            end
+            local backVelocity = Instance.new("BodyVelocity")
+            backVelocity.MaxForce = Vector3.new(4000, 0, 4000)
+            backVelocity.Velocity = -direction * 15
+            backVelocity.Parent = rootPart
+            
+            wait(0.15)
+            backVelocity:Destroy()
         end)
         
-        -- Movimento all'indietro prima del jump (per evitare detection)
+        -- Main jump
+        wait(0.2)
+        local jumpVelocity = Instance.new("BodyVelocity")
+        jumpVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+        jumpVelocity.Velocity = direction * HackerTP.jumpPower
+        jumpVelocity.Parent = rootPart
+        
         spawn(function()
-            wait(0.1)
-            local backwardVelocity = Instance.new("BodyVelocity")
-            backwardVelocity.MaxForce = Vector3.new(4000, 0, 4000)
-            backwardVelocity.Velocity = -direction * 10
-            backwardVelocity.Parent = rootPart
-            
-            wait(0.2)
-            if backwardVelocity then
-                backwardVelocity:Destroy()
+            wait(0.6)
+            if jumpVelocity then
+                jumpVelocity:Destroy()
             end
         end)
     end
     
-    -- Connessione al loop principale
-    AdvancedTPSystem.jumpConnection = RunService.Heartbeat:Connect(function()
-        if not AdvancedTPSystem.isJumping then return end
+    -- Main jumping loop
+    HackerTP.connections.jumpLoop = RunService.Heartbeat:Connect(function()
+        if not HackerTP.isJumping then return end
         
-        -- Controlla se il player è a terra per il prossimo jump
-        local raycast = workspace:Raycast(rootPart.Position, Vector3.new(0, -5, 0))
-        if raycast then
-            wait(0.3) -- Pausa tra jumps
-            performSmartJump()
+        local rootPart = getRootPart()
+        local humanoid = getHumanoid()
+        
+        -- Check if grounded
+        local rayResult = workspace:Raycast(rootPart.Position, Vector3.new(0, -6, 0))
+        if rayResult and humanoid.FloorMaterial ~= Enum.Material.Air then
+            wait(0.4) -- Delay between jumps
+            performJump()
         end
     end)
     
-    -- Primo jump
-    performSmartJump()
-    
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "Smart Jump Started!";
-        Text = "Jumping to base automatically";
-        Duration = 2;
-    })
+    performJump() -- First jump
+    notify("JUMP.ACTIVATED", "Smart jumping to base...", COLORS.info)
 end
 
 function stopSmartJump()
-    AdvancedTPSystem.isJumping = false
-    if AdvancedTPSystem.jumpConnection then
-        AdvancedTPSystem.jumpConnection:Disconnect()
-        AdvancedTPSystem.jumpConnection = nil
+    HackerTP.isJumping = false
+    if HackerTP.connections.jumpLoop then
+        HackerTP.connections.jumpLoop:Disconnect()
+        HackerTP.connections.jumpLoop = nil
     end
-    
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "Smart Jump Stopped";
-        Text = "Manual control restored";
-        Duration = 2;
-    })
+    notify("JUMP.STOPPED", "Manual control restored", COLORS.warning)
 end
 
--- Sistema di float avanzato
+-- Float system
 function toggleFloat()
-    AdvancedTPSystem.isFloating = not AdvancedTPSystem.isFloating
+    HackerTP.isFloating = not HackerTP.isFloating
     
-    if AdvancedTPSystem.isFloating then
+    if HackerTP.isFloating then
         startFloat()
     else
         stopFloat()
@@ -389,122 +425,114 @@ function toggleFloat()
 end
 
 function startFloat()
-    local bodyPosition = Instance.new("BodyPosition")
-    bodyPosition.MaxForce = Vector3.new(0, math.huge, 0)
-    bodyPosition.Position = rootPart.Position + Vector3.new(0, AdvancedTPSystem.floatHeight, 0)
-    bodyPosition.Parent = rootPart
+    local rootPart = getRootPart()
     
-    AdvancedTPSystem.floatConnection = RunService.Heartbeat:Connect(function()
-        if not AdvancedTPSystem.isFloating then return end
-        bodyPosition.Position = rootPart.Position + Vector3.new(0, AdvancedTPSystem.floatHeight, 0)
+    local bodyPos = Instance.new("BodyPosition")
+    bodyPos.MaxForce = Vector3.new(0, math.huge, 0)
+    bodyPos.Position = rootPart.Position + Vector3.new(0, HackerTP.floatHeight, 0)
+    bodyPos.Parent = rootPart
+    
+    HackerTP.connections.floatLoop = RunService.Heartbeat:Connect(function()
+        if not HackerTP.isFloating then return end
+        local rootPart = getRootPart()
+        bodyPos.Position = rootPart.Position + Vector3.new(0, HackerTP.floatHeight, 0)
     end)
     
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "Float Mode ON";
-        Text = "Flying at " .. AdvancedTPSystem.floatHeight .. " studs high";
-        Duration = 2;
-    })
+    notify("FLOAT.ON", "Hovering at " .. HackerTP.floatHeight .. " studs", COLORS.warning)
 end
 
 function stopFloat()
-    if AdvancedTPSystem.floatConnection then
-        AdvancedTPSystem.floatConnection:Disconnect()
-        AdvancedTPSystem.floatConnection = nil
+    if HackerTP.connections.floatLoop then
+        HackerTP.connections.floatLoop:Disconnect()
+        HackerTP.connections.floatLoop = nil
     end
     
-    -- Rimuovi BodyPosition
+    local rootPart = getRootPart()
     for _, obj in pairs(rootPart:GetChildren()) do
         if obj:IsA("BodyPosition") then
             obj:Destroy()
         end
     end
     
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "Float Mode OFF";
-        Text = "Gravity restored";
-        Duration = 2;
-    })
+    notify("FLOAT.OFF", "Gravity restored", COLORS.info)
 end
 
--- Controlli da tastiera avanzati
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
+-- Keyboard controls
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
     
     if input.KeyCode == Enum.KeyCode.Tab then
-        if AdvancedTPSystem.gui then
-            -- Toggle della GUI
-            local mainFrame = AdvancedTPSystem.gui:FindFirstChild("MainFrame")
-            if mainFrame then
-                AdvancedTPSystem.tabOpen = not AdvancedTPSystem.tabOpen
-                
-                local targetPos = AdvancedTPSystem.tabOpen and 
-                    UDim2.new(1, -320, 0.5, -200) or 
-                    UDim2.new(1, 20, 0.5, -200)
-                
-                local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
-                    Position = targetPos
-                })
-                tween:Play()
-                
-                mainFrame.Visible = true
-                local tabButton = AdvancedTPSystem.gui:FindFirstChild("TabButton")
-                if tabButton then
-                    tabButton.Text = AdvancedTPSystem.tabOpen and "❮" or "TAB"
-                end
+        if HackerTP.gui and HackerTP.gui.Parent then
+            local tabButton = HackerTP.gui:FindFirstChild("TabToggle")
+            if tabButton then
+                tabButton.MouseButton1Click:Fire()
             end
         end
     elseif input.KeyCode == Enum.KeyCode.T then
-        -- Teleport rapido
-        if AdvancedTPSystem.basePosition then
+        if HackerTP.basePosition then
             instantTeleport()
         end
     elseif input.KeyCode == Enum.KeyCode.J then
-        -- Jump intelligente
-        if AdvancedTPSystem.basePosition then
-            startSmartJump()
+        if HackerTP.basePosition then
+            if HackerTP.isJumping then
+                stopSmartJump()
+            else
+                startSmartJump()
+            end
         end
     elseif input.KeyCode == Enum.KeyCode.F then
-        -- Float toggle
         toggleFloat()
+    elseif input.KeyCode == Enum.KeyCode.H then
+        -- Emergency stop all
+        stopSmartJump()
+        stopFloat()
+        notify("EMERGENCY.STOP", "All systems halted", COLORS.danger)
     end
 end)
 
--- Sistema anti-kick avanzato
-if AdvancedTPSystem.antiKick then
+-- Anti-kick system
+if HackerTP.hackMode then
     spawn(function()
-        while wait(1) do
-            -- Simula attività umana
-            if math.random(1, 100) == 1 then
-                humanoid:MoveTo(rootPart.Position + Vector3.new(math.random(-1, 1), 0, math.random(-1, 1)))
+        while wait(2 + math.random()) do
+            if HackerTP.hackMode then
+                local humanoid = getHumanoid()
+                local rootPart = getRootPart()
+                
+                -- Subtle random movements
+                if math.random(1, 20) == 1 then
+                    local randomOffset = Vector3.new(
+                        math.random(-2, 2),
+                        0,
+                        math.random(-2, 2)
+                    )
+                    humanoid:MoveTo(rootPart.Position + randomOffset)
+                end
             end
         end
     end)
 end
 
--- Gestione riconnessione character
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-    humanoid = character:WaitForChild("Humanoid")
-    rootPart = character:WaitForChild("HumanoidRootPart")
-    
-    -- Ricrea GUI
-    wait(1)
-    createAdvancedGUI()
+-- Character respawn handling
+player.CharacterAdded:Connect(function(newChar)
+    wait(2) -- Wait for character to fully load
+    createHackerGUI()
+    notify("SYSTEM.REBOOT", "Hacker TP System reloaded", COLORS.accent)
 end)
 
--- Inicializzazione
-createAdvancedGUI()
-
-game.StarterGui:SetCore("SendNotification", {
-    Title = "Advanced TP System Loaded!";
-    Text = "Press TAB to open menu | T=Teleport | J=Jump | F=Float";
-    Duration = 5;
-})
-
-print("🚀 Advanced Roblox TP System caricato con successo!")
-print("📋 Comandi:")
-print("   TAB - Apri/Chiudi menu")
-print("   T - Teleport istantaneo")
-print("   J - Jump intelligente")
-print("   F - Toggle float")
-print("💡 Usa i pulsanti nella GUI per funzioni avanzate!")
+-- Initialize system
+spawn(function()
+    wait(1) -- Wait for everything to load
+    if createHackerGUI() then
+        notify("SYSTEM.ONLINE", "Hacker TP System activated", COLORS.accent)
+        print("🔰 HACKER TP SYSTEM V2.0 LOADED")
+        print("⌨️  CONTROLS:")
+        print("   TAB - Toggle menu")
+        print("   T - Instant teleport")
+        print("   J - Smart jump toggle")
+        print("   F - Float toggle")
+        print("   H - Emergency stop")
+        print("💚 System ready for operation!")
+    else
+        notify("ERROR", "Failed to initialize GUI", COLORS.danger)
+    end
+end)
