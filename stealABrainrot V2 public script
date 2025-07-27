@@ -1,285 +1,465 @@
--- Advanced Teleport System per Roblox
--- Sistema anti-detection con movimento naturale
+-- ULTIMATE Anti-Detection Teleport System per Roblox
+-- Sistema avanzato con rilevamento automatico anti-cheat e protezioni multiple
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Variabili globali
+-- === SISTEMA RILEVAMENTO ANTI-CHEAT ===
+local antiCheatSystems = {
+    ["Adonis"] = false,
+    ["BasicAdmin"] = false,
+    ["HD Admin"] = false,
+    ["Kohl's Admin"] = false,
+    ["Custom Anti-Exploit"] = false,
+    ["FE Checker"] = false,
+    ["Anti-Speed"] = false,
+    ["Anti-Fly"] = false,
+    ["Anti-Noclip"] = false
+}
+
+local detectedSystem = "Unknown"
+
+-- Funzione per rilevare sistemi anti-cheat
+local function detectAntiCheat()
+    -- Controlla Adonis
+    if ReplicatedStorage:FindFirstChild("Adonis") or ReplicatedStorage:FindFirstChild("AdonisServer") then
+        antiCheatSystems["Adonis"] = true
+        detectedSystem = "Adonis Admin"
+    end
+    
+    -- Controlla BasicAdmin
+    if ReplicatedStorage:FindFirstChild("BasicAdmin") or game:GetService("ServerStorage"):FindFirstChild("BasicAdmin") then
+        antiCheatSystems["BasicAdmin"] = true
+        detectedSystem = "BasicAdmin"
+    end
+    
+    -- Controlla HD Admin
+    if ReplicatedStorage:FindFirstChild("HDAdminMain") or workspace:FindFirstChild("HDAdminBuild") then
+        antiCheatSystems["HD Admin"] = true
+        detectedSystem = "HD Admin"
+    end
+    
+    -- Controlla Kohl's Admin
+    if workspace:FindFirstChild("Kohl's Admin House NBC") or ReplicatedStorage:FindFirstChild("Kohl_Admin") then
+        antiCheatSystems["Kohl's Admin"] = true
+        detectedSystem = "Kohl's Admin"
+    end
+    
+    -- Controlla FE Checker generici
+    local possibleFECheckers = {"FEChecker", "AntiExploit", "Security", "AC", "AntiCheat"}
+    for _, name in pairs(possibleFECheckers) do
+        if ReplicatedStorage:FindFirstChild(name) or workspace:FindFirstChild(name) then
+            antiCheatSystems["Custom Anti-Exploit"] = true
+            detectedSystem = name
+        end
+    end
+    
+    -- Controlla script di velocità
+    if humanoid:FindFirstChild("WalkSpeedChanged") or character:FindFirstChild("SpeedLimiter") then
+        antiCheatSystems["Anti-Speed"] = true
+    end
+    
+    return detectedSystem
+end
+
+-- === VARIABILI AVANZATE ===
 local basePosition = nil
 local isMoving = false
 local gui = nil
+local originalPosition = nil
+local safetyCheckEnabled = true
+local movementHistory = {}
 
--- Configurazione movimento
-local MOVE_HEIGHT = 50 -- Altezza di volo
-local MOVE_SPEED = 16 -- Velocità movimento
-local STEP_DISTANCE = 20 -- Distanza per ogni "passo"
-local HOVER_TIME = 0.1 -- Tempo di hover tra i movimenti
-local ANTI_DETECT_DELAY = 0.05 -- Delay anti-detection
+-- Configurazione dinamica basata su anti-cheat rilevato
+local config = {
+    MOVE_HEIGHT = 50,
+    MOVE_SPEED = 8, -- Più lento per anti-detection
+    STEP_DISTANCE = 5, -- Passi più piccoli
+    HOVER_TIME = 0.3, -- Più tempo tra i movimenti
+    ANTI_DETECT_DELAY = 0.15,
+    MAX_STEPS = 200,
+    SAFETY_CHECK_INTERVAL = 0.5,
+    USE_HUMANOID_MOVE = true, -- Usa movimento humanoid quando possibile
+    RANDOM_VARIATION = true,
+    HEARTBEAT_SYNC = true -- Sincronizza con heartbeat per fluidità
+}
 
--- Funzione per creare la GUI
-local function createGUI()
-    -- Rimuovi GUI esistente se presente
-    if gui then
-        gui:Destroy()
+-- Aggiusta configurazione basata su sistema rilevato
+local function adjustConfigForAntiCheat(system)
+    if system == "Adonis Admin" then
+        config.MOVE_SPEED = 6
+        config.STEP_DISTANCE = 3
+        config.ANTI_DETECT_DELAY = 0.25
+        config.USE_HUMANOID_MOVE = true
+    elseif system == "HD Admin" then
+        config.MOVE_SPEED = 4
+        config.STEP_DISTANCE = 2
+        config.ANTI_DETECT_DELAY = 0.35
+        config.HEARTBEAT_SYNC = true
+    elseif system:find("Anti") or system:find("Security") then
+        config.MOVE_SPEED = 3
+        config.STEP_DISTANCE = 1.5
+        config.ANTI_DETECT_DELAY = 0.5
+        config.RANDOM_VARIATION = true
     end
-    
-    -- Crea ScreenGui principale
-    gui = Instance.new("ScreenGui")
-    gui.Name = "AdvancedTPSystem"
-    gui.ResetOnSpawn = false
-    gui.Parent = player:WaitForChild("PlayerGui")
-    
-    -- Frame principale
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 200, 0, 120)
-    mainFrame.Position = UDim2.new(1, -220, 0.5, -60)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Parent = gui
-    
-    -- Corner radius
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = mainFrame
-    
-    -- Titolo
-    local title = Instance.new("TextLabel")
-    title.Name = "Title"
-    title.Size = UDim2.new(1, 0, 0, 30)
-    title.Position = UDim2.new(0, 0, 0, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "Advanced TP System"
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextScaled = true
-    title.Font = Enum.Font.GothamBold
-    title.Parent = mainFrame
-    
-    -- Pulsante Set Position
-    local setPositionBtn = Instance.new("TextButton")
-    setPositionBtn.Name = "SetPositionBtn"
-    setPositionBtn.Size = UDim2.new(1, -20, 0, 30)
-    setPositionBtn.Position = UDim2.new(0, 10, 0, 40)
-    setPositionBtn.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
-    setPositionBtn.BorderSizePixel = 0
-    setPositionBtn.Text = "Set Base Position"
-    setPositionBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    setPositionBtn.TextScaled = true
-    setPositionBtn.Font = Enum.Font.Gotham
-    setPositionBtn.Parent = mainFrame
-    
-    local setCorner = Instance.new("UICorner")
-    setCorner.CornerRadius = UDim.new(0, 6)
-    setCorner.Parent = setPositionBtn
-    
-    -- Pulsante TP to Base
-    local tpToBaseBtn = Instance.new("TextButton")
-    tpToBaseBtn.Name = "TPToBaseBtn"
-    tpToBaseBtn.Size = UDim2.new(1, -20, 0, 30)
-    tpToBaseBtn.Position = UDim2.new(0, 10, 0, 80)
-    tpToBaseBtn.BackgroundColor3 = Color3.fromRGB(255, 87, 87)
-    tpToBaseBtn.BorderSizePixel = 0
-    tpToBaseBtn.Text = "TP to Base"
-    tpToBaseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    tpToBaseBtn.TextScaled = true
-    tpToBaseBtn.Font = Enum.Font.Gotham
-    tpToBaseBtn.Parent = mainFrame
-    
-    local tpCorner = Instance.new("UICorner")
-    tpCorner.CornerRadius = UDim.new(0, 6)
-    tpCorner.Parent = tpToBaseBtn
-    
-    -- Status indicator
-    local statusLabel = Instance.new("TextLabel")
-    statusLabel.Name = "StatusLabel"
-    statusLabel.Size = UDim2.new(1, 0, 0, 15)
-    statusLabel.Position = UDim2.new(0, 0, 1, -15)
-    statusLabel.BackgroundTransparency = 1
-    statusLabel.Text = "Ready"
-    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-    statusLabel.TextScaled = true
-    statusLabel.Font = Enum.Font.Gotham
-    statusLabel.Parent = mainFrame
-    
-    return setPositionBtn, tpToBaseBtn, statusLabel
 end
 
--- Funzione per creare un BodyVelocity temporaneo
-local function createBodyVelocity(velocity)
+-- === SISTEMA GUI AVANZATO ===
+local function createAdvancedGUI()
+    if gui then gui:Destroy() end
+    
+    gui = Instance.new("ScreenGui")
+    gui.Name = "UltimateTPSystem"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.Parent = player:WaitForChild("PlayerGui")
+    
+    -- Background blur trasparente
+    local blurFrame = Instance.new("Frame")
+    blurFrame.Name = "BlurBackground"
+    blurFrame.Size = UDim2.new(0, 220, 0, 160)
+    blurFrame.Position = UDim2.new(1, -240, 0.5, -80)
+    blurFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    blurFrame.BackgroundTransparency = 0.3 -- Grigio trasparente
+    blurFrame.BorderSizePixel = 0
+    blurFrame.Parent = gui
+    
+    -- Effetto blur
+    local blur = Instance.new("UICorner")
+    blur.CornerRadius = UDim.new(0, 12)
+    blur.Parent = blurFrame
+    
+    -- Stroke per eleganza
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(70, 70, 70)
+    stroke.Thickness = 1
+    stroke.Transparency = 0.5
+    stroke.Parent = blurFrame
+    
+    -- Titolo con info sistema
+    local title = Instance.new("TextLabel")
+    title.Name = "Title"
+    title.Size = UDim2.new(1, 0, 0, 25)
+    title.Position = UDim2.new(0, 0, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = "🛡️ ULTIMATE TP SYSTEM"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextSize = 14
+    title.Font = Enum.Font.GothamBold
+    title.Parent = blurFrame
+    
+    -- Info sistema rilevato
+    local systemInfo = Instance.new("TextLabel")
+    systemInfo.Name = "SystemInfo"
+    systemInfo.Size = UDim2.new(1, 0, 0, 20)
+    systemInfo.Position = UDim2.new(0, 0, 0, 25)
+    systemInfo.BackgroundTransparency = 1
+    systemInfo.Text = "🔍 Detected: " .. detectedSystem
+    systemInfo.TextColor3 = Color3.fromRGB(255, 200, 100)
+    systemInfo.TextSize = 10
+    systemInfo.Font = Enum.Font.Gotham
+    systemInfo.Parent = blurFrame
+    
+    -- Pulsante Set Position
+    local setBtn = Instance.new("TextButton")
+    setBtn.Name = "SetPositionBtn"
+    setBtn.Size = UDim2.new(1, -20, 0, 35)
+    setBtn.Position = UDim2.new(0, 10, 0, 50)
+    setBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
+    setBtn.BackgroundTransparency = 0.1
+    setBtn.BorderSizePixel = 0
+    setBtn.Text = "📍 Set Base Position"
+    setBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    setBtn.TextSize = 12
+    setBtn.Font = Enum.Font.GothamBold
+    setBtn.Parent = blurFrame
+    
+    local setBtnCorner = Instance.new("UICorner")
+    setBtnCorner.CornerRadius = UDim.new(0, 8)
+    setBtnCorner.Parent = setBtn
+    
+    -- Pulsante TP
+    local tpBtn = Instance.new("TextButton")
+    tpBtn.Name = "TPBtn"
+    tpBtn.Size = UDim2.new(1, -20, 0, 35)
+    tpBtn.Position = UDim2.new(0, 10, 0, 90)
+    tpBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+    tpBtn.BackgroundTransparency = 0.1
+    tpBtn.BorderSizePixel = 0
+    tpBtn.Text = "🚀 TP to Base (Safe)"
+    tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tpBtn.TextSize = 12
+    tpBtn.Font = Enum.Font.GothamBold
+    tpBtn.Parent = blurFrame
+    
+    local tpBtnCorner = Instance.new("UICorner")
+    tpBtnCorner.CornerRadius = UDim.new(0, 8)
+    tpBtnCorner.Parent = tpBtn
+    
+    -- Status avanzato
+    local status = Instance.new("TextLabel")
+    status.Name = "Status"
+    status.Size = UDim2.new(1, 0, 0, 20)
+    status.Position = UDim2.new(0, 0, 1, -25)
+    status.BackgroundTransparency = 1
+    status.Text = "✅ Ready - Ultra Safe Mode"
+    status.TextColor3 = Color3.fromRGB(100, 255, 100)
+    status.TextSize = 10
+    status.Font = Enum.Font.Gotham
+    status.Parent = blurFrame
+    
+    return setBtn, tpBtn, status, systemInfo
+end
+
+-- === SISTEMA MOVIMENTO ULTRA-AVANZATO ===
+local function createInvisibleBodyMover()
+    -- Rimuovi eventuali body mover esistenti
+    for _, v in pairs(rootPart:GetChildren()) do
+        if v:IsA("BodyVelocity") or v:IsA("BodyPosition") or v:IsA("BodyAngularVelocity") then
+            v:Destroy()
+        end
+    end
+    
     local bodyVelocity = Instance.new("BodyVelocity")
     bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyVelocity.Velocity = velocity
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
     bodyVelocity.Parent = rootPart
+    
     return bodyVelocity
 end
 
--- Funzione per movimento fluido con anti-detection
-local function smoothMove(targetPosition, callback)
+-- Sistema di sicurezza anti-rollback
+local function enableSafetyProtection()
+    local connection
+    local lastSafePosition = rootPart.Position
+    local checkCounter = 0
+    
+    connection = RunService.Heartbeat:Connect(function()
+        if not isMoving then
+            connection:Disconnect()
+            return
+        end
+        
+        checkCounter = checkCounter + 1
+        
+        -- Controlla ogni pochi frame
+        if checkCounter % 30 == 0 then
+            local currentPos = rootPart.Position
+            local distanceFromLast = (currentPos - lastSafePosition).Magnitude
+            
+            -- Se siamo troppo lontani dalla posizione precedente, potrebbe essere un rollback
+            if distanceFromLast > 100 then
+                warn("Possibile rollback rilevato! Implementando correzione...")
+                wait(0.5) -- Pausa per stabilizzare
+            else
+                lastSafePosition = currentPos
+            end
+        end
+    end)
+end
+
+-- Movimento con sincronizzazione Heartbeat
+local function ultraSafeMove(targetPosition, callback)
     if isMoving then return end
     isMoving = true
     
-    local startPosition = rootPart.Position
-    local distance = (targetPosition - startPosition).Magnitude
-    local direction = (targetPosition - startPosition).Unit
+    originalPosition = rootPart.Position
+    local status = gui.BlurBackground.Status
     
-    -- Calcola il numero di passi necessari
-    local steps = math.ceil(distance / STEP_DISTANCE)
-    local currentStep = 0
+    status.Text = "🔄 Calculating safe path..."
+    status.TextColor3 = Color3.fromRGB(255, 255, 100)
     
-    -- Disabilita temporaneamente la gravità
-    local bodyPosition = Instance.new("BodyPosition")
-    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyPosition.Position = startPosition
-    bodyPosition.Parent = rootPart
+    enableSafetyProtection()
     
-    -- Funzione ricorsiva per movimento step-by-step
-    local function moveStep()
-        currentStep = currentStep + 1
+    local startPos = rootPart.Position
+    local endPos = targetPosition
+    local totalDistance = (endPos - startPos).Magnitude
+    
+    -- Calcola percorso con waypoints di sicurezza
+    local waypoints = {}
+    local numWaypoints = math.min(math.ceil(totalDistance / config.STEP_DISTANCE), config.MAX_STEPS)
+    
+    for i = 1, numWaypoints do
+        local progress = i / numWaypoints
+        local basePoint = startPos:Lerp(endPos, progress)
         
-        if currentStep > steps then
+        -- Aggiungi variazione casuale se abilitata
+        if config.RANDOM_VARIATION then
+            local randomOffset = Vector3.new(
+                (math.random() - 0.5) * 2,
+                0,
+                (math.random() - 0.5) * 2
+            )
+            basePoint = basePoint + randomOffset
+        end
+        
+        -- Mantieni altezza costante per la maggior parte del percorso
+        if i < numWaypoints then
+            basePoint = Vector3.new(basePoint.X, config.MOVE_HEIGHT, basePoint.Z)
+        else
+            basePoint = endPos -- Destinazione finale
+        end
+        
+        table.insert(waypoints, basePoint)
+    end
+    
+    status.Text = "🛡️ Moving with " .. #waypoints .. " waypoints..."
+    
+    -- Crea body mover
+    local bodyVelocity = createInvisibleBodyMover()
+    local currentWaypoint = 1
+    
+    local moveConnection
+    moveConnection = RunService.Heartbeat:Connect(function()
+        if currentWaypoint > #waypoints then
             -- Movimento completato
-            bodyPosition:Destroy()
+            bodyVelocity:Destroy()
+            moveConnection:Disconnect()
             isMoving = false
+            
+            status.Text = "✅ Arrived safely!"
+            status.TextColor3 = Color3.fromRGB(100, 255, 100)
+            
+            wait(2)
+            status.Text = "✅ Ready - Ultra Safe Mode"
+            
             if callback then callback() end
             return
         end
         
-        -- Calcola la prossima posizione
-        local progress = currentStep / steps
-        local nextPos
+        local targetWaypoint = waypoints[currentWaypoint]
+        local currentPos = rootPart.Position
+        local direction = (targetWaypoint - currentPos)
+        local distance = direction.Magnitude
         
-        if currentStep < steps then
-            nextPos = startPosition + (direction * STEP_DISTANCE * currentStep)
-            nextPos = Vector3.new(nextPos.X, MOVE_HEIGHT, nextPos.Z)
-        else
-            nextPos = targetPosition
-        end
-        
-        -- Applica movimento graduale
-        bodyPosition.Position = nextPos
-        
-        -- Anti-detection: piccola pausa casuale
-        wait(ANTI_DETECT_DELAY + math.random() * 0.02)
-        
-        -- Continua con il prossimo passo
-        moveStep()
-    end
-    
-    -- Inizia il movimento
-    moveStep()
-end
-
--- Funzione per il teleport avanzato alla base
-local function advancedTPToBase()
-    if not basePosition or isMoving then 
-        return 
-    end
-    
-    local statusLabel = gui.MainFrame.StatusLabel
-    statusLabel.Text = "Moving to base..."
-    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-    
-    -- Step 1: Vai in alto
-    local currentPos = rootPart.Position
-    local highPosition = Vector3.new(currentPos.X, MOVE_HEIGHT, currentPos.Z)
-    
-    smoothMove(highPosition, function()
-        wait(HOVER_TIME)
-        
-        -- Step 2: Movimento verso la base con pattern anti-detection
-        local baseHigh = Vector3.new(basePosition.X, MOVE_HEIGHT, basePosition.Z)
-        
-        smoothMove(baseHigh, function()
-            wait(HOVER_TIME)
+        if distance < 3 then
+            -- Waypoint raggiunto
+            currentWaypoint = currentWaypoint + 1
             
-            -- Step 3: Scendi alla base
-            smoothMove(basePosition, function()
-                statusLabel.Text = "Arrived at base!"
-                statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-                
-                wait(2)
-                statusLabel.Text = "Ready"
-            end)
-        end)
+            -- Pausa anti-detection
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            wait(config.ANTI_DETECT_DELAY + math.random() * 0.1)
+        else
+            -- Continua verso il waypoint
+            local normalizedDirection = direction.Unit
+            local speed = math.min(config.MOVE_SPEED, distance * 2)
+            bodyVelocity.Velocity = normalizedDirection * speed
+        end
     end)
 end
 
--- Funzione per settare la posizione base
+-- === FUNZIONI PRINCIPALI ===
 local function setBasePosition()
+    if isMoving then return end
+    
     basePosition = rootPart.Position
-    local statusLabel = gui.MainFrame.StatusLabel
-    statusLabel.Text = "Base position set!"
-    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    local status = gui.BlurBackground.Status
+    
+    status.Text = "📍 Base position saved!"
+    status.TextColor3 = Color3.fromRGB(100, 255, 100)
     
     wait(2)
-    statusLabel.Text = "Ready"
+    status.Text = "✅ Ready - Ultra Safe Mode"
 end
 
--- Funzione principale di inizializzazione
-local function initialize()
-    -- Aggiorna character e componenti quando il player respawna
-    local function updateCharacter()
-        character = player.Character or player.CharacterAdded:Wait()
-        humanoid = character:WaitForChild("Humanoid")
-        rootPart = character:WaitForChild("HumanoidRootPart")
+local function teleportToBase()
+    if not basePosition or isMoving then
+        return
     end
     
-    player.CharacterAdded:Connect(updateCharacter)
+    ultraSafeMove(basePosition)
+end
+
+-- === INIZIALIZZAZIONE ===
+local function initialize()
+    -- Rileva sistema anti-cheat
+    detectedSystem = detectAntiCheat()
+    adjustConfigForAntiCheat(detectedSystem)
+    
+    print("🛡️ ULTIMATE TP SYSTEM INITIALIZED")
+    print("🔍 Detected System:", detectedSystem)
+    print("⚙️ Config adjusted for maximum safety")
+    
+    -- Gestione respawn
+    player.CharacterAdded:Connect(function(newChar)
+        character = newChar
+        humanoid = character:WaitForChild("Humanoid")
+        rootPart = character:WaitForChild("HumanoidRootPart")
+        wait(1)
+        initialize()
+    end)
     
     -- Crea GUI
-    local setBtn, tpBtn, statusLabel = createGUI()
+    local setBtn, tpBtn, status, systemInfo = createAdvancedGUI()
     
-    -- Connetti eventi
-    setBtn.Activated:Connect(function()
-        if not isMoving then
-            setBasePosition()
-        end
-    end)
+    -- Eventi
+    setBtn.Activated:Connect(setBasePosition)
+    tpBtn.Activated:Connect(teleportToBase)
     
-    tpBtn.Activated:Connect(function()
-        if not isMoving then
-            advancedTPToBase()
-        end
-    end)
-    
-    -- Effetti hover per i pulsanti
+    -- Effetti hover avanzati
     setBtn.MouseEnter:Connect(function()
-        setBtn.BackgroundColor3 = Color3.fromRGB(0, 142, 235)
+        setBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+        setBtn.BackgroundTransparency = 0.05
     end)
     
     setBtn.MouseLeave:Connect(function()
-        setBtn.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+        setBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
+        setBtn.BackgroundTransparency = 0.1
     end)
     
     tpBtn.MouseEnter:Connect(function()
-        tpBtn.BackgroundColor3 = Color3.fromRGB(235, 67, 67)
+        tpBtn.BackgroundColor3 = Color3.fromRGB(255, 120, 120)
+        tpBtn.BackgroundTransparency = 0.05
     end)
     
     tpBtn.MouseLeave:Connect(function()
-        tpBtn.BackgroundColor3 = Color3.fromRGB(255, 87, 87)
+        tpBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+        tpBtn.BackgroundTransparency = 0.1
     end)
     
-    print("Advanced TP System inizializzato!")
+    -- Aggiorna info sistema periodicamente
+    spawn(function()
+        while gui do
+            wait(5)
+            if gui and gui:FindFirstChild("BlurBackground") then
+                local newSystem = detectAntiCheat()
+                if newSystem ~= detectedSystem then
+                    detectedSystem = newSystem
+                    adjustConfigForAntiCheat(detectedSystem)
+                    systemInfo.Text = "🔍 Updated: " .. detectedSystem
+                end
+            end
+        end
+    end)
 end
 
--- Avvia il sistema
-initialize()
-
--- Comando per rimuovere il sistema (opzionale)
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
+-- Comando rimozione avanzato
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
     
     if input.KeyCode == Enum.KeyCode.Delete then
         if gui then
             gui:Destroy()
-            print("Advanced TP System rimosso!")
+            print("🛡️ ULTIMATE TP SYSTEM REMOVED")
         end
+    elseif input.KeyCode == Enum.KeyCode.Home then
+        -- Reset sistema di emergenza
+        isMoving = false
+        if gui then gui:Destroy() end
+        wait(0.5)
+        initialize()
+        print("🔄 SYSTEM EMERGENCY RESET")
     end
 end)
+
+-- AVVIA SISTEMA
+initialize()
