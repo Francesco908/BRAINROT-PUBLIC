@@ -1,640 +1,510 @@
--- ULTIMATE Anti-Detection TP System v2.0 - Con Pavimento Invisibile
--- Sistema ultra-avanzato con camminata su piattaforma invisibile
+-- Advanced Roblox Teleport & Jump System
+-- Ottimizzato per performance e funzionalità avanzate
 
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local Debris = game:GetService("Debris")
 
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
+local playerGui = player:WaitForChild("PlayerGui")
+local character = player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- === OTTIMIZZAZIONI AVANZATE ===
-local optimizationSettings = {
-    PLATFORM_POOL_SIZE = 10, -- Pool di parti riutilizzabili
-    CLEANUP_INTERVAL = 2, -- Pulizia automatica
-    MEMORY_EFFICIENT = true,
-    REDUCED_CALCULATIONS = true,
-    HEARTBEAT_OPTIMIZATION = true
+-- Variabili globali del sistema
+local AdvancedTPSystem = {
+    basePosition = nil,
+    isJumping = false,
+    isFloating = false,
+    jumpConnection = nil,
+    floatConnection = nil,
+    gui = nil,
+    tabOpen = false,
+    jumpPower = 50,
+    floatHeight = 16,
+    safetyChecks = true,
+    antiKick = true,
+    smartPath = true
 }
 
--- Pool di parti per performance
-local platformPool = {}
-local activePlatforms = {}
-
--- === SISTEMA RILEVAMENTO ANTI-CHEAT AVANZATO ===
-local antiCheatSystems = {
-    ["Adonis"] = {detected = false, severity = "HIGH"},
-    ["BasicAdmin"] = {detected = false, severity = "MEDIUM"},
-    ["HD Admin"] = {detected = false, severity = "HIGH"},
-    ["Kohl's Admin"] = {detected = false, severity = "LOW"},
-    ["Custom Anti-Exploit"] = {detected = false, severity = "ULTRA"},
-    ["FE Checker"] = {detected = false, severity = "MEDIUM"},
-    ["ServerDefender"] = {detected = false, severity = "ULTRA"},
-    ["Anti-Speed"] = {detected = false, severity = "HIGH"},
-    ["Anti-Fly"] = {detected = false, severity = "ULTRA"},
-    ["Anti-Noclip"] = {detected = false, severity = "MEDIUM"}
-}
-
-local detectedSystem = "Unknown"
-local securityLevel = "MEDIUM"
-
--- Rilevamento ultra-avanzato
-local function advancedAntiCheatDetection()
-    local detectionScore = 0
-    local systems = {}
-    
-    -- Scansione approfondita ReplicatedStorage
-    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-        local name = obj.Name:lower()
-        if name:find("adonis") or name:find("adonissystem") then
-            antiCheatSystems["Adonis"].detected = true
-            table.insert(systems, "Adonis Admin")
-            detectionScore = detectionScore + 5
-        elseif name:find("basicadmin") or name:find("ba_") then
-            antiCheatSystems["BasicAdmin"].detected = true
-            table.insert(systems, "BasicAdmin")
-            detectionScore = detectionScore + 3
-        elseif name:find("hdadmin") or name:find("hd_") then
-            antiCheatSystems["HD Admin"].detected = true
-            table.insert(systems, "HD Admin")
-            detectionScore = detectionScore + 5
-        elseif name:find("anticheat") or name:find("ac_") or name:find("security") then
-            antiCheatSystems["Custom Anti-Exploit"].detected = true
-            table.insert(systems, "Custom Security")
-            detectionScore = detectionScore + 7
-        elseif name:find("exploit") or name:find("hack") or name:find("cheat") then
-            table.insert(systems, "Anti-Exploit")
-            detectionScore = detectionScore + 6
-        end
+-- Funzione per creare l'interfaccia GUI avanzata
+local function createAdvancedGUI()
+    -- Rimuovi GUI esistente se presente
+    if AdvancedTPSystem.gui then
+        AdvancedTPSystem.gui:Destroy()
     end
     
-    -- Scansione Workspace
-    for _, obj in pairs(Workspace:GetDescendants()) do
-        if obj:IsA("Script") or obj:IsA("LocalScript") then
-            local name = obj.Name:lower()
-            if name:find("antispeed") or name:find("antifly") then
-                antiCheatSystems["Anti-Speed"].detected = true
-                detectionScore = detectionScore + 4
-            end
-        end
-    end
+    -- Crea ScreenGui principale
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AdvancedTPSystem"
+    screenGui.Parent = playerGui
+    screenGui.ResetOnSpawn = false
     
-    -- Determina livello di sicurezza
-    if detectionScore >= 10 then
-        securityLevel = "ULTRA"
-    elseif detectionScore >= 6 then
-        securityLevel = "HIGH"
-    elseif detectionScore >= 3 then
-        securityLevel = "MEDIUM"
-    else
-        securityLevel = "LOW"
-    end
-    
-    detectedSystem = #systems > 0 and table.concat(systems, ", ") or "None Detected"
-    return detectedSystem, securityLevel
-end
-
--- === CONFIGURAZIONE DINAMICA ULTRA-OTTIMIZZATA ===
-local baseConfig = {
-    FLOAT_HEIGHT = 50,
-    WALK_SPEED = 12, -- Velocità media di camminata
-    PLATFORM_SIZE = Vector3.new(8, 0.5, 8), -- Dimensione piattaforma
-    PLATFORM_STEP = 6, -- Distanza tra piattaforme
-    DETECTION_DELAY = 0.2, -- Delay base anti-detection
-    HUMANOID_WALK = true, -- Usa movimento humanoid reale
-    PLATFORM_TRANSPARENCY = 1, -- Invisibile
-    SAFETY_MARGIN = 2, -- Margine di sicurezza
-    ADAPTIVE_SPEED = true, -- Velocità adattiva
-    CLEANUP_ENABLED = true
-}
-
--- Configurazioni per diversi livelli di sicurezza
-local securityConfigs = {
-    ["LOW"] = {
-        WALK_SPEED = 16,
-        DETECTION_DELAY = 0.1,
-        PLATFORM_STEP = 8
-    },
-    ["MEDIUM"] = {
-        WALK_SPEED = 12,
-        DETECTION_DELAY = 0.2,
-        PLATFORM_STEP = 6
-    },
-    ["HIGH"] = {
-        WALK_SPEED = 8,
-        DETECTION_DELAY = 0.35,
-        PLATFORM_STEP = 4
-    },
-    ["ULTRA"] = {
-        WALK_SPEED = 6,
-        DETECTION_DELAY = 0.5,
-        PLATFORM_STEP = 3
-    }
-}
-
-local config = baseConfig
-
--- Applica configurazione di sicurezza
-local function applySecurityConfig()
-    local secConfig = securityConfigs[securityLevel]
-    if secConfig then
-        for key, value in pairs(secConfig) do
-            config[key] = value
-        end
-    end
-end
-
--- === VARIABILI SISTEMA ===
-local basePosition = nil
-local isMoving = false
-local gui = nil
-local walkingPlatforms = {}
-local currentPlatformIndex = 1
-
--- === SISTEMA PIATTAFORME OTTIMIZZATO ===
-
--- Crea piattaforma dal pool
-local function createPlatformFromPool()
-    if #platformPool > 0 then
-        return table.remove(platformPool, 1)
-    end
-    
-    local platform = Instance.new("Part")
-    platform.Name = "InvisibleWalkPlatform"
-    platform.Size = config.PLATFORM_SIZE
-    platform.Material = Enum.Material.ForceField
-    platform.Transparency = config.PLATFORM_TRANSPARENCY
-    platform.Anchored = true
-    platform.CanCollide = true
-    platform.TopSurface = Enum.SurfaceType.Smooth
-    platform.BottomSurface = Enum.SurfaceType.Smooth
-    platform.Color = Color3.fromRGB(100, 100, 255)
-    
-    return platform
-end
-
--- Restituisci piattaforma al pool
-local function returnPlatformToPool(platform)
-    if #platformPool < optimizationSettings.PLATFORM_POOL_SIZE then
-        platform.Parent = nil
-        platform.CFrame = CFrame.new(0, -1000, 0) -- Nascosta
-        table.insert(platformPool, platform)
-    else
-        platform:Destroy()
-    end
-end
-
--- Crea percorso di piattaforme
-local function createWalkingPath(startPos, endPos)
-    -- Pulisci piattaforme esistenti
-    for _, platform in pairs(walkingPlatforms) do
-        returnPlatformToPool(platform)
-    end
-    walkingPlatforms = {}
-    
-    local distance = (endPos - startPos).Magnitude
-    local direction = (endPos - startPos).Unit
-    local numPlatforms = math.ceil(distance / config.PLATFORM_STEP)
-    
-    -- Crea piattaforme lungo il percorso
-    for i = 1, numPlatforms do
-        local progress = i / numPlatforms
-        local position = startPos:Lerp(endPos, progress)
-        position = Vector3.new(position.X, config.FLOAT_HEIGHT, position.Z)
-        
-        local platform = createPlatformFromPool()
-        platform.CFrame = CFrame.new(position)
-        platform.Parent = Workspace
-        
-        table.insert(walkingPlatforms, platform)
-        
-        -- Pulizia automatica ritardata
-        if config.CLEANUP_ENABLED then
-            Debris:AddItem(platform, 30) -- Auto-cleanup dopo 30 secondi
-        end
-    end
-    
-    return walkingPlatforms
-end
-
--- === GUI ULTRA-AVANZATA ===
-local function createUltimateGUI()
-    if gui then gui:Destroy() end
-    
-    gui = Instance.new("ScreenGui")
-    gui.Name = "UltimateWalkingTPSystem"
-    gui.ResetOnSpawn = false
-    gui.IgnoreGuiInset = true
-    gui.Parent = player:WaitForChild("PlayerGui")
-    
-    -- Background con effetto glassmorphism
+    -- Frame principale (nascosto inizialmente)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 260, 0, 180)
-    mainFrame.Position = UDim2.new(1, -280, 0.5, -90)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    mainFrame.BackgroundTransparency = 0.25 -- Grigio trasparente
+    mainFrame.Size = UDim2.new(0, 300, 0, 400)
+    mainFrame.Position = UDim2.new(1, -320, 0.5, -200)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
     mainFrame.BorderSizePixel = 0
-    mainFrame.Parent = gui
+    mainFrame.Visible = false
+    mainFrame.Parent = screenGui
     
-    -- Effetti avanzati
+    -- Effetto arrotondato
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 15)
+    corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = mainFrame
     
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(80, 80, 80)
-    stroke.Thickness = 1.5
-    stroke.Transparency = 0.3
-    stroke.Parent = mainFrame
+    -- Effetto ombra
+    local shadow = Instance.new("Frame")
+    shadow.Name = "Shadow"
+    shadow.Size = UDim2.new(1, 6, 1, 6)
+    shadow.Position = UDim2.new(0, -3, 0, -3)
+    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    shadow.BackgroundTransparency = 0.7
+    shadow.ZIndex = mainFrame.ZIndex - 1
+    shadow.Parent = mainFrame
     
-    local gradient = Instance.new("UIGradient")
-    gradient.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 40)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20))
-    }
-    gradient.Rotation = 45
-    gradient.Parent = mainFrame
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 12)
+    shadowCorner.Parent = shadow
     
-    -- Header con animazione
-    local header = Instance.new("TextLabel")
-    header.Name = "Header"
-    header.Size = UDim2.new(1, 0, 0, 30)
-    header.Position = UDim2.new(0, 0, 0, 5)
-    header.BackgroundTransparency = 1
-    header.Text = "🚶‍♂️ WALKING TP SYSTEM v2.0"
-    header.TextColor3 = Color3.fromRGB(255, 255, 255)
-    header.TextSize = 16
-    header.Font = Enum.Font.GothamBold
-    header.Parent = mainFrame
+    -- Titolo
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "Title"
+    titleLabel.Size = UDim2.new(1, 0, 0, 50)
+    titleLabel.Position = UDim2.new(0, 0, 0, 0)
+    titleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    titleLabel.BorderSizePixel = 0
+    titleLabel.Text = "🚀 Advanced TP System"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextScaled = true
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Parent = mainFrame
     
-    -- Info sicurezza
-    local securityInfo = Instance.new("TextLabel")
-    securityInfo.Name = "SecurityInfo"
-    securityInfo.Size = UDim2.new(1, 0, 0, 20)
-    securityInfo.Position = UDim2.new(0, 0, 0, 32)
-    securityInfo.BackgroundTransparency = 1
-    securityInfo.Text = "🛡️ Security: " .. securityLevel .. " | " .. detectedSystem
-    securityInfo.TextColor3 = securityLevel == "ULTRA" and Color3.fromRGB(255, 100, 100) or 
-                             securityLevel == "HIGH" and Color3.fromRGB(255, 200, 100) or
-                             Color3.fromRGB(100, 255, 100)
-    securityInfo.TextSize = 10
-    securityInfo.Font = Enum.Font.Gotham
-    securityInfo.TextTruncate = Enum.TextTruncate.AtEnd
-    securityInfo.Parent = mainFrame
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 12)
+    titleCorner.Parent = titleLabel
     
-    -- Configurazione attuale
-    local configInfo = Instance.new("TextLabel")
-    configInfo.Name = "ConfigInfo"
-    configInfo.Size = UDim2.new(1, 0, 0, 15)
-    configInfo.Position = UDim2.new(0, 0, 0, 50)
-    configInfo.BackgroundTransparency = 1
-    configInfo.Text = "⚙️ Speed: " .. config.WALK_SPEED .. " | Delay: " .. config.DETECTION_DELAY .. "s"
-    configInfo.TextColor3 = Color3.fromRGB(200, 200, 200)
-    configInfo.TextSize = 9
-    configInfo.Font = Enum.Font.Gotham
-    configInfo.Parent = mainFrame
+    -- Container per i pulsanti
+    local buttonContainer = Instance.new("ScrollingFrame")
+    buttonContainer.Name = "ButtonContainer"
+    buttonContainer.Size = UDim2.new(1, -20, 1, -70)
+    buttonContainer.Position = UDim2.new(0, 10, 0, 60)
+    buttonContainer.BackgroundTransparency = 1
+    buttonContainer.BorderSizePixel = 0
+    buttonContainer.ScrollBarThickness = 8
+    buttonContainer.Parent = mainFrame
     
-    -- Pulsante Set Position
-    local setBtn = Instance.new("TextButton")
-    setBtn.Name = "SetBtn"
-    setBtn.Size = UDim2.new(1, -20, 0, 40)
-    setBtn.Position = UDim2.new(0, 10, 0, 70)
-    setBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-    setBtn.BackgroundTransparency = 0.1
-    setBtn.BorderSizePixel = 0
-    setBtn.Text = "📍 Set Base Position"
-    setBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    setBtn.TextSize = 14
-    setBtn.Font = Enum.Font.GothamBold
-    setBtn.Parent = mainFrame
+    -- Layout per i pulsanti
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Padding = UDim.new(0, 10)
+    listLayout.Parent = buttonContainer
     
-    local setBtnCorner = Instance.new("UICorner")
-    setBtnCorner.CornerRadius = UDim.new(0, 10)
-    setBtnCorner.Parent = setBtn
+    -- Funzione per creare pulsanti avanzati
+    local function createButton(text, color, callback, layoutOrder)
+        local button = Instance.new("TextButton")
+        button.Name = text:gsub(" ", "")
+        button.Size = UDim2.new(1, 0, 0, 50)
+        button.BackgroundColor3 = color
+        button.BorderSizePixel = 0
+        button.Text = text
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        button.TextScaled = true
+        button.Font = Enum.Font.Gotham
+        button.LayoutOrder = layoutOrder
+        button.Parent = buttonContainer
+        
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 8)
+        buttonCorner.Parent = button
+        
+        -- Effetti hover
+        button.MouseEnter:Connect(function()
+            local tween = TweenService:Create(button, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.new(color.R + 0.1, color.G + 0.1, color.B + 0.1)
+            })
+            tween:Play()
+        end)
+        
+        button.MouseLeave:Connect(function()
+            local tween = TweenService:Create(button, TweenInfo.new(0.2), {
+                BackgroundColor3 = color
+            })
+            tween:Play()
+        end)
+        
+        button.MouseButton1Click:Connect(callback)
+        
+        return button
+    end
     
-    -- Pulsante Walk to Base
-    local walkBtn = Instance.new("TextButton")
-    walkBtn.Name = "WalkBtn"
-    walkBtn.Size = UDim2.new(1, -20, 0, 40)
-    walkBtn.Position = UDim2.new(0, 10, 0, 115)
-    walkBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-    walkBtn.BackgroundTransparency = 0.1
-    walkBtn.BorderSizePixel = 0
-    walkBtn.Text = "🚶‍♂️ Walk to Base"
-    walkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    walkBtn.TextSize = 14
-    walkBtn.Font = Enum.Font.GothamBold
-    walkBtn.Parent = mainFrame
+    -- Pulsante Tab per aprire/chiudere
+    local tabButton = Instance.new("TextButton")
+    tabButton.Name = "TabButton"
+    tabButton.Size = UDim2.new(0, 60, 0, 30)
+    tabButton.Position = UDim2.new(1, -80, 0.5, -15)
+    tabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    tabButton.BorderSizePixel = 0
+    tabButton.Text = "TAB"
+    tabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tabButton.TextScaled = true
+    tabButton.Font = Enum.Font.GothamBold
+    tabButton.Parent = screenGui
     
-    local walkBtnCorner = Instance.new("UICorner")
-    walkBtnCorner.CornerRadius = UDim.new(0, 10)
-    walkBtnCorner.Parent = walkBtn
+    local tabCorner = Instance.new("UICorner")
+    tabCorner.CornerRadius = UDim.new(0, 8)
+    tabCorner.Parent = tabButton
     
-    -- Status bar
-    local statusBar = Instance.new("Frame")
-    statusBar.Name = "StatusBar"
-    statusBar.Size = UDim2.new(1, 0, 0, 20)
-    statusBar.Position = UDim2.new(0, 0, 1, -20)
-    statusBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    statusBar.BackgroundTransparency = 0.3
-    statusBar.BorderSizePixel = 0
-    statusBar.Parent = mainFrame
+    -- Pulsanti principali
+    createButton("📍 Set Base Position", Color3.fromRGB(50, 150, 50), function()
+        AdvancedTPSystem.basePosition = rootPart.Position
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Base Set!";
+            Text = "Position saved: " .. tostring(AdvancedTPSystem.basePosition);
+            Duration = 3;
+        })
+    end, 1)
     
-    local statusCorner = Instance.new("UICorner")
-    statusCorner.CornerRadius = UDim.new(0, 10)
-    statusCorner.Parent = statusBar
+    createButton("⚡ Instant TP to Base", Color3.fromRGB(150, 50, 50), function()
+        if AdvancedTPSystem.basePosition then
+            instantTeleport()
+        else
+            game.StarterGui:SetCore("SendNotification", {
+                Title = "Error";
+                Text = "Base position not set!";
+                Duration = 3;
+            })
+        end
+    end, 2)
     
-    local statusText = Instance.new("TextLabel")
-    statusText.Name = "StatusText"
-    statusText.Size = UDim2.new(1, -10, 1, 0)
-    statusText.Position = UDim2.new(0, 5, 0, 0)
-    statusText.BackgroundTransparency = 1
-    statusText.Text = "✅ System Ready - Optimized Mode"
-    statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
-    statusText.TextSize = 10
-    statusText.Font = Enum.Font.Gotham
-    statusText.TextXAlignment = Enum.TextXAlignment.Left
-    statusText.Parent = statusBar
+    createButton("🦘 Smart Jump to Base", Color3.fromRGB(50, 100, 200), function()
+        if AdvancedTPSystem.basePosition then
+            startSmartJump()
+        else
+            game.StarterGui:SetCore("SendNotification", {
+                Title = "Error";
+                Text = "Base position not set!";
+                Duration = 3;
+            })
+        end
+    end, 3)
     
-    return setBtn, walkBtn, statusText, securityInfo, configInfo
+    createButton("🎈 Toggle Float Mode", Color3.fromRGB(150, 100, 50), function()
+        toggleFloat()
+    end, 4)
+    
+    createButton("⚙️ Jump Power: " .. AdvancedTPSystem.jumpPower, Color3.fromRGB(100, 100, 100), function()
+        AdvancedTPSystem.jumpPower = AdvancedTPSystem.jumpPower == 50 and 100 or 50
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Jump Power";
+            Text = "Set to: " .. AdvancedTPSystem.jumpPower;
+            Duration = 2;
+        })
+    end, 5)
+    
+    createButton("🛡️ Toggle Safety", Color3.fromRGB(100, 50, 150), function()
+        AdvancedTPSystem.safetyChecks = not AdvancedTPSystem.safetyChecks
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Safety Mode";
+            Text = AdvancedTPSystem.safetyChecks and "Enabled" or "Disabled";
+            Duration = 2;
+        })
+    end, 6)
+    
+    -- Funzione toggle Tab
+    local function toggleTab()
+        AdvancedTPSystem.tabOpen = not AdvancedTPSystem.tabOpen
+        
+        local targetPos = AdvancedTPSystem.tabOpen and 
+            UDim2.new(1, -320, 0.5, -200) or 
+            UDim2.new(1, 20, 0.5, -200)
+        
+        local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
+            Position = targetPos
+        })
+        tween:Play()
+        
+        mainFrame.Visible = true
+        tabButton.Text = AdvancedTPSystem.tabOpen and "❮" or "TAB"
+    end
+    
+    tabButton.MouseButton1Click:Connect(toggleTab)
+    
+    AdvancedTPSystem.gui = screenGui
 end
 
--- === SISTEMA CAMMINATA AVANZATO ===
-local function walkToBase()
-    if not basePosition or isMoving then return end
-    isMoving = true
+-- Funzione teleport istantaneo avanzato
+function instantTeleport()
+    if not AdvancedTPSystem.basePosition then return end
     
-    local statusText = gui.MainFrame.StatusBar.StatusText
-    statusText.Text = "🏗️ Building walking path..."
-    statusText.TextColor3 = Color3.fromRGB(255, 255, 100)
+    local safePosition = AdvancedTPSystem.basePosition + Vector3.new(0, 5, 0)
     
-    local startPos = rootPart.Position
-    local targetPos = basePosition
+    if AdvancedTPSystem.safetyChecks then
+        -- Controlli di sicurezza
+        local raycast = workspace:Raycast(safePosition, Vector3.new(0, -10, 0))
+        if raycast then
+            safePosition = raycast.Position + Vector3.new(0, 3, 0)
+        end
+    end
     
-    -- Step 1: Vai in alto
-    local highPos = Vector3.new(startPos.X, config.FLOAT_HEIGHT, startPos.Z)
+    -- Teleport con effetto
+    local originalCFrame = rootPart.CFrame
+    rootPart.CFrame = CFrame.new(safePosition)
     
-    -- Movimento verso l'alto
+    -- Effetto particelle (se disponibile)
+    spawn(function()
+        for i = 1, 10 do
+            local effect = Instance.new("Explosion")
+            effect.Position = safePosition
+            effect.BlastRadius = 0
+            effect.BlastPressure = 0
+            effect.Visible = false
+            effect.Parent = workspace
+            wait(0.1)
+        end
+    end)
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Teleported!";
+        Text = "Arrived at base instantly";
+        Duration = 2;
+    })
+end
+
+-- Sistema di jump intelligente avanzato
+function startSmartJump()
+    if AdvancedTPSystem.isJumping then
+        stopSmartJump()
+        return
+    end
+    
+    AdvancedTPSystem.isJumping = true
+    
+    local function calculateDirection()
+        local currentPos = rootPart.Position
+        local targetPos = AdvancedTPSystem.basePosition
+        local direction = (targetPos - currentPos).Unit
+        
+        -- Aggiungi componente verticale se necessario
+        if (targetPos - currentPos).Magnitude > 50 then
+            direction = direction + Vector3.new(0, 0.3, 0)
+        end
+        
+        return direction
+    end
+    
+    local function performSmartJump()
+        if not AdvancedTPSystem.isJumping then return end
+        
+        local distance = (AdvancedTPSystem.basePosition - rootPart.Position).Magnitude
+        
+        -- Se siamo vicini alla base, fermati
+        if distance < 10 then
+            stopSmartJump()
+            instantTeleport() -- Teleport finale preciso
+            return
+        end
+        
+        -- Calcola direzione intelligente
+        local direction = calculateDirection()
+        
+        -- Jump con direzione
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+        bodyVelocity.Velocity = direction * AdvancedTPSystem.jumpPower
+        bodyVelocity.Parent = rootPart
+        
+        -- Rimuovi velocity dopo un momento
+        spawn(function()
+            wait(0.5)
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+            end
+        end)
+        
+        -- Movimento all'indietro prima del jump (per evitare detection)
+        spawn(function()
+            wait(0.1)
+            local backwardVelocity = Instance.new("BodyVelocity")
+            backwardVelocity.MaxForce = Vector3.new(4000, 0, 4000)
+            backwardVelocity.Velocity = -direction * 10
+            backwardVelocity.Parent = rootPart
+            
+            wait(0.2)
+            if backwardVelocity then
+                backwardVelocity:Destroy()
+            end
+        end)
+    end
+    
+    -- Connessione al loop principale
+    AdvancedTPSystem.jumpConnection = RunService.Heartbeat:Connect(function()
+        if not AdvancedTPSystem.isJumping then return end
+        
+        -- Controlla se il player è a terra per il prossimo jump
+        local raycast = workspace:Raycast(rootPart.Position, Vector3.new(0, -5, 0))
+        if raycast then
+            wait(0.3) -- Pausa tra jumps
+            performSmartJump()
+        end
+    end)
+    
+    -- Primo jump
+    performSmartJump()
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Smart Jump Started!";
+        Text = "Jumping to base automatically";
+        Duration = 2;
+    })
+end
+
+function stopSmartJump()
+    AdvancedTPSystem.isJumping = false
+    if AdvancedTPSystem.jumpConnection then
+        AdvancedTPSystem.jumpConnection:Disconnect()
+        AdvancedTPSystem.jumpConnection = nil
+    end
+    
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Smart Jump Stopped";
+        Text = "Manual control restored";
+        Duration = 2;
+    })
+end
+
+-- Sistema di float avanzato
+function toggleFloat()
+    AdvancedTPSystem.isFloating = not AdvancedTPSystem.isFloating
+    
+    if AdvancedTPSystem.isFloating then
+        startFloat()
+    else
+        stopFloat()
+    end
+end
+
+function startFloat()
     local bodyPosition = Instance.new("BodyPosition")
-    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyPosition.Position = highPos
+    bodyPosition.MaxForce = Vector3.new(0, math.huge, 0)
+    bodyPosition.Position = rootPart.Position + Vector3.new(0, AdvancedTPSystem.floatHeight, 0)
     bodyPosition.Parent = rootPart
     
-    -- Aspetta di raggiungere l'altezza
-    while (rootPart.Position - highPos).Magnitude > 2 do
-        wait(0.1)
-    end
-    
-    bodyPosition:Destroy()
-    
-    statusText.Text = "🛤️ Creating platforms..."
-    
-    -- Step 2: Crea percorso di piattaforme
-    local platforms = createWalkingPath(
-        Vector3.new(startPos.X, config.FLOAT_HEIGHT, startPos.Z),
-        Vector3.new(targetPos.X, config.FLOAT_HEIGHT, targetPos.Z)
-    )
-    
-    wait(0.5)
-    
-    statusText.Text = "🚶‍♂️ Walking on platforms..."
-    statusText.TextColor3 = Color3.fromRGB(100, 255, 255)
-    
-    -- Step 3: Cammina sulle piattaforme
-    local originalWalkSpeed = humanoid.WalkSpeed
-    humanoid.WalkSpeed = config.WALK_SPEED
-    
-    -- Cammina verso ogni piattaforma
-    for i, platform in ipairs(platforms) do
-        if not isMoving then break end -- Check per interruzione
-        
-        local targetPosition = platform.Position
-        humanoid:MoveTo(targetPosition)
-        
-        -- Aspetta di raggiungere la piattaforma
-        local connection
-        local reached = false
-        
-        connection = humanoid.MoveToFinished:Connect(function()
-            reached = true
-            connection:Disconnect()
-        end)
-        
-        -- Timeout di sicurezza
-        local timeoutCounter = 0
-        while not reached and timeoutCounter < 50 do -- 5 secondi max
-            wait(0.1)
-            timeoutCounter = timeoutCounter + 1
-            
-            -- Controlla se siamo abbastanza vicini
-            if (rootPart.Position - targetPosition).Magnitude < 3 then
-                reached = true
-                connection:Disconnect()
-                break
-            end
-        end
-        
-        -- Piccola pausa anti-detection
-        wait(config.DETECTION_DELAY)
-        
-        -- Aggiorna status
-        local progress = math.floor((i / #platforms) * 100)
-        statusText.Text = "🚶‍♂️ Walking... " .. progress .. "%"
-    end
-    
-    -- Step 4: Scendi alla base finale
-    statusText.Text = "⬇️ Descending to base..."
-    
-    local finalBodyPosition = Instance.new("BodyPosition")
-    finalBodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
-    finalBodyPosition.Position = basePosition
-    finalBodyPosition.Parent = rootPart
-    
-    -- Aspetta di raggiungere la base
-    while (rootPart.Position - basePosition).Magnitude > 3 do
-        wait(0.1)
-    end
-    
-    finalBodyPosition:Destroy()
-    
-    -- Ripristina velocità originale
-    humanoid.WalkSpeed = originalWalkSpeed
-    
-    -- Pulizia piattaforme con delay
-    spawn(function()
-        wait(5) -- Aspetta prima di pulire
-        for _, platform in pairs(walkingPlatforms) do
-            returnPlatformToPool(platform)
-        end
-        walkingPlatforms = {}
+    AdvancedTPSystem.floatConnection = RunService.Heartbeat:Connect(function()
+        if not AdvancedTPSystem.isFloating then return end
+        bodyPosition.Position = rootPart.Position + Vector3.new(0, AdvancedTPSystem.floatHeight, 0)
     end)
     
-    statusText.Text = "✅ Arrived at base! Path cleaned."
-    statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
-    
-    isMoving = false
-    
-    wait(3)
-    statusText.Text = "✅ System Ready - Optimized Mode"
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Float Mode ON";
+        Text = "Flying at " .. AdvancedTPSystem.floatHeight .. " studs high";
+        Duration = 2;
+    })
 end
 
--- === FUNZIONI PRINCIPALI ===
-local function setBasePosition()
-    if isMoving then return end
-    
-    basePosition = rootPart.Position
-    local statusText = gui.MainFrame.StatusBar.StatusText
-    
-    statusText.Text = "📍 Base position saved!"
-    statusText.TextColor3 = Color3.fromRGB(100, 255, 100)
-    
-    wait(2)
-    statusText.Text = "✅ System Ready - Optimized Mode"
-end
-
--- === INIZIALIZZAZIONE ULTRA-OTTIMIZZATA ===
-local function initialize()
-    -- Rilevamento avanzato
-    local detected, security = advancedAntiCheatDetection()
-    applySecurityConfig()
-    
-    print("🚶‍♂️ WALKING TP SYSTEM v2.0 INITIALIZED")
-    print("🔍 Detected:", detected)
-    print("🛡️ Security Level:", security)
-    print("⚙️ Walk Speed:", config.WALK_SPEED)
-    print("🏗️ Platform Pool Size:", optimizationSettings.PLATFORM_POOL_SIZE)
-    
-    -- Inizializza pool di piattaforme
-    for i = 1, optimizationSettings.PLATFORM_POOL_SIZE do
-        local platform = createPlatformFromPool()
-        returnPlatformToPool(platform)
+function stopFloat()
+    if AdvancedTPSystem.floatConnection then
+        AdvancedTPSystem.floatConnection:Disconnect()
+        AdvancedTPSystem.floatConnection = nil
     end
     
-    -- Gestione respawn ottimizzata
-    player.CharacterAdded:Connect(function(newChar)
-        character = newChar
-        humanoid = character:WaitForChild("Humanoid")
-        rootPart = character:WaitForChild("HumanoidRootPart")
-        wait(1)
-        initialize()
-    end)
+    -- Rimuovi BodyPosition
+    for _, obj in pairs(rootPart:GetChildren()) do
+        if obj:IsA("BodyPosition") then
+            obj:Destroy()
+        end
+    end
     
-    -- Crea GUI
-    local setBtn, walkBtn, statusText, securityInfo, configInfo = createUltimateGUI()
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Float Mode OFF";
+        Text = "Gravity restored";
+        Duration = 2;
+    })
+end
+
+-- Controlli da tastiera avanzati
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
     
-    -- Eventi ottimizzati
-    setBtn.Activated:Connect(setBasePosition)
-    walkBtn.Activated:Connect(walkToBase)
-    
-    -- Effetti hover con performance ottimizzate
-    setBtn.MouseEnter:Connect(function()
-        TweenService:Create(setBtn, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(0, 170, 255),
-            BackgroundTransparency = 0.05
-        }):Play()
-    end)
-    
-    setBtn.MouseLeave:Connect(function()
-        TweenService:Create(setBtn, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(0, 150, 255),
-            BackgroundTransparency = 0.1
-        }):Play()
-    end)
-    
-    walkBtn.MouseEnter:Connect(function()
-        TweenService:Create(walkBtn, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(120, 255, 120),
-            BackgroundTransparency = 0.05
-        }):Play()
-    end)
-    
-    walkBtn.MouseLeave:Connect(function()
-        TweenService:Create(walkBtn, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(100, 255, 100),
-            BackgroundTransparency = 0.1
-        }):Play()
-    end)
-    
-    -- Sistema di aggiornamento intelligente
-    spawn(function()
-        while gui do
-            wait(10) -- Aggiorna ogni 10 secondi
-            if gui and gui:FindFirstChild("MainFrame") then
-                local newDetected, newSecurity = advancedAntiCheatDetection()
-                if newSecurity ~= securityLevel then
-                    securityLevel = newSecurity
-                    detectedSystem = newDetected
-                    applySecurityConfig()
-                    
-                    securityInfo.Text = "🛡️ Security: " .. securityLevel .. " | " .. detectedSystem
-                    configInfo.Text = "⚙️ Speed: " .. config.WALK_SPEED .. " | Delay: " .. config.DETECTION_DELAY .. "s"
+    if input.KeyCode == Enum.KeyCode.Tab then
+        if AdvancedTPSystem.gui then
+            -- Toggle della GUI
+            local mainFrame = AdvancedTPSystem.gui:FindFirstChild("MainFrame")
+            if mainFrame then
+                AdvancedTPSystem.tabOpen = not AdvancedTPSystem.tabOpen
+                
+                local targetPos = AdvancedTPSystem.tabOpen and 
+                    UDim2.new(1, -320, 0.5, -200) or 
+                    UDim2.new(1, 20, 0.5, -200)
+                
+                local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
+                    Position = targetPos
+                })
+                tween:Play()
+                
+                mainFrame.Visible = true
+                local tabButton = AdvancedTPSystem.gui:FindFirstChild("TabButton")
+                if tabButton then
+                    tabButton.Text = AdvancedTPSystem.tabOpen and "❮" or "TAB"
                 end
             end
         end
-    end)
-    
-    -- Pulizia automatica ottimizzata
-    if optimizationSettings.CLEANUP_ENABLED then
-        spawn(function()
-            while gui do
-                wait(optimizationSettings.CLEANUP_INTERVAL)
-                -- Pulisci oggetti orfani
-                for i = #activePlatforms, 1, -1 do
-                    local platform = activePlatforms[i]
-                    if not platform.Parent then
-                        table.remove(activePlatforms, i)
-                    end
-                end
-            end
-        end)
-    end
-end
-
--- === CONTROLLI AVANZATI ===
-UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
-    
-    if input.KeyCode == Enum.KeyCode.Delete then
-        -- Pulizia completa
-        if gui then gui:Destroy() end
-        for _, platform in pairs(walkingPlatforms) do
-            platform:Destroy()
+    elseif input.KeyCode == Enum.KeyCode.T then
+        -- Teleport rapido
+        if AdvancedTPSystem.basePosition then
+            instantTeleport()
         end
-        for _, platform in pairs(platformPool) do
-            platform:Destroy()
+    elseif input.KeyCode == Enum.KeyCode.J then
+        -- Jump intelligente
+        if AdvancedTPSystem.basePosition then
+            startSmartJump()
         end
-        walkingPlatforms = {}
-        platformPool = {}
-        isMoving = false
-        print("🧹 WALKING TP SYSTEM COMPLETELY REMOVED")
-        
-    elseif input.KeyCode == Enum.KeyCode.Home then
-        -- Reset di emergenza
-        isMoving = false
-        humanoid.WalkSpeed = 16 -- Reset velocità
-        if gui then gui:Destroy() end
-        wait(0.5)
-        initialize()
-        print("🔄 EMERGENCY RESET COMPLETED")
-        
-    elseif input.KeyCode == Enum.KeyCode.End then
-        -- Stop immediato
-        isMoving = false
-        humanoid:MoveTo(rootPart.Position) -- Stop movimento
-        if gui then
-            gui.MainFrame.StatusBar.StatusText.Text = "⏹️ Movement stopped by user"
-            gui.MainFrame.StatusBar.StatusText.TextColor3 = Color3.fromRGB(255, 100, 100)
-        end
-        print("⏹️ MOVEMENT STOPPED")
+    elseif input.KeyCode == Enum.KeyCode.F then
+        -- Float toggle
+        toggleFloat()
     end
 end)
 
--- AVVIA SISTEMA OTTIMIZZATO
-initialize()
+-- Sistema anti-kick avanzato
+if AdvancedTPSystem.antiKick then
+    spawn(function()
+        while wait(1) do
+            -- Simula attività umana
+            if math.random(1, 100) == 1 then
+                humanoid:MoveTo(rootPart.Position + Vector3.new(math.random(-1, 1), 0, math.random(-1, 1)))
+            end
+        end
+    end)
+end
+
+-- Gestione riconnessione character
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    
+    -- Ricrea GUI
+    wait(1)
+    createAdvancedGUI()
+end)
+
+-- Inicializzazione
+createAdvancedGUI()
+
+game.StarterGui:SetCore("SendNotification", {
+    Title = "Advanced TP System Loaded!";
+    Text = "Press TAB to open menu | T=Teleport | J=Jump | F=Float";
+    Duration = 5;
+})
+
+print("🚀 Advanced Roblox TP System caricato con successo!")
+print("📋 Comandi:")
+print("   TAB - Apri/Chiudi menu")
+print("   T - Teleport istantaneo")
+print("   J - Jump intelligente")
+print("   F - Toggle float")
+print("💡 Usa i pulsanti nella GUI per funzioni avanzate!")
