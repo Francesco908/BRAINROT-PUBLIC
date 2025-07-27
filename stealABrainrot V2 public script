@@ -1,5 +1,5 @@
--- 🔥 ULTRA ADVANCED ANTI-KICK TP SYSTEM V3.0 🔥
--- Military-grade optimization and infinite teleport system
+-- 🔥 SIGMA HUB V4.0 - ULTIMATE EDITION 🔥
+-- Anti-bug system with floating infinite teleport
 
 local Services = {
     Players = game:GetService("Players"),
@@ -7,438 +7,661 @@ local Services = {
     RunService = game:GetService("RunService"),
     TweenService = game:GetService("TweenService"),
     StarterGui = game:GetService("StarterGui"),
-    HttpService = game:GetService("HttpService"),
-    Workspace = game:GetService("Workspace")
+    Workspace = game:GetService("Workspace"),
+    ReplicatedStorage = game:GetService("ReplicatedStorage")
 }
 
 local player = Services.Players.LocalPlayer
 local connections = {}
 
--- Ultra-optimized character getters with caching
-local characterCache = {char = nil, humanoid = nil, rootPart = nil, lastUpdate = 0}
-local function updateCache()
-    local now = tick()
-    if now - characterCache.lastUpdate > 0.1 then -- Cache for 100ms
-        characterCache.char = player.Character
-        if characterCache.char then
-            characterCache.humanoid = characterCache.char:FindFirstChild("Humanoid")
-            characterCache.rootPart = characterCache.char:FindFirstChild("HumanoidRootPart")
-        end
-        characterCache.lastUpdate = now
-    end
+-- Safe character functions with error handling
+local function safeGetChar()
+    return player.Character or player.CharacterAdded:Wait()
 end
 
-local function getChar() updateCache() return characterCache.char end
-local function getHuman() updateCache() return characterCache.humanoid end
-local function getRoot() updateCache() return characterCache.rootPart end
+local function safeGetHuman()
+    local char = safeGetChar()
+    return char and char:FindFirstChildOfClass("Humanoid")
+end
 
--- Military-grade system variables
-local MilitaryTP = {
-    basePos = nil,
-    isJumping = false,
-    isFloating = false,
-    isTeleporting = false,
-    gui = nil,
+local function safeGetRoot()
+    local char = safeGetChar()
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+-- SIGMA HUB Core System
+local SigmaHub = {
+    -- Base settings
+    basePosition = nil,
+    currentTab = "Movement",
     menuOpen = false,
-    jumpPower = 85,
-    floatHeight = 25,
-    -- ULTRA ANTI-KICK SETTINGS
-    antiKickLevel = 9000,
-    humanMovements = true,
-    randomWalk = true,
-    fakeInput = true,
-    spoofPosition = true,
-    -- INFINITE TELEPORT SETTINGS
-    maxTeleportAttempts = math.huge,
-    teleportPrecision = 3,
-    teleportSpeed = 0.05,
-    smartRetry = true
+    gui = nil,
+    
+    -- States
+    isFloatTeleporting = false,
+    isSmartJumping = false,
+    isFloating = false,
+    isInfiniteJumping = false,
+    
+    -- Settings
+    jumpPower = 16,
+    floatHeight = 16,
+    teleportHeight = 8,
+    antiKickEnabled = true,
+    safeMode = true,
+    
+    -- Advanced settings
+    maxTeleportDistance = 500,
+    teleportSpeed = 0.1,
+    jumpCooldown = 0.5
 }
 
--- Matrix colors optimized
-local C = {
-    bg = Color3.new(0.04, 0.04, 0.06),
-    accent = Color3.new(0, 1, 0.25),
-    danger = Color3.new(1, 0.2, 0.2),
-    warning = Color3.new(1, 0.78, 0),
-    info = Color3.new(0.2, 0.6, 1)
+-- Colors
+local Colors = {
+    bg = Color3.fromRGB(15, 15, 20),
+    accent = Color3.fromRGB(0, 255, 100),
+    danger = Color3.fromRGB(255, 60, 60),
+    warning = Color3.fromRGB(255, 180, 0),
+    info = Color3.fromRGB(60, 150, 255),
+    inactive = Color3.fromRGB(80, 80, 90),
+    text = Color3.fromRGB(220, 220, 230)
 }
 
--- Ultra-fast notification system
-local function notify(title, text)
+-- Safe notification system
+local function notify(title, text, color)
     spawn(function()
         pcall(function()
             Services.StarterGui:SetCore("SendNotification", {
-                Title = "⚡ " .. title,
+                Title = "⚡ SIGMA | " .. title,
                 Text = text,
-                Duration = 2
+                Duration = 3
             })
         end)
     end)
 end
 
--- MILITARY-GRADE ANTI-KICK SYSTEM 9000%
-local AntiKickSystem = {
-    lastPositions = {},
-    movementPattern = 1,
-    humanBehavior = true,
-    spoofingActive = false
-}
-
--- Ultra-advanced position spoofing
-local function startPositionSpoofing()
-    if AntiKickSystem.spoofingActive then return end
-    AntiKickSystem.spoofingActive = true
-    
-    connections.positionSpoof = Services.RunService.Heartbeat:Connect(function()
-        local root = getRoot()
-        if not root then return end
-        
-        -- Store real positions
-        table.insert(AntiKickSystem.lastPositions, root.Position)
-        if #AntiKickSystem.lastPositions > 20 then
-            table.remove(AntiKickSystem.lastPositions, 1)
-        end
-        
-        -- Micro-movements to appear human
-        if math.random(1, 30) == 1 then
-            local offset = Vector3.new(
-                math.random(-1, 1) * 0.1,
-                0,
-                math.random(-1, 1) * 0.1
-            )
-            root.CFrame = root.CFrame + offset
-        end
-    end)
-end
-
--- Advanced human behavior simulation
-local function simulateHumanBehavior()
-    spawn(function()
-        while MilitaryTP.antiKickLevel > 0 do
-            local human = getHuman()
-            local root = getRoot()
-            
-            if human and root then
-                -- Random look around
-                if math.random(1, 100) <= 5 then
-                    local randomDirection = CFrame.Angles(
-                        0,
-                        math.rad(math.random(-45, 45)),
-                        0
-                    )
-                    root.CFrame = root.CFrame * randomDirection
-                end
-                
-                -- Random small jumps
-                if math.random(1, 200) == 1 then
-                    human.Jump = true
-                end
-                
-                -- Fake input simulation
-                if math.random(1, 150) == 1 then
-                    human:MoveTo(root.Position + Vector3.new(
-                        math.random(-3, 3),
-                        0,
-                        math.random(-3, 3)
-                    ))
-                end
-            end
-            
-            wait(0.1 + math.random() * 0.3) -- Variable timing
-        end
-    end)
-end
-
--- Network traffic obfuscation
-local function obfuscateTraffic()
-    spawn(function()
-        while MilitaryTP.antiKickLevel > 0 do
-            -- Send fake remote calls to confuse anti-cheat
-            pcall(function()
-                local fakeData = Services.HttpService:JSONEncode({
-                    action = "move",
-                    timestamp = tick(),
-                    hash = math.random(100000, 999999)
-                })
-            end)
-            wait(2 + math.random() * 3)
-        end
-    end)
-end
-
--- INFINITE TELEPORT SYSTEM
-local function infiniteTeleport()
-    if not MilitaryTP.basePos or MilitaryTP.isTeleporting then return end
-    
-    MilitaryTP.isTeleporting = true
-    local attempts = 0
-    
-    notify("INFINITE.TP", "Teleporting until success...")
-    
-    local function attemptTeleport()
-        local root = getRoot()
-        if not root then return false end
-        
-        attempts = attempts + 1
-        
-        -- Calculate safe position with randomization to avoid detection
-        local safePos = MilitaryTP.basePos + Vector3.new(
-            math.random(-2, 2),
-            math.random(3, 8),
-            math.random(-2, 2)
-        )
-        
-        -- Advanced raycast for ground detection
-        local rayResult = Services.Workspace:Raycast(
-            safePos + Vector3.new(0, 50, 0),
-            Vector3.new(0, -100, 0)
-        )
-        
-        if rayResult then
-            safePos = rayResult.Position + Vector3.new(0, 4, 0)
-        end
-        
-        -- Multi-method teleport for maximum success
-        pcall(function()
-            -- Method 1: Direct CFrame
-            root.CFrame = CFrame.new(safePos)
-        end)
-        
-        wait(0.01)
-        
-        pcall(function()
-            -- Method 2: Position assignment
-            root.Position = safePos
-        end)
-        
-        wait(0.01)
-        
-        pcall(function()
-            -- Method 3: Velocity-based
-            local bodyPos = Instance.new("BodyPosition")
-            bodyPos.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-            bodyPos.Position = safePos
-            bodyPos.Parent = root
-            
-            Services.RunService.Heartbeat:Wait()
-            bodyPos:Destroy()
-        end)
-        
-        -- Check if teleport was successful
-        local distance = (root.Position - MilitaryTP.basePos).Magnitude
-        
-        if distance <= MilitaryTP.teleportPrecision then
-            MilitaryTP.isTeleporting = false
-            notify("SUCCESS", "Teleport completed in " .. attempts .. " attempts!")
-            return true
-        end
-        
-        return false
+-- FLOATING INFINITE TELEPORT SYSTEM
+local function startFloatingTeleport()
+    if SigmaHub.isFloatTeleporting or not SigmaHub.basePosition then 
+        return 
     end
     
-    -- Infinite retry loop
-    connections.infiniteTP = Services.RunService.Heartbeat:Connect(function()
-        if not MilitaryTP.isTeleporting then
-            connections.infiniteTP:Disconnect()
+    SigmaHub.isFloatTeleporting = true
+    notify("FLOAT TP", "Infinite floating teleport started", Colors.accent)
+    
+    local function performFloatingTeleport()
+        local root = safeGetRoot()
+        local human = safeGetHuman()
+        
+        if not root or not human then
+            return false
+        end
+        
+        -- Calculate floating position above base
+        local targetPos = SigmaHub.basePosition + Vector3.new(
+            math.random(-2, 2), -- Small random X offset
+            SigmaHub.teleportHeight + math.random(0, 3), -- Float above base
+            math.random(-2, 2)  -- Small random Z offset
+        )
+        
+        -- Safety check - don't teleport too far
+        local distance = (root.Position - SigmaHub.basePosition).Magnitude
+        if distance > SigmaHub.maxTeleportDistance then
+            -- Use safer intermediate position
+            local direction = (SigmaHub.basePosition - root.Position).Unit
+            targetPos = root.Position + (direction * 50)
+            targetPos = targetPos + Vector3.new(0, SigmaHub.teleportHeight, 0)
+        end
+        
+        -- Advanced raycast for safety
+        local raycast = Services.Workspace:Raycast(
+            targetPos + Vector3.new(0, 20, 0),
+            Vector3.new(0, -40, 0),
+            RaycastParams.new()
+        )
+        
+        if raycast and SigmaHub.safeMode then
+            targetPos = raycast.Position + Vector3.new(0, SigmaHub.teleportHeight, 0)
+        end
+        
+        -- Safe teleport with multiple fallbacks
+        local success = false
+        
+        -- Method 1: CFrame teleport
+        pcall(function()
+            root.CFrame = CFrame.new(targetPos)
+            success = true
+        end)
+        
+        -- Method 2: Position assignment (fallback)
+        if not success then
+            pcall(function()
+                root.Position = targetPos
+                success = true
+            end)
+        end
+        
+        -- Method 3: BodyPosition (ultimate fallback)
+        if not success then
+            pcall(function()
+                local bodyPos = Instance.new("BodyPosition")
+                bodyPos.MaxForce = Vector3.new(4000, 4000, 4000)
+                bodyPos.Position = targetPos
+                bodyPos.Parent = root
+                
+                spawn(function()
+                    wait(0.2)
+                    if bodyPos and bodyPos.Parent then
+                        bodyPos:Destroy()
+                    end
+                end)
+                success = true
+            end)
+        end
+        
+        -- Create floating effect
+        if success then
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            bodyVelocity.Parent = root
+            
+            spawn(function()
+                wait(0.5)
+                if bodyVelocity and bodyVelocity.Parent then
+                    bodyVelocity:Destroy()
+                end
+            end)
+        end
+        
+        return success
+    end
+    
+    -- Continuous floating teleport loop
+    connections.floatingTP = Services.RunService.Heartbeat:Connect(function()
+        if not SigmaHub.isFloatTeleporting then
+            connections.floatingTP:Disconnect()
             return
         end
         
-        if not attemptTeleport() then
-            wait(MilitaryTP.teleportSpeed)
+        performFloatingTeleport()
+        wait(SigmaHub.teleportSpeed)
+    end)
+end
+
+local function stopFloatingTeleport()
+    SigmaHub.isFloatTeleporting = false
+    if connections.floatingTP then
+        connections.floatingTP:Disconnect()
+        connections.floatingTP = nil
+    end
+    notify("FLOAT TP", "Stopped floating teleport", Colors.warning)
+end
+
+-- FIXED SMART JUMP SYSTEM
+local function startSmartJump()
+    if SigmaHub.isSmartJumping or not SigmaHub.basePosition then
+        return
+    end
+    
+    SigmaHub.isSmartJumping = true
+    notify("SMART JUMP", "Jumping to base position", Colors.info)
+    
+    local function performJump()
+        local root = safeGetRoot()
+        local human = safeGetHuman()
+        
+        if not root or not human then return end
+        
+        local distance = (SigmaHub.basePosition - root.Position).Magnitude
+        
+        -- Stop when close enough
+        if distance < 10 then
+            stopSmartJump()
+            return
+        end
+        
+        -- Calculate jump direction
+        local direction = (SigmaHub.basePosition - root.Position).Unit
+        
+        -- Add vertical component for long distances
+        if distance > 30 then
+            direction = direction + Vector3.new(0, 0.5, 0)
         else
-            connections.infiniteTP:Disconnect()
+            direction = direction + Vector3.new(0, 0.3, 0)
+        end
+        
+        -- Safe jump with bodyvelocity
+        pcall(function()
+            local bodyVel = Instance.new("BodyVelocity")
+            bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
+            bodyVel.Velocity = direction * SigmaHub.jumpPower
+            bodyVel.Parent = root
+            
+            spawn(function()
+                wait(1)
+                if bodyVel and bodyVel.Parent then
+                    bodyVel:Destroy()
+                end
+            end)
+        end)
+    end
+    
+    connections.smartJump = Services.RunService.Heartbeat:Connect(function()
+        if not SigmaHub.isSmartJumping then
+            connections.smartJump:Disconnect()
+            return
+        end
+        
+        local root = safeGetRoot()
+        if not root then return end
+        
+        -- Check if grounded for next jump
+        local raycast = Services.Workspace:Raycast(
+            root.Position,
+            Vector3.new(0, -10, 0),
+            RaycastParams.new()
+        )
+        
+        if raycast then
+            wait(SigmaHub.jumpCooldown)
+            performJump()
         end
     end)
 end
 
--- Optimized GUI creation
-local function createMilitaryGUI()
-    if MilitaryTP.gui then MilitaryTP.gui:Destroy() end
+local function stopSmartJump()
+    SigmaHub.isSmartJumping = false
+    if connections.smartJump then
+        connections.smartJump:Disconnect()
+        connections.smartJump = nil
+    end
+    notify("SMART JUMP", "Jump system stopped", Colors.warning)
+end
+
+-- FIXED FLOAT SYSTEM
+local function toggleFloat()
+    SigmaHub.isFloating = not SigmaHub.isFloating
+    
+    if SigmaHub.isFloating then
+        startFloat()
+    else
+        stopFloat()
+    end
+end
+
+local function startFloat()
+    local root = safeGetRoot()
+    if not root then return end
+    
+    local bodyPos = Instance.new("BodyPosition")
+    bodyPos.MaxForce = Vector3.new(0, math.huge, 0)
+    bodyPos.Position = root.Position + Vector3.new(0, SigmaHub.floatHeight, 0)
+    bodyPos.Parent = root
+    bodyPos.Name = "SigmaFloat"
+    
+    connections.floatSystem = Services.RunService.Heartbeat:Connect(function()
+        if not SigmaHub.isFloating then
+            stopFloat()
+            return
+        end
+        
+        local root = safeGetRoot()
+        if root and bodyPos and bodyPos.Parent then
+            bodyPos.Position = root.Position + Vector3.new(0, SigmaHub.floatHeight, 0)
+        end
+    end)
+    
+    notify("FLOAT", "Float mode activated", Colors.accent)
+end
+
+local function stopFloat()
+    SigmaHub.isFloating = false
+    
+    if connections.floatSystem then
+        connections.floatSystem:Disconnect()
+        connections.floatSystem = nil
+    end
+    
+    local root = safeGetRoot()
+    if root then
+        for _, obj in pairs(root:GetChildren()) do
+            if obj.Name == "SigmaFloat" then
+                obj:Destroy()
+            end
+        end
+    end
+    
+    notify("FLOAT", "Float mode deactivated", Colors.warning)
+end
+
+-- INFINITE JUMP SYSTEM
+local function toggleInfiniteJump()
+    SigmaHub.isInfiniteJumping = not SigmaHub.isInfiniteJumping
+    
+    if SigmaHub.isInfiniteJumping then
+        connections.infiniteJump = Services.RunService.Heartbeat:Connect(function()
+            local human = safeGetHuman()
+            if human and Services.UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                human:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+        notify("INF JUMP", "Infinite jump enabled", Colors.accent)
+    else
+        if connections.infiniteJump then
+            connections.infiniteJump:Disconnect()
+            connections.infiniteJump = nil
+        end
+        notify("INF JUMP", "Infinite jump disabled", Colors.warning)
+    end
+end
+
+-- ANTI-KICK SYSTEM
+local function startAntiKick()
+    if not SigmaHub.antiKickEnabled then return end
+    
+    connections.antiKick = Services.RunService.Heartbeat:Connect(function()
+        local root = safeGetRoot()
+        local human = safeGetHuman()
+        
+        if root and human then
+            -- Random micro movements
+            if math.random(1, 60) == 1 then
+                local offset = Vector3.new(
+                    math.random(-1, 1) * 0.5,
+                    0,
+                    math.random(-1, 1) * 0.5
+                )
+                root.CFrame = root.CFrame + offset
+            end
+            
+            -- Random look around
+            if math.random(1, 120) == 1 then
+                root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(math.random(-30, 30)), 0)
+            end
+        end
+    end)
+end
+
+-- GUI CREATION WITH TABS
+local function createSigmaHub()
+    if SigmaHub.gui then
+        SigmaHub.gui:Destroy()
+    end
     
     local gui = Instance.new("ScreenGui")
-    gui.Name = "MilitaryTPSystem"
+    gui.Name = "SigmaHub"
     gui.ResetOnSpawn = false
     gui.Parent = player:WaitForChild("PlayerGui")
     
-    -- Compact main frame
+    -- Main frame
     local main = Instance.new("Frame")
-    main.Size = UDim2.new(0, 280, 0, 320)
-    main.Position = UDim2.new(0.5, -140, 0.5, -160)
-    main.BackgroundColor3 = C.bg
+    main.Name = "MainFrame"
+    main.Size = UDim2.new(0, 400, 0, 350)
+    main.Position = UDim2.new(0.5, -200, 0.5, -175)
+    main.BackgroundColor3 = Colors.bg
     main.BorderSizePixel = 0
     main.Visible = false
     main.Parent = gui
     
     local mainCorner = Instance.new("UICorner")
-    mainCorner.CornerRadius = UDim.new(0, 15)
+    mainCorner.CornerRadius = UDim.new(0, 12)
     mainCorner.Parent = main
     
-    -- Animated border
+    -- Glowing border
     local border = Instance.new("Frame")
-    border.Size = UDim2.new(1, 6, 1, 6)
-    border.Position = UDim2.new(0, -3, 0, -3)
-    border.BackgroundColor3 = C.accent
-    border.BackgroundTransparency = 0.3
+    border.Size = UDim2.new(1, 4, 1, 4)
+    border.Position = UDim2.new(0, -2, 0, -2)
+    border.BackgroundColor3 = Colors.accent
+    border.BackgroundTransparency = 0.7
     border.ZIndex = main.ZIndex - 1
     border.Parent = main
     
     local borderCorner = Instance.new("UICorner")
-    borderCorner.CornerRadius = UDim.new(0, 18)
+    borderCorner.CornerRadius = UDim.new(0, 14)
     borderCorner.Parent = border
-    
-    -- Glow animation
-    spawn(function()
-        while border.Parent do
-            Services.TweenService:Create(border, TweenInfo.new(1.5), {BackgroundTransparency = 0.1}):Play()
-            wait(1.5)
-            if border.Parent then
-                Services.TweenService:Create(border, TweenInfo.new(1.5), {BackgroundTransparency = 0.6}):Play()
-                wait(1.5)
-            end
-        end
-    end)
     
     -- Header
     local header = Instance.new("Frame")
-    header.Size = UDim2.new(1, 0, 0, 50)
-    header.BackgroundColor3 = Color3.new(0.02, 0.02, 0.04)
+    header.Size = UDim2.new(1, 0, 0, 60)
+    header.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
     header.BorderSizePixel = 0
     header.Parent = main
     
     local headerCorner = Instance.new("UICorner")
-    headerCorner.CornerRadius = UDim.new(0, 15)
+    headerCorner.CornerRadius = UDim.new(0, 12)
     headerCorner.Parent = header
     
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, -20, 1, 0)
     title.Position = UDim2.new(0, 10, 0, 0)
     title.BackgroundTransparency = 1
-    title.Text = ">>> MILITARY.TP.9000 <<<"
-    title.TextColor3 = C.accent
+    title.Text = "⚡ SIGMA HUB"
+    title.TextColor3 = Colors.accent
     title.TextScaled = true
-    title.Font = Enum.Font.Code
+    title.Font = Enum.Font.GothamBold
     title.Parent = header
     
-    -- Scrolling content
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Size = UDim2.new(1, -16, 1, -65)
-    scroll.Position = UDim2.new(0, 8, 0, 55)
-    scroll.BackgroundTransparency = 1
-    scroll.BorderSizePixel = 0
-    scroll.ScrollBarThickness = 6
-    scroll.ScrollBarImageColor3 = C.accent
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 350)
-    scroll.Parent = main
+    -- Tab buttons container
+    local tabContainer = Instance.new("Frame")
+    tabContainer.Size = UDim2.new(1, -20, 0, 40)
+    tabContainer.Position = UDim2.new(0, 10, 0, 70)
+    tabContainer.BackgroundTransparency = 1
+    tabContainer.Parent = main
     
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 8)
-    layout.Parent = scroll
+    local tabLayout = Instance.new("UIListLayout")
+    tabLayout.FillDirection = Enum.FillDirection.Horizontal
+    tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    tabLayout.Padding = UDim.new(0, 5)
+    tabLayout.Parent = tabContainer
     
-    -- Optimized button creator
-    local function btn(text, color, callback, order)
-        local b = Instance.new("TextButton")
-        b.Size = UDim2.new(1, 0, 0, 35)
-        b.BackgroundColor3 = Color3.new(0.06, 0.06, 0.08)
-        b.BorderSizePixel = 0
-        b.Text = "> " .. text:upper() .. " <"
-        b.TextColor3 = color
-        b.TextScaled = true
-        b.Font = Enum.Font.Code
-        b.LayoutOrder = order
-        b.Parent = scroll
+    -- Content area
+    local content = Instance.new("Frame")
+    content.Size = UDim2.new(1, -20, 1, -120)
+    content.Position = UDim2.new(0, 10, 0, 120)
+    content.BackgroundTransparency = 1
+    content.Parent = main
+    
+    -- Tab system
+    local tabs = {
+        {name = "Movement", color = Colors.accent},
+        {name = "Teleport", color = Colors.danger},
+        {name = "Settings", color = Colors.info}
+    }
+    
+    local tabButtons = {}
+    local tabContents = {}
+    
+    -- Create tab buttons
+    for i, tab in ipairs(tabs) do
+        local tabBtn = Instance.new("TextButton")
+        tabBtn.Size = UDim2.new(0, 120, 1, 0)
+        tabBtn.BackgroundColor3 = i == 1 and tab.color or Colors.inactive
+        tabBtn.BorderSizePixel = 0
+        tabBtn.Text = tab.name:upper()
+        tabBtn.TextColor3 = Colors.text
+        tabBtn.TextScaled = true
+        tabBtn.Font = Enum.Font.Gotham
+        tabBtn.LayoutOrder = i
+        tabBtn.Parent = tabContainer
         
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 8)
-        corner.Parent = b
+        local tabCorner = Instance.new("UICorner")
+        tabCorner.CornerRadius = UDim.new(0, 8)
+        tabCorner.Parent = tabBtn
         
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = color
-        stroke.Thickness = 1
-        stroke.Transparency = 0.5
-        stroke.Parent = b
+        tabButtons[tab.name] = tabBtn
         
-        b.MouseButton1Click:Connect(callback)
-        return b
+        -- Create tab content
+        local tabContent = Instance.new("ScrollingFrame")
+        tabContent.Size = UDim2.new(1, 0, 1, 0)
+        tabContent.BackgroundTransparency = 1
+        tabContent.BorderSizePixel = 0
+        tabContent.ScrollBarThickness = 6
+        tabContent.ScrollBarImageColor3 = Colors.accent
+        tabContent.CanvasSize = UDim2.new(0, 0, 0, 300)
+        tabContent.Visible = i == 1
+        tabContent.Parent = content
+        
+        local contentLayout = Instance.new("UIListLayout")
+        contentLayout.Padding = UDim.new(0, 8)
+        contentLayout.Parent = tabContent
+        
+        tabContents[tab.name] = tabContent
+        
+        -- Tab click handler
+        tabBtn.MouseButton1Click:Connect(function()
+            SigmaHub.currentTab = tab.name
+            
+            -- Update tab buttons
+            for name, btn in pairs(tabButtons) do
+                if name == tab.name then
+                    btn.BackgroundColor3 = tab.color
+                else
+                    btn.BackgroundColor3 = Colors.inactive
+                end
+            end
+            
+            -- Update content visibility
+            for name, cont in pairs(tabContents) do
+                cont.Visible = name == tab.name
+            end
+        end)
     end
     
-    -- Create buttons
-    btn("Set Base Position", C.accent, function()
-        local root = getRoot()
-        if root then
-            MilitaryTP.basePos = root.Position
-            notify("BASE.LOCKED", "Position: " .. tostring(MilitaryTP.basePos))
-        end
-    end, 1)
+    -- Button creator function
+    local function createButton(parent, text, color, callback)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 0, 40)
+        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+        btn.BorderSizePixel = 0
+        btn.Text = text
+        btn.TextColor3 = color
+        btn.TextScaled = true
+        btn.Font = Enum.Font.Gotham
+        btn.Parent = parent
+        
+        local btnCorner = Instance.new("UICorner")
+        btnCorner.CornerRadius = UDim.new(0, 8)
+        btnCorner.Parent = btn
+        
+        local btnStroke = Instance.new("UIStroke")
+        btnStroke.Color = color
+        btnStroke.Thickness = 1
+        btnStroke.Transparency = 0.5
+        btnStroke.Parent = btn
+        
+        btn.MouseButton1Click:Connect(callback)
+        return btn
+    end
     
-    btn("Infinite Teleport", C.danger, function()
-        if MilitaryTP.basePos then
-            if MilitaryTP.isTeleporting then
-                MilitaryTP.isTeleporting = false
-                notify("TELEPORT.STOP", "Infinite teleport stopped")
+    -- Movement tab buttons
+    createButton(tabContents.Movement, "🦘 Smart Jump to Base", Colors.accent, function()
+        if SigmaHub.basePosition then
+            if SigmaHub.isSmartJumping then
+                stopSmartJump()
             else
-                infiniteTeleport()
+                startSmartJump()
             end
         else
-            notify("ERROR", "Set base position first")
+            notify("ERROR", "Set base position first!", Colors.danger)
         end
-    end, 2)
+    end)
     
-    btn("Smart Jump System", C.info, function()
-        if MilitaryTP.basePos then
-            MilitaryTP.isJumping = not MilitaryTP.isJumping
-            notify("JUMP." .. (MilitaryTP.isJumping and "ON" or "OFF"), "Smart jump toggled")
+    createButton(tabContents.Movement, "🎈 Toggle Float Mode", Colors.info, function()
+        toggleFloat()
+    end)
+    
+    createButton(tabContents.Movement, "🚀 Infinite Jump", Colors.warning, function()
+        toggleInfiniteJump()
+    end)
+    
+    -- Teleport tab buttons
+    createButton(tabContents.Teleport, "📍 Set Base Position", Colors.accent, function()
+        local root = safeGetRoot()
+        if root then
+            SigmaHub.basePosition = root.Position
+            notify("BASE SET", "Position locked: " .. tostring(SigmaHub.basePosition), Colors.accent)
         end
-    end, 3)
+    end)
     
-    btn("Float Mode", C.warning, function()
-        MilitaryTP.isFloating = not MilitaryTP.isFloating
-        notify("FLOAT." .. (MilitaryTP.isFloating and "ON" or "OFF"), "Float mode toggled")
-    end, 4)
+    createButton(tabContents.Teleport, "⚡ Floating Infinite TP", Colors.danger, function()
+        if SigmaHub.basePosition then
+            if SigmaHub.isFloatTeleporting then
+                stopFloatingTeleport()
+            else
+                startFloatingTeleport()
+            end
+        else
+            notify("ERROR", "Set base position first!", Colors.danger)
+        end
+    end)
     
-    btn("Anti-Kick: " .. MilitaryTP.antiKickLevel, C.accent, function()
-        MilitaryTP.antiKickLevel = MilitaryTP.antiKickLevel == 9000 and 0 or 9000
-        notify("ANTI-KICK", "Level: " .. MilitaryTP.antiKickLevel)
-    end, 5)
+    createButton(tabContents.Teleport, "🎯 Instant Teleport", Colors.warning, function()
+        if SigmaHub.basePosition then
+            local root = safeGetRoot()
+            if root then
+                root.CFrame = CFrame.new(SigmaHub.basePosition + Vector3.new(0, 5, 0))
+                notify("TELEPORTED", "Warped to base!", Colors.accent)
+            end
+        else
+            notify("ERROR", "Set base position first!", Colors.danger)
+        end
+    end)
     
-    -- Tab button
-    local tab = Instance.new("TextButton")
-    tab.Size = UDim2.new(0, 80, 0, 35)
-    tab.Position = UDim2.new(0.5, -40, 0, 20)
-    tab.BackgroundColor3 = C.bg
-    tab.BorderSizePixel = 0
-    tab.Text = "[ ACCESS ]"
-    tab.TextColor3 = C.accent
-    tab.TextScaled = true
-    tab.Font = Enum.Font.Code
-    tab.Parent = gui
+    -- Settings tab buttons
+    createButton(tabContents.Settings, "🛡️ Anti-Kick: " .. (SigmaHub.antiKickEnabled and "ON" or "OFF"), Colors.accent, function()
+        SigmaHub.antiKickEnabled = not SigmaHub.antiKickEnabled
+        notify("ANTI-KICK", SigmaHub.antiKickEnabled and "Enabled" or "Disabled", Colors.info)
+    end)
     
-    local tabCorner = Instance.new("UICorner")
-    tabCorner.CornerRadius = UDim.new(0, 12)
-    tabCorner.Parent = tab
+    createButton(tabContents.Settings, "⚙️ Jump Power: " .. SigmaHub.jumpPower, Colors.info, function()
+        SigmaHub.jumpPower = SigmaHub.jumpPower >= 50 and 16 or SigmaHub.jumpPower + 8
+        notify("JUMP POWER", "Set to: " .. SigmaHub.jumpPower, Colors.info)
+    end)
     
-    local tabStroke = Instance.new("UIStroke")
-    tabStroke.Color = C.accent
-    tabStroke.Thickness = 2
-    tabStroke.Parent = tab
+    createButton(tabContents.Settings, "🔒 Safe Mode: " .. (SigmaHub.safeMode and "ON" or "OFF"), Colors.warning, function()
+        SigmaHub.safeMode = not SigmaHub.safeMode
+        notify("SAFE MODE", SigmaHub.safeMode and "Enabled" or "Disabled", Colors.info)
+    end)
+    
+    -- Toggle button
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0, 120, 0, 40)
+    toggleBtn.Position = UDim2.new(0.5, -60, 0, 20)
+    toggleBtn.BackgroundColor3 = Colors.bg
+    toggleBtn.BorderSizePixel = 0
+    toggleBtn.Text = "SIGMA HUB"
+    toggleBtn.TextColor3 = Colors.accent
+    toggleBtn.TextScaled = true
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.Parent = gui
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 10)
+    toggleCorner.Parent = toggleBtn
+    
+    local toggleStroke = Instance.new("UIStroke")
+    toggleStroke.Color = Colors.accent
+    toggleStroke.Thickness = 2
+    toggleStroke.Parent = toggleBtn
     
     -- Toggle function
-    tab.MouseButton1Click:Connect(function()
-        MilitaryTP.menuOpen = not MilitaryTP.menuOpen
+    toggleBtn.MouseButton1Click:Connect(function()
+        SigmaHub.menuOpen = not SigmaHub.menuOpen
         
-        if MilitaryTP.menuOpen then
+        if SigmaHub.menuOpen then
             main.Visible = true
             main.Size = UDim2.new(0, 0, 0, 0)
             main.Position = UDim2.new(0.5, 0, 0.5, 0)
             
-            Services.TweenService:Create(main, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
-                Size = UDim2.new(0, 280, 0, 320),
-                Position = UDim2.new(0.5, -140, 0.5, -160)
+            Services.TweenService:Create(main, TweenInfo.new(0.5, Enum.EasingStyle.Back), {
+                Size = UDim2.new(0, 400, 0, 350),
+                Position = UDim2.new(0.5, -200, 0.5, -175)
             }):Play()
             
-            tab.Text = "[ CLOSE ]"
-            tabStroke.Color = C.danger
-            tab.TextColor3 = C.danger
+            toggleBtn.Text = "CLOSE"
+            toggleStroke.Color = Colors.danger
+            toggleBtn.TextColor3 = Colors.danger
         else
             Services.TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
                 Size = UDim2.new(0, 0, 0, 0),
@@ -450,54 +673,69 @@ local function createMilitaryGUI()
                 main.Visible = false
             end)
             
-            tab.Text = "[ ACCESS ]"
-            tabStroke.Color = C.accent
-            tab.TextColor3 = C.accent
+            toggleBtn.Text = "SIGMA HUB"
+            toggleStroke.Color = Colors.accent
+            toggleBtn.TextColor3 = Colors.accent
         end
     end)
     
-    MilitaryTP.gui = gui
+    SigmaHub.gui = gui
 end
 
 -- Keyboard controls
 Services.UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     
-    local key = input.KeyCode
-    if key == Enum.KeyCode.Tab then
-        if MilitaryTP.gui then
-            MilitaryTP.gui.TabToggle.MouseButton1Click:Fire()
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        if SigmaHub.gui then
+            SigmaHub.gui:FindFirstChild("TextButton").MouseButton1Click:Fire()
         end
-    elseif key == Enum.KeyCode.T then
-        if MilitaryTP.basePos then infiniteTeleport() end
-    elseif key == Enum.KeyCode.H then
-        MilitaryTP.isTeleporting = false
-        MilitaryTP.isJumping = false
-        MilitaryTP.isFloating = false
-        notify("EMERGENCY.STOP", "All systems halted")
+    elseif input.KeyCode == Enum.KeyCode.T then
+        if SigmaHub.basePosition then
+            if SigmaHub.isFloatTeleporting then
+                stopFloatingTeleport()
+            else
+                startFloatingTeleport()
+            end
+        end
+    elseif input.KeyCode == Enum.KeyCode.J then
+        if SigmaHub.basePosition then
+            if SigmaHub.isSmartJumping then
+                stopSmartJump()
+            else
+                startSmartJump()
+            end
+        end
+    elseif input.KeyCode == Enum.KeyCode.F then
+        toggleFloat()
+    elseif input.KeyCode == Enum.KeyCode.H then
+        -- Emergency stop
+        stopFloatingTeleport()
+        stopSmartJump()
+        stopFloat()
+        SigmaHub.isInfiniteJumping = false
+        notify("EMERGENCY", "All systems stopped!", Colors.danger)
     end
 end)
 
--- Character reconnection
+-- Character respawn handling
 player.CharacterAdded:Connect(function()
     wait(2)
-    createMilitaryGUI()
-    startPositionSpoofing()
-    simulateHumanBehavior()
-    obfuscateTraffic()
+    createSigmaHub()
+    startAntiKick()
 end)
 
--- Initialize system
+-- Initialize
 spawn(function()
     wait(1)
-    createMilitaryGUI()
-    startPositionSpoofing()
-    simulateHumanBehavior()
-    obfuscateTraffic()
-    
-    notify("MILITARY.ONLINE", "Anti-kick 9000% loaded")
-    print("⚡ MILITARY TP SYSTEM V3.0 LOADED")
-    print("🛡️ Anti-kick level: 9000%")
-    print("🔄 Infinite teleport ready")
-    print("⌨️ TAB - Menu | T - Infinite TP | H - Emergency Stop")
+    createSigmaHub()
+    startAntiKick()
+    notify("SIGMA HUB", "Successfully loaded!", Colors.accent)
+    print("⚡ SIGMA HUB V4.0 LOADED")
+    print("🎮 Controls:")
+    print("   Right Ctrl - Toggle GUI")
+    print("   T - Floating Infinite TP")
+    print("   J - Smart Jump")
+    print("   F - Float Mode")
+    print("   H - Emergency Stop")
 end)
