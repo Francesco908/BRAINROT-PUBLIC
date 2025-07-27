@@ -79,26 +79,80 @@ local function createHackerGUI()
         screenGui.Parent = player:WaitForChild("PlayerGui")
     end)
     
-    -- Main container (hidden initially)
+    -- Main container (hidden initially, smaller size)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainContainer"
-    mainFrame.Size = UDim2.new(0, 350, 0, 450)
-    mainFrame.Position = UDim2.new(1, -10, 0.5, -225) -- Start off-screen
+    mainFrame.Size = UDim2.new(0, 280, 0, 320)
+    mainFrame.Position = UDim2.new(0.5, -140, 0.5, -160) -- Center position
     mainFrame.BackgroundColor3 = COLORS.bg
-    mainFrame.BorderSizePixel = 2
-    mainFrame.BorderColor3 = COLORS.accent
-    mainFrame.Visible = true
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Visible = false -- Start hidden
     mainFrame.Parent = screenGui
     
-    -- Hacker-style header
+    -- Rounded corners
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 15)
+    mainCorner.Parent = mainFrame
+    
+    -- Matrix-style glowing border
+    local borderFrame = Instance.new("Frame")
+    borderFrame.Name = "GlowBorder"
+    borderFrame.Size = UDim2.new(1, 6, 1, 6)
+    borderFrame.Position = UDim2.new(0, -3, 0, -3)
+    borderFrame.BackgroundColor3 = COLORS.accent
+    borderFrame.BackgroundTransparency = 0.3
+    borderFrame.ZIndex = mainFrame.ZIndex - 1
+    borderFrame.Parent = mainFrame
+    
+    local borderCorner = Instance.new("UICorner")
+    borderCorner.CornerRadius = UDim.new(0, 18)
+    borderCorner.Parent = borderFrame
+    
+    -- Animated glow effect
+    spawn(function()
+        while borderFrame.Parent do
+            local tween1 = TweenService:Create(borderFrame, TweenInfo.new(1.5, Enum.EasingStyle.Sine), {
+                BackgroundTransparency = 0.1
+            })
+            tween1:Play()
+            tween1.Completed:Wait()
+            
+            if borderFrame.Parent then
+                local tween2 = TweenService:Create(borderFrame, TweenInfo.new(1.5, Enum.EasingStyle.Sine), {
+                    BackgroundTransparency = 0.6
+                })
+                tween2:Play()
+                tween2.Completed:Wait()
+            end
+        end
+    end)
+    
+    -- Hacker-style header with rounded top
     local header = Instance.new("Frame")
     header.Name = "Header"
-    header.Size = UDim2.new(1, 0, 0, 60)
+    header.Size = UDim2.new(1, 0, 0, 50)
     header.Position = UDim2.new(0, 0, 0, 0)
     header.BackgroundColor3 = Color3.fromRGB(5, 5, 10)
-    header.BorderSizePixel = 1
-    header.BorderColor3 = COLORS.accent
+    header.BorderSizePixel = 0
     header.Parent = mainFrame
+    
+    -- Rounded top corners for header
+    local headerCorner = Instance.new("UICorner")
+    headerCorner.CornerRadius = UDim.new(0, 15)
+    headerCorner.Parent = header
+    
+    -- Matrix rain effect background
+    local matrixBg = Instance.new("Frame")
+    matrixBg.Name = "MatrixBackground"
+    matrixBg.Size = UDim2.new(1, 0, 1, 0)
+    matrixBg.Position = UDim2.new(0, 0, 0, 0)
+    matrixBg.BackgroundTransparency = 0.8
+    matrixBg.BackgroundColor3 = COLORS.accent
+    matrixBg.Parent = header
+    
+    local matrixCorner = Instance.new("UICorner")
+    matrixCorner.CornerRadius = UDim.new(0, 15)
+    matrixCorner.Parent = matrixBg
     
     local titleText = Instance.new("TextLabel")
     titleText.Name = "Title"
@@ -123,16 +177,16 @@ local function createHackerGUI()
         end
     end)
     
-    -- Scrolling content area
+    -- Scrolling content area (smaller)
     local scrollFrame = Instance.new("ScrollingFrame")
     scrollFrame.Name = "Content"
-    scrollFrame.Size = UDim2.new(1, -20, 1, -80)
-    scrollFrame.Position = UDim2.new(0, 10, 0, 70)
+    scrollFrame.Size = UDim2.new(1, -16, 1, -65)
+    scrollFrame.Position = UDim2.new(0, 8, 0, 55)
     scrollFrame.BackgroundTransparency = 1
     scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = 8
+    scrollFrame.ScrollBarThickness = 6
     scrollFrame.ScrollBarImageColor3 = COLORS.accent
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 500)
+    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 350)
     scrollFrame.Parent = mainFrame
     
     -- Button layout
@@ -141,14 +195,13 @@ local function createHackerGUI()
     listLayout.Padding = UDim.new(0, 8)
     listLayout.Parent = scrollFrame
     
-    -- Hacker button creation function
+    -- Hacker button creation function (smaller buttons)
     local function createHackerButton(text, color, callback, order)
         local button = Instance.new("TextButton")
         button.Name = text:gsub(" ", ""):gsub("[^%w]", "")
-        button.Size = UDim2.new(1, 0, 0, 45)
+        button.Size = UDim2.new(1, 0, 0, 35) -- Smaller height
         button.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-        button.BorderSizePixel = 1
-        button.BorderColor3 = color
+        button.BorderSizePixel = 0
         button.Text = "> " .. text:upper() .. " <"
         button.TextColor3 = color
         button.TextScaled = true
@@ -156,34 +209,76 @@ local function createHackerGUI()
         button.LayoutOrder = order
         button.Parent = scrollFrame
         
-        -- Hover effects
+        -- Rounded button corners
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 8)
+        buttonCorner.Parent = button
+        
+        -- Matrix-style border
+        local buttonBorder = Instance.new("UIStroke")
+        buttonBorder.Color = color
+        buttonBorder.Thickness = 1
+        buttonBorder.Transparency = 0.5
+        buttonBorder.Parent = button
+        
+        -- Hover effects with matrix glow
         local isHovering = false
         button.MouseEnter:Connect(function()
             isHovering = true
-            button.BackgroundColor3 = Color3.fromRGB(color.R * 50, color.G * 50, color.B * 50)
+            local hoverTween = TweenService:Create(button, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.new(color.R * 0.3, color.G * 0.3, color.B * 0.3)
+            })
+            hoverTween:Play()
+            
+            local borderTween = TweenService:Create(buttonBorder, TweenInfo.new(0.2), {
+                Thickness = 2,
+                Transparency = 0
+            })
+            borderTween:Play()
+            
             button.Text = ">> " .. text:upper() .. " <<"
         end)
         
         button.MouseLeave:Connect(function()
             isHovering = false
-            button.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+            local leaveTween = TweenService:Create(button, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+            })
+            leaveTween:Play()
+            
+            local borderTween = TweenService:Create(buttonBorder, TweenInfo.new(0.2), {
+                Thickness = 1,
+                Transparency = 0.5
+            })
+            borderTween:Play()
+            
             button.Text = "> " .. text:upper() .. " <"
         end)
         
-        -- Click effect
+        -- Click effect with matrix flash
         button.MouseButton1Click:Connect(function()
-            button.BackgroundColor3 = color
-            button.TextColor3 = Color3.fromRGB(0, 0, 0)
+            -- Flash effect
+            local flashFrame = Instance.new("Frame")
+            flashFrame.Size = UDim2.new(1, 0, 1, 0)
+            flashFrame.Position = UDim2.new(0, 0, 0, 0)
+            flashFrame.BackgroundColor3 = color
+            flashFrame.BackgroundTransparency = 0.5
+            flashFrame.Parent = button
+            
+            local flashCorner = Instance.new("UICorner")
+            flashCorner.CornerRadius = UDim.new(0, 8)
+            flashCorner.Parent = flashFrame
+            
+            local flashTween = TweenService:Create(flashFrame, TweenInfo.new(0.3), {
+                BackgroundTransparency = 1
+            })
+            flashTween:Play()
+            
             spawn(function()
-                wait(0.1)
-                if not isHovering then
-                    button.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-                    button.TextColor3 = color
-                else
-                    button.BackgroundColor3 = Color3.fromRGB(color.R * 50, color.G * 50, color.B * 50)
-                    button.TextColor3 = color
-                end
+                wait(0.3)
+                flashFrame:Destroy()
             end)
+            
             callback()
         end)
         
@@ -238,39 +333,90 @@ local function createHackerGUI()
         notify("HACK.MODE", HackerTP.hackMode and "ACTIVATED" or "DEACTIVATED", COLORS.danger)
     end, 7)
     
-    -- Tab button for opening/closing
+    -- Tab button for opening/closing (matrix style)
     local tabButton = Instance.new("TextButton")
     tabButton.Name = "TabToggle"
-    tabButton.Size = UDim2.new(0, 100, 0, 40)
-    tabButton.Position = UDim2.new(1, -120, 0, 20)
+    tabButton.Size = UDim2.new(0, 80, 0, 35)
+    tabButton.Position = UDim2.new(0.5, -40, 0, 20)
     tabButton.BackgroundColor3 = COLORS.bg
-    tabButton.BorderSizePixel = 2
-    tabButton.BorderColor3 = COLORS.accent
-    tabButton.Text = "[ OPEN ]"
+    tabButton.BorderSizePixel = 0
+    tabButton.Text = "[ ACCESS ]"
     tabButton.TextColor3 = COLORS.accent
     tabButton.TextScaled = true
     tabButton.Font = Enum.Font.Code
     tabButton.Parent = screenGui
     
-    -- Toggle function
+    -- Rounded tab button
+    local tabCorner = Instance.new("UICorner")
+    tabCorner.CornerRadius = UDim.new(0, 12)
+    tabCorner.Parent = tabButton
+    
+    -- Tab button border
+    local tabBorder = Instance.new("UIStroke")
+    tabBorder.Color = COLORS.accent
+    tabBorder.Thickness = 2
+    tabBorder.Parent = tabButton
+    
+    -- Tab button glow effect
+    spawn(function()
+        while tabButton.Parent do
+            local glowTween = TweenService:Create(tabBorder, TweenInfo.new(2, Enum.EasingStyle.Sine), {
+                Transparency = 0
+            })
+            glowTween:Play()
+            glowTween.Completed:Wait()
+            
+            if tabButton.Parent then
+                local fadeGlow = TweenService:Create(tabBorder, TweenInfo.new(2, Enum.EasingStyle.Sine), {
+                    Transparency = 0.5
+                })
+                fadeGlow:Play()
+                fadeGlow.Completed:Wait()
+            end
+        end
+    end)
+    
+    -- Toggle function (center animation)
     local function toggleMenu()
         HackerTP.menuOpen = not HackerTP.menuOpen
         
-        local targetPos = HackerTP.menuOpen and 
-            UDim2.new(1, -360, 0.5, -225) or 
-            UDim2.new(1, -10, 0.5, -225)
-        
-        local tween = TweenService:Create(mainFrame, 
-            TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
-            {Position = targetPos}
-        )
-        tween:Play()
-        
-        tabButton.Text = HackerTP.menuOpen and "[ CLOSE ]" or "[ OPEN ]"
-        
-        -- Update tab button color
-        tabButton.BorderColor3 = HackerTP.menuOpen and COLORS.danger or COLORS.accent
-        tabButton.TextColor3 = HackerTP.menuOpen and COLORS.danger or COLORS.accent
+        if HackerTP.menuOpen then
+            -- Show with scale animation from center
+            mainFrame.Visible = true
+            mainFrame.Size = UDim2.new(0, 0, 0, 0)
+            mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            
+            local showTween = TweenService:Create(mainFrame, 
+                TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
+                {
+                    Size = UDim2.new(0, 280, 0, 320),
+                    Position = UDim2.new(0.5, -140, 0.5, -160)
+                }
+            )
+            showTween:Play()
+            
+            tabButton.Text = "[ CLOSE ]"
+            tabBorder.Color = COLORS.danger
+            tabButton.TextColor3 = COLORS.danger
+        else
+            -- Hide with scale animation to center
+            local hideTween = TweenService:Create(mainFrame, 
+                TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), 
+                {
+                    Size = UDim2.new(0, 0, 0, 0),
+                    Position = UDim2.new(0.5, 0, 0.5, 0)
+                }
+            )
+            hideTween:Play()
+            
+            hideTween.Completed:Connect(function()
+                mainFrame.Visible = false
+            end)
+            
+            tabButton.Text = "[ ACCESS ]"
+            tabBorder.Color = COLORS.accent
+            tabButton.TextColor3 = COLORS.accent
+        end
     end
     
     tabButton.MouseButton1Click:Connect(toggleMenu)
