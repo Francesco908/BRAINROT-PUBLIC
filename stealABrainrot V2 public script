@@ -86,7 +86,7 @@ statusLabel.Parent = mainFrame
 statusLabel.Size = UDim2.new(1, -20, 0, 20)
 statusLabel.Position = UDim2.new(0, 10, 0, 45)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Status: READY | God Mode: ON"
+statusLabel.Text = "Status: READY | Immortal Mode: ON"
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.TextScaled = true
 statusLabel.Font = Enum.Font.Code
@@ -197,24 +197,64 @@ createAdvancedHoverEffect(setBaseBtn, Color3.fromRGB(65, 65, 65), Color3.fromRGB
 createAdvancedHoverEffect(stealBtn, Color3.fromRGB(80, 35, 35), Color3.fromRGB(60, 25, 25), Color3.fromRGB(255, 150, 150))
 createAdvancedHoverEffect(superStealBtn, Color3.fromRGB(35, 35, 80), Color3.fromRGB(25, 25, 60), Color3.fromRGB(150, 150, 255))
 
--- God Mode System
-local function enableGodMode()
+-- Advanced God Mode System
+local function enableAdvancedGodMode()
     local character = player.Character
     if not character then return end
     
     local humanoid = character:FindFirstChild("Humanoid")
-    if not humanoid then return end
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
     
-    -- Prevent death
+    if not humanoid or not rootPart then return end
+    
+    -- Set maximum health and heal
     humanoid.MaxHealth = math.huge
     humanoid.Health = math.huge
     
-    -- Continuous god mode
-    godModeConnection = RunService.Heartbeat:Connect(function()
-        if humanoid and humanoid.Parent then
+    -- Prevent death completely
+    humanoid.Died:Connect(function()
+        wait(0.1)
+        humanoid.Health = math.huge
+        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    end)
+    
+    -- Block all damage and status effects
+    humanoid.HealthChanged:Connect(function()
+        if humanoid.Health < humanoid.MaxHealth then
             humanoid.Health = math.huge
         end
     end)
+    
+    -- Continuous protection
+    godModeConnection = RunService.Heartbeat:Connect(function()
+        if humanoid and humanoid.Parent then
+            if humanoid.Health <= 0 or humanoid.Health < math.huge then
+                humanoid.Health = math.huge
+                humanoid.MaxHealth = math.huge
+            end
+            
+            -- Force regeneration state
+            if humanoid:GetState() == Enum.HumanoidStateType.Dead then
+                humanoid:ChangeState(Enum.HumanoidStateType.Running)
+            end
+            
+            -- Reset any damage
+            humanoid.PlatformStand = false
+        end
+    end)
+    
+    -- Additional protection for body parts
+    for _, part in pairs(character:GetChildren()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = true
+            -- Prevent part destruction
+            part.AncestryChanged:Connect(function()
+                if not part.Parent and character.Parent then
+                    part.Parent = character
+                end
+            end)
+        end
+    end
 end
 
 -- Advanced Float Movement System
@@ -239,7 +279,7 @@ local function advancedFloatMovement()
         rootPart.CFrame = CFrame.new(highPos)
         floatPhase = "floating"
         humanoid.WalkSpeed = 35
-        statusLabel.Text = "Status: FLOATING TO BASE | God Mode: ON"
+        statusLabel.Text = "Status: FLOATING TO BASE | Immortal Mode: ON"
         
     elseif floatPhase == "floating" then
         -- Phase 2: Float horizontally maintaining height
@@ -251,7 +291,7 @@ local function advancedFloatMovement()
             rootPart.CFrame = CFrame.new(newPos)
         else
             floatPhase = "descending"
-            statusLabel.Text = "Status: DESCENDING | God Mode: ON"
+            statusLabel.Text = "Status: DESCENDING | Immortal Mode: ON"
         end
         
     elseif floatPhase == "descending" then
@@ -259,7 +299,7 @@ local function advancedFloatMovement()
         local undergroundPos = Vector3.new(targetPos.X, targetPos.Y + UNDERGROUND_DEPTH, targetPos.Z)
         rootPart.CFrame = CFrame.new(undergroundPos)
         floatPhase = "surfacing"
-        statusLabel.Text = "Status: UNDERGROUND | God Mode: ON"
+        statusLabel.Text = "Status: UNDERGROUND | Immortal Mode: ON"
         
     elseif floatPhase == "surfacing" then
         -- Phase 4: Surface at base
@@ -296,18 +336,18 @@ end
 local function setBasePosition()
     local character = player.Character
     if not character then 
-        statusLabel.Text = "Status: NO CHARACTER | God Mode: ON"
+        statusLabel.Text = "Status: NO CHARACTER | Immortal Mode: ON"
         return 
     end
     
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then 
-        statusLabel.Text = "Status: NO ROOT PART | God Mode: ON"
+        statusLabel.Text = "Status: NO ROOT PART | Immortal Mode: ON"
         return 
     end
     
     basePosition = rootPart.Position
-    statusLabel.Text = "Status: BASE SET | God Mode: ON"
+    statusLabel.Text = "Status: BASE SET | Immortal Mode: ON"
     
     -- Enhanced visual feedback
     local tween = TweenService:Create(setBaseBtn, TweenInfo.new(0.4), {
@@ -328,14 +368,14 @@ end
 -- Instant Steal Function
 local function startInstantSteal()
     if not basePosition then
-        statusLabel.Text = "Status: SET BASE FIRST | God Mode: ON"
+        statusLabel.Text = "Status: SET BASE FIRST | Immortal Mode: ON"
         return
     end
     
     if isStealActive then
         -- Stop steal
         isStealActive = false
-        statusLabel.Text = "Status: STOPPED | God Mode: ON"
+        statusLabel.Text = "Status: STOPPED | Immortal Mode: ON"
         stealBtn.Text = "INSTANT STEAL"
         stealBtn.BackgroundColor3 = Color3.fromRGB(60, 25, 25)
         
@@ -361,7 +401,7 @@ local function startInstantSteal()
     isStealActive = true
     floatPhase = "start"
     
-    statusLabel.Text = "Status: STEALING... | God Mode: ON"
+    statusLabel.Text = "Status: STEALING... | Immortal Mode: ON"
     stealBtn.Text = "STOP STEAL"
     stealBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
     
@@ -372,14 +412,14 @@ end
 -- Super Steal Function
 local function startSuperSteal()
     if not basePosition then
-        statusLabel.Text = "Status: SET BASE FIRST | God Mode: ON"
+        statusLabel.Text = "Status: SET BASE FIRST | Immortal Mode: ON"
         return
     end
     
     if isSuperStealActive then
         -- Stop super steal
         isSuperStealActive = false
-        statusLabel.Text = "Status: SUPER STEAL STOPPED | God Mode: ON"
+        statusLabel.Text = "Status: SUPER STEAL STOPPED | Immortal Mode: ON"
         superStealBtn.Text = "SUPER STEAL"
         superStealBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 60)
         
@@ -392,7 +432,7 @@ local function startSuperSteal()
     
     -- Start super steal
     isSuperStealActive = true
-    statusLabel.Text = "Status: SUPER STEALING... | God Mode: ON"
+    statusLabel.Text = "Status: SUPER STEALING... | Immortal Mode: ON"
     superStealBtn.Text = "STOP SUPER"
     superStealBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 90)
     
@@ -410,14 +450,28 @@ setBaseBtn.MouseButton1Click:Connect(setBasePosition)
 stealBtn.MouseButton1Click:Connect(startInstantSteal)
 superStealBtn.MouseButton1Click:Connect(startSuperSteal)
 
--- Initialize God Mode
-player.CharacterAdded:Connect(function()
+-- Initialize Advanced God Mode with respawn protection
+player.CharacterAdded:Connect(function(character)
     wait(1)
-    enableGodMode()
+    enableAdvancedGodMode()
+    
+    -- Additional respawn protection
+    spawn(function()
+        while character.Parent do
+            wait(0.5)
+            if character:FindFirstChild("Humanoid") then
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid.Health <= 0 then
+                    humanoid.Health = math.huge
+                    humanoid.MaxHealth = math.huge
+                end
+            end
+        end
+    end)
 end)
 
 if player.Character then
-    enableGodMode()
+    enableAdvancedGodMode()
 end
 
 -- Cleanup
