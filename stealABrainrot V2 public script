@@ -291,7 +291,7 @@ local function advancedFloatMovement()
             rootPart.CFrame = CFrame.new(newPos)
         else
             floatPhase = "descending"
-            statusLabel.Text = "Status: DESCENDING | Immortal Mode: ON"
+            statusLabel.Text = "Status: DESCENDING | Immortal Mode: ON V1"
         end
         
     elseif floatPhase == "descending" then
