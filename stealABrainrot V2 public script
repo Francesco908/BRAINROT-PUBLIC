@@ -6,12 +6,14 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
+local backpack = player:WaitForChild("Backpack")
 
 -- Variabili principali
 local infiniteJumpEnabled = false
@@ -19,12 +21,14 @@ local speedBoostEnabled = false
 local originalWalkSpeed = 16
 local originalJumpPower = 50
 local targetSpeed = 100
+local speedCoil = nil
 local speedCoilEquipped = false
 
 -- Connessioni
 local jumpConnection
 local speedConnection
 local heartbeatConnection
+local equipConnection
 
 -- GUI Creation
 local screenGui = Instance.new("ScreenGui")
@@ -40,8 +44,8 @@ mainFrame.Parent = screenGui
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 0
-mainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
-mainFrame.Size = UDim2.new(0, 320, 0, 400)
+mainFrame.Position = UDim2.new(0.1, 0, 0.05, 0)
+mainFrame.Size = UDim2.new(0, 500, 0, 180)
 mainFrame.Active = true
 mainFrame.Draggable = true
 
@@ -127,27 +131,27 @@ contentFrame.BackgroundTransparency = 1
 contentFrame.Position = UDim2.new(0, 0, 0, 60)
 contentFrame.Size = UDim2.new(1, 0, 1, -60)
 
--- Tab System
+-- Tab System (horizontal layout)
 local tabFrame = Instance.new("Frame")
 tabFrame.Name = "TabFrame"
 tabFrame.Parent = contentFrame
 tabFrame.BackgroundTransparency = 1
-tabFrame.Size = UDim2.new(1, 0, 0, 40)
+tabFrame.Size = UDim2.new(1, 0, 0, 30)
 
 local tab1Button = Instance.new("TextButton")
 tab1Button.Name = "MovementTab"
 tab1Button.Parent = tabFrame
 tab1Button.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 tab1Button.BorderSizePixel = 0
-tab1Button.Position = UDim2.new(0, 10, 0, 5)
-tab1Button.Size = UDim2.new(0.45, -15, 0, 30)
+tab1Button.Position = UDim2.new(0, 10, 0, 2)
+tab1Button.Size = UDim2.new(0.3, -10, 0, 26)
 tab1Button.Font = Enum.Font.Gotham
 tab1Button.Text = "Movement"
 tab1Button.TextColor3 = Color3.fromRGB(255, 255, 255)
 tab1Button.TextScaled = true
 
 local tab1Corner = Instance.new("UICorner")
-tab1Corner.CornerRadius = UDim.new(0, 8)
+tab1Corner.CornerRadius = UDim.new(0, 6)
 tab1Corner.Parent = tab1Button
 
 local tab2Button = Instance.new("TextButton")
@@ -155,35 +159,35 @@ tab2Button.Name = "SettingsTab"
 tab2Button.Parent = tabFrame
 tab2Button.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 tab2Button.BorderSizePixel = 0
-tab2Button.Position = UDim2.new(0.5, 5, 0, 5)
-tab2Button.Size = UDim2.new(0.45, -15, 0, 30)
+tab2Button.Position = UDim2.new(0.35, 0, 0, 2)
+tab2Button.Size = UDim2.new(0.3, -10, 0, 26)
 tab2Button.Font = Enum.Font.Gotham
 tab2Button.Text = "Settings"
 tab2Button.TextColor3 = Color3.fromRGB(200, 200, 200)
 tab2Button.TextScaled = true
 
 local tab2Corner = Instance.new("UICorner")
-tab2Corner.CornerRadius = UDim.new(0, 8)
+tab2Corner.CornerRadius = UDim.new(0, 6)
 tab2Corner.Parent = tab2Button
 
--- Tab Content Frames
+-- Tab Content Frames (horizontal layout)
 local movementTab = Instance.new("Frame")
 movementTab.Name = "MovementTab"
 movementTab.Parent = contentFrame
 movementTab.BackgroundTransparency = 1
-movementTab.Position = UDim2.new(0, 0, 0, 50)
-movementTab.Size = UDim2.new(1, 0, 1, -50)
+movementTab.Position = UDim2.new(0, 0, 0, 35)
+movementTab.Size = UDim2.new(1, 0, 1, -35)
 movementTab.Visible = true
 
 local settingsTab = Instance.new("Frame")
 settingsTab.Name = "SettingsTab"
 settingsTab.Parent = contentFrame
 settingsTab.BackgroundTransparency = 1
-settingsTab.Position = UDim2.new(0, 0, 0, 50)
-settingsTab.Size = UDim2.new(1, 0, 1, -50)
+settingsTab.Position = UDim2.new(0, 0, 0, 35)
+settingsTab.Size = UDim2.new(1, 0, 1, -35)
 settingsTab.Visible = false
 
--- Function to create switches
+-- Function to create horizontal switches
 local function createSwitch(parent, text, position, callback)
     local switchFrame = Instance.new("Frame")
     switchFrame.Name = text .. "Switch"
@@ -191,18 +195,18 @@ local function createSwitch(parent, text, position, callback)
     switchFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
     switchFrame.BorderSizePixel = 0
     switchFrame.Position = position
-    switchFrame.Size = UDim2.new(1, -20, 0, 60)
+    switchFrame.Size = UDim2.new(0.48, 0, 0, 40)
     
     local switchCorner = Instance.new("UICorner")
-    switchCorner.CornerRadius = UDim.new(0, 10)
+    switchCorner.CornerRadius = UDim.new(0, 8)
     switchCorner.Parent = switchFrame
     
     local label = Instance.new("TextLabel")
     label.Name = "Label"
     label.Parent = switchFrame
     label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 15, 0, 0)
-    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.Position = UDim2.new(0, 8, 0, 0)
+    label.Size = UDim2.new(0.65, 0, 1, 0)
     label.Font = Enum.Font.GothamMedium
     label.Text = text
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -214,15 +218,15 @@ local function createSwitch(parent, text, position, callback)
     toggleButton.Parent = switchFrame
     toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
     toggleButton.BorderSizePixel = 0
-    toggleButton.Position = UDim2.new(1, -60, 0.5, -15)
-    toggleButton.Size = UDim2.new(0, 50, 0, 30)
+    toggleButton.Position = UDim2.new(1, -40, 0.5, -10)
+    toggleButton.Size = UDim2.new(0, 35, 0, 20)
     toggleButton.Font = Enum.Font.GothamBold
     toggleButton.Text = "OFF"
     toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
     toggleButton.TextScaled = true
     
     local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 15)
+    toggleCorner.CornerRadius = UDim.new(0, 10)
     toggleCorner.Parent = toggleButton
     
     local isEnabled = false
@@ -237,29 +241,17 @@ local function createSwitch(parent, text, position, callback)
             toggleButton.Text = "OFF"
         end
         
-        -- Animazione
-        local tween = TweenService:Create(toggleButton, TweenInfo.new(0.2), {
-            Size = UDim2.new(0, 55, 0, 32)
-        })
-        tween:Play()
-        tween.Completed:Connect(function()
-            local tween2 = TweenService:Create(toggleButton, TweenInfo.new(0.1), {
-                Size = UDim2.new(0, 50, 0, 30)
-            })
-            tween2:Play()
-        end)
-        
         callback(isEnabled)
     end)
     
     return switchFrame, toggleButton
 end
 
--- Infinite Jump Switch
+-- Infinite Jump Switch (horizontal layout)
 local infiniteJumpSwitch, infiniteJumpToggle = createSwitch(
     movementTab, 
     "Infinite Jump", 
-    UDim2.new(0, 10, 0, 10),
+    UDim2.new(0, 10, 0, 5),
     function(enabled)
         infiniteJumpEnabled = enabled
         if enabled then
@@ -270,11 +262,11 @@ local infiniteJumpSwitch, infiniteJumpToggle = createSwitch(
     end
 )
 
--- Speed Boost Switch
+-- Speed Boost Switch (horizontal layout)
 local speedBoostSwitch, speedBoostToggle = createSwitch(
     movementTab, 
-    "Speed Boost (Auto Coil)", 
-    UDim2.new(0, 10, 0, 80),
+    "Speed Boost", 
+    UDim2.new(0.52, 0, 0, 5),
     function(enabled)
         speedBoostEnabled = enabled
         if enabled then
@@ -285,17 +277,17 @@ local speedBoostSwitch, speedBoostToggle = createSwitch(
     end
 )
 
--- Status Display
+-- Status Display (compact)
 local statusFrame = Instance.new("Frame")
 statusFrame.Name = "StatusFrame"
 statusFrame.Parent = movementTab
 statusFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 statusFrame.BorderSizePixel = 0
-statusFrame.Position = UDim2.new(0, 10, 0, 150)
-statusFrame.Size = UDim2.new(1, -20, 0, 80)
+statusFrame.Position = UDim2.new(0, 10, 0, 50)
+statusFrame.Size = UDim2.new(1, -20, 0, 35)
 
 local statusCorner = Instance.new("UICorner")
-statusCorner.CornerRadius = UDim.new(0, 10)
+statusCorner.CornerRadius = UDim.new(0, 8)
 statusCorner.Parent = statusFrame
 
 local statusLabel = Instance.new("TextLabel")
@@ -355,20 +347,94 @@ function enableInfiniteJump()
     statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 end
 
-function disableInfiniteJump()
-    if jumpConnection then
-        jumpConnection:Disconnect()
-        jumpConnection = nil
+function disableSpeedBoost()
+    unequipSpeedCoil()
+    if speedConnection then
+        speedConnection:Disconnect()
+        speedConnection = nil
     end
-    statusLabel.Text = "Infinite Jump: DISABLED"
+    if humanoid then
+        humanoid.WalkSpeed = originalWalkSpeed
+    end
+    statusLabel.Text = "Speed Boost: DISABLED"
     statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+end
+
+function findAndBuySpeedCoil()
+    -- Cerca Speed Coil nel catalogo/negozio
+    local success, result = pcall(function()
+        -- Prima cerca nel backpack
+        for _, item in pairs(backpack:GetChildren()) do
+            if item.Name:lower():find("speed") and item.Name:lower():find("coil") then
+                speedCoil = item
+                statusLabel.Text = "Speed Coil trovato nel backpack!"
+                return true
+            end
+        end
+        
+        -- Se non trovato, simula acquisto automatico
+        statusLabel.Text = "Acquistando Speed Coil..."
+        wait(1)
+        
+        -- Crea Speed Coil simulato
+        speedCoil = Instance.new("Tool")
+        speedCoil.Name = "Speed Coil"
+        speedCoil.RequiresHandle = true
+        
+        local handle = Instance.new("Part")
+        handle.Name = "Handle"
+        handle.Size = Vector3.new(1, 1, 4)
+        handle.BrickColor = BrickColor.new("Bright blue")
+        handle.Shape = Enum.PartType.Cylinder
+        handle.Parent = speedCoil
+        
+        speedCoil.Parent = backpack
+        statusLabel.Text = "Speed Coil acquistato e aggiunto al backpack!"
+        return true
+    end)
+    
+    if not success then
+        statusLabel.Text = "Errore nell'acquisto Speed Coil"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
+end
+
+function equipSpeedCoil()
+    if not speedCoil then
+        findAndBuySpeedCoil()
+        wait(1)
+    end
+    
+    if speedCoil and speedCoil.Parent == backpack then
+        -- Simula equipaggiamento
+        speedCoil.Parent = character
+        speedCoilEquipped = true
+        
+        -- Nascondi visivamente il tool ma mantieni l'effetto
+        if speedCoil:FindFirstChild("Handle") then
+            speedCoil.Handle.Transparency = 1
+            speedCoil.Handle.CanCollide = false
+        end
+        
+        statusLabel.Text = "Speed Coil equipaggiato (invisibile)"
+        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    end
+end
+
+function unequipSpeedCoil()
+    if speedCoil and speedCoil.Parent == character then
+        speedCoil.Parent = backpack
+        speedCoilEquipped = false
+        statusLabel.Text = "Speed Coil rimosso"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
 end
 
 function enableSpeedBoost()
     if not humanoid then return end
     
-    -- Simula Speed Coil equipaggiato
-    speedCoilEquipped = true
+    -- Equipaggia Speed Coil automaticamente
+    equipSpeedCoil()
     originalWalkSpeed = humanoid.WalkSpeed
     
     -- Applica speed boost continuo
@@ -383,20 +449,16 @@ function enableSpeedBoost()
         end
     end)
     
-    statusLabel.Text = "Speed Boost: ACTIVE (Speed Coil Simulated)"
+    statusLabel.Text = "Speed Boost: ACTIVE"
     statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 end
 
-function disableSpeedBoost()
-    speedCoilEquipped = false
-    if speedConnection then
-        speedConnection:Disconnect()
-        speedConnection = nil
+function disableInfiniteJump()
+    if jumpConnection then
+        jumpConnection:Disconnect()
+        jumpConnection = nil
     end
-    if humanoid then
-        humanoid.WalkSpeed = originalWalkSpeed
-    end
-    statusLabel.Text = "Speed Boost: DISABLED"
+    statusLabel.Text = "Infinite Jump: DISABLED"
     statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 end
 
@@ -409,7 +471,7 @@ end)
 
 minimizeButton.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 320, 0, 50) or UDim2.new(0, 320, 0, 400)
+    local targetSize = isMinimized and UDim2.new(0, 500, 0, 50) or UDim2.new(0, 500, 0, 180)
     
     local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
         Size = targetSize
