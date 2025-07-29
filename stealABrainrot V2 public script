@@ -1,565 +1,308 @@
--- Sigma Hub v11 - Ultimate Mobile Hax
--- Updated: Removed God Mode, Enhanced Speed Coil with Infinite Jump dependency
--- Advanced Anti-Cheat Bypass Logic 9000
+-- Instant Steal GUI Script for Roblox
+-- Advanced movement system to avoid detection
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local MarketplaceService = game:GetService("MarketplaceService")
-local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Variabili principali
-local infiniteJumpEnabled = false
-local speedBoostEnabled = false
-local originalWalkSpeed = humanoid.WalkSpeed
-local originalJumpPower = humanoid.JumpPower
-local targetSpeed = 100
-local jumpDebounce = false
-local isMinimized = false
-local speedCoilOwned = false
+-- Variables for movement system
+local isStealActive = false
+local basePosition = nil
+local movementConnection = nil
+local jumpCount = 0
+local walkTime = 0
+local isJumping = false
 
--- Connessioni
-local jumpConnection
-local speedConnection
-local heartbeatConnection
-
--- Genera un ID unico per evitare detection
-local uniqueId = HttpService:GenerateGUID(false):sub(1, 8)
-
--- GUI Creation
+-- Create ScreenGui
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SigmaHub_"..uniqueId
+screenGui.Name = "InstantStealGUI"
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 -- Main Frame (Draggable)
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame_"..uniqueId
+mainFrame.Name = "MainFrame"
 mainFrame.Parent = screenGui
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-mainFrame.BackgroundTransparency = 0.1
+mainFrame.Size = UDim2.new(0, 280, 0, 160)
+mainFrame.Position = UDim2.new(0.5, -140, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 mainFrame.BorderSizePixel = 0
-mainFrame.Position = UDim2.new(0.1, 0, 0.05, 0)
-mainFrame.Size = UDim2.new(0, 500, 0, 200)  -- Reduced height
 mainFrame.Active = true
 mainFrame.Draggable = true
 
--- Corner per rounded edges
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 12)
-mainCorner.Parent = mainFrame
+-- Frame styling (hacker theme)
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 8)
+frameCorner.Parent = mainFrame
 
--- Gradient per stile
-local gradient = Instance.new("UIGradient")
-gradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 45)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 30))
-}
-gradient.Rotation = 45
-gradient.Parent = mainFrame
+local frameStroke = Instance.new("UIStroke")
+frameStroke.Color = Color3.fromRGB(0, 255, 150)
+frameStroke.Thickness = 2
+frameStroke.Parent = mainFrame
 
--- Header
-local header = Instance.new("Frame")
-header.Name = "Header"
-header.Parent = mainFrame
-header.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-header.BackgroundTransparency = 0.2
-header.BorderSizePixel = 0
-header.Size = UDim2.new(1, 0, 0, 50)
+-- Glow effect
+local glowFrame = Instance.new("Frame")
+glowFrame.Name = "GlowFrame"
+glowFrame.Parent = mainFrame
+glowFrame.Size = UDim2.new(1, 6, 1, 6)
+glowFrame.Position = UDim2.new(0, -3, 0, -3)
+glowFrame.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
+glowFrame.BackgroundTransparency = 0.8
+glowFrame.ZIndex = -1
 
-local headerCorner = Instance.new("UICorner")
-headerCorner.CornerRadius = UDim.new(0, 12)
-headerCorner.Parent = header
+local glowCorner = Instance.new("UICorner")
+glowCorner.CornerRadius = UDim.new(0, 12)
+glowCorner.Parent = glowFrame
 
 -- Title
-local title = Instance.new("TextLabel")
-title.Name = "Title"
-title.Parent = header
-title.BackgroundTransparency = 1
-title.Position = UDim2.new(0, 15, 0, 0)
-title.Size = UDim2.new(0.7, 0, 1, 0)
-title.Font = Enum.Font.GothamBold
-title.Text = "Sigma Hub v11"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextScaled = true
-title.TextXAlignment = Enum.TextXAlignment.Left
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Parent = mainFrame
+titleLabel.Size = UDim2.new(1, 0, 0, 35)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "⚡ INSTANT STEAL ⚡"
+titleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.Code
+titleLabel.TextStrokeTransparency = 0
+titleLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
 
--- Close Button
-local closeButton = Instance.new("TextButton")
-closeButton.Name = "CloseButton"
-closeButton.Parent = header
-closeButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-closeButton.BorderSizePixel = 0
-closeButton.Position = UDim2.new(1, -45, 0.5, -12.5)
-closeButton.Size = UDim2.new(0, 25, 0, 25)
-closeButton.Font = Enum.Font.GothamBold
-closeButton.Text = "X"
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.TextScaled = true
-
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 6)
-closeCorner.Parent = closeButton
-
--- Minimize Button
-local minimizeButton = Instance.new("TextButton")
-minimizeButton.Name = "MinimizeButton"
-minimizeButton.Parent = header
-minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 150, 50)
-minimizeButton.BorderSizePixel = 0
-minimizeButton.Position = UDim2.new(1, -75, 0.5, -12.5)
-minimizeButton.Size = UDim2.new(0, 25, 0, 25)
-minimizeButton.Font = Enum.Font.GothamBold
-minimizeButton.Text = "-"
-minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-minimizeButton.TextScaled = true
-
-local minimizeCorner = Instance.new("UICorner")
-minimizeCorner.CornerRadius = UDim.new(0, 6)
-minimizeCorner.Parent = minimizeButton
-
--- Content Frame
-local contentFrame = Instance.new("Frame")
-contentFrame.Name = "ContentFrame"
-contentFrame.Parent = mainFrame
-contentFrame.BackgroundTransparency = 1
-contentFrame.Position = UDim2.new(0, 0, 0, 60)
-contentFrame.Size = UDim2.new(1, 0, 1, -60)
-
--- Funzione per creare switch
-local function createSwitch(parent, text, position, callback)
-    local switchFrame = Instance.new("Frame")
-    switchFrame.Name = text.."Switch_"..uniqueId
-    switchFrame.Parent = parent
-    switchFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-    switchFrame.BorderSizePixel = 0
-    switchFrame.Position = position
-    switchFrame.Size = UDim2.new(0.48, 0, 0, 40)
-    
-    local switchCorner = Instance.new("UICorner")
-    switchCorner.CornerRadius = UDim.new(0, 8)
-    switchCorner.Parent = switchFrame
-    
-    local label = Instance.new("TextLabel")
-    label.Name = "Label"
-    label.Parent = switchFrame
-    label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 8, 0, 0)
-    label.Size = UDim2.new(0.65, 0, 1, 0)
-    label.Font = Enum.Font.GothamMedium
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextScaled = true
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Name = "ToggleButton"
-    toggleButton.Parent = switchFrame
-    toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    toggleButton.BorderSizePixel = 0
-    toggleButton.Position = UDim2.new(1, -40, 0.5, -10)
-    toggleButton.Size = UDim2.new(0, 35, 0, 20)
-    toggleButton.Font = Enum.Font.GothamBold
-    toggleButton.Text = "OFF"
-    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleButton.TextScaled = true
-    
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 10)
-    toggleCorner.Parent = toggleButton
-    
-    local isEnabled = false
-    
-    toggleButton.MouseButton1Click:Connect(function()
-        isEnabled = not isEnabled
-        if isEnabled then
-            toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-            toggleButton.Text = "ON"
-        else
-            toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-            toggleButton.Text = "OFF"
-        end
-        
-        callback(isEnabled)
-    end)
-    
-    return switchFrame, toggleButton
-end
-
--- Infinite Jump Switch
-local infiniteJumpSwitch, infiniteJumpToggle = createSwitch(
-    contentFrame, 
-    "Infinite Jump", 
-    UDim2.new(0.02, 0, 0.05, 0),
-    function(enabled)
-        infiniteJumpEnabled = enabled
-        if enabled then
-            enableInfiniteJump()
-        else
-            disableInfiniteJump()
-            -- Disable speed boost if infinite jump is turned off
-            if speedBoostEnabled then
-                speedBoostEnabled = false
-                speedBoostToggle.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-                speedBoostToggle.Text = "OFF"
-                disableSpeedBoost()
-            end
-        end
-    end
-)
-
--- Speed Boost Switch
-local speedBoostSwitch, speedBoostToggle = createSwitch(
-    contentFrame, 
-    "Speed Boost", 
-    UDim2.new(0.52, 0, 0.05, 0),
-    function(enabled)
-        if enabled and not infiniteJumpEnabled then
-            statusLabel.Text = "Enable Infinite Jump first!"
-            statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-            -- Reset the toggle
-            wait(2)
-            if speedBoostToggle then
-                speedBoostEnabled = false
-                speedBoostToggle.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-                speedBoostToggle.Text = "OFF"
-                statusLabel.Text = "Status: Ready"
-                statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-            end
-            return
-        end
-        
-        speedBoostEnabled = enabled
-        if enabled then
-            enableSpeedBoost()
-        else
-            disableSpeedBoost()
-        end
-    end
-)
-
--- Status Display
-local statusFrame = Instance.new("Frame")
-statusFrame.Name = "StatusFrame_"..uniqueId
-statusFrame.Parent = contentFrame
-statusFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
-statusFrame.BorderSizePixel = 0
-statusFrame.Position = UDim2.new(0.02, 0, 0.65, 0)
-statusFrame.Size = UDim2.new(0.96, 0, 0.25, 0)
-
-local statusCorner = Instance.new("UICorner")
-statusCorner.CornerRadius = UDim.new(0, 8)
-statusCorner.Parent = statusFrame
-
+-- Status Label
 local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "StatusLabel"
-statusLabel.Parent = statusFrame
+statusLabel.Parent = mainFrame
+statusLabel.Size = UDim2.new(1, -20, 0, 20)
+statusLabel.Position = UDim2.new(0, 10, 0, 40)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Size = UDim2.new(1, 0, 1, 0)
-statusLabel.Font = Enum.Font.GothamMedium
-statusLabel.Text = "Status: Ready"
-statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+statusLabel.Text = "Status: READY"
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Code
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
 
--- ANTI-CHEAT BYPASS TECHNIQUES --
-local function stealthHook(remote, callback)
-    if typeof(remote) == "Instance" and remote:IsA("RemoteEvent") then
-        local oldFireServer = remote.FireServer
-        remote.FireServer = function(self, ...)
-            callback(...)
-            return oldFireServer(self, ...)
-        end
-        return true
-    end
-    return false
-end
+-- Set Base Position Button
+local setBaseBtn = Instance.new("TextButton")
+setBaseBtn.Name = "SetBaseBtn"
+setBaseBtn.Parent = mainFrame
+setBaseBtn.Size = UDim2.new(1, -20, 0, 30)
+setBaseBtn.Position = UDim2.new(0, 10, 0, 70)
+setBaseBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+setBaseBtn.Text = "SET BASE POSITION"
+setBaseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+setBaseBtn.TextScaled = true
+setBaseBtn.Font = Enum.Font.Code
+setBaseBtn.BorderSizePixel = 0
 
-local function createStealthThread(func)
-    coroutine.wrap(func)()
-end
+local setBaseBtnCorner = Instance.new("UICorner")
+setBaseBtnCorner.CornerRadius = UDim.new(0, 5)
+setBaseBtnCorner.Parent = setBaseBtn
 
--- Advanced Speed Coil System
-local function findSpeedCoilProduct()
-    local searchTerm = "Speed Coil"
-    local results = MarketplaceService:GetProductsAsync(nil, searchTerm, 1)
-    
-    if results and #results > 0 then
-        for _, item in ipairs(results) do
-            if string.find(string.lower(item.Name), "speed") and string.find(string.lower(item.Name), "coil") then
-                return item.TargetId
-            end
-        end
-    end
-    return nil
-end
+local setBaseBtnStroke = Instance.new("UIStroke")
+setBaseBtnStroke.Color = Color3.fromRGB(100, 100, 100)
+setBaseBtnStroke.Thickness = 1
+setBaseBtnStroke.Parent = setBaseBtn
 
-local function playerOwnsSpeedCoil()
-    local coilId = findSpeedCoilProduct()
-    if not coilId then return false end
-    
-    local success, owns = pcall(function()
-        return MarketplaceService:PlayerOwnsAsset(player, coilId)
+-- Instant Steal Button
+local stealBtn = Instance.new("TextButton")
+stealBtn.Name = "StealBtn"
+stealBtn.Parent = mainFrame
+stealBtn.Size = UDim2.new(1, -20, 0, 35)
+stealBtn.Position = UDim2.new(0, 10, 0, 110)
+stealBtn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+stealBtn.Text = "🔥 INSTANT STEAL 🔥"
+stealBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+stealBtn.TextScaled = true
+stealBtn.Font = Enum.Font.Code
+stealBtn.BorderSizePixel = 0
+
+local stealBtnCorner = Instance.new("UICorner")
+stealBtnCorner.CornerRadius = UDim.new(0, 5)
+stealBtnCorner.Parent = stealBtn
+
+local stealBtnStroke = Instance.new("UIStroke")
+stealBtnStroke.Color = Color3.fromRGB(255, 100, 100)
+stealBtnStroke.Thickness = 2
+stealBtnStroke.Parent = stealBtn
+
+-- Button hover effects
+local function createHoverEffect(button, hoverColor, normalColor)
+    button.MouseEnter:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor})
+        tween:Play()
     end)
     
-    return success and owns
-end
-
-local function purchaseSpeedCoil()
-    local coilId = findSpeedCoilProduct()
-    if not coilId then return false end
-    
-    local success, result = pcall(function()
-        MarketplaceService:PromptPurchase(player, coilId)
+    button.MouseLeave:Connect(function()
+        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = normalColor})
+        tween:Play()
     end)
-    
-    return success
 end
 
--- Add Speed Coil to Backpack
-local function addSpeedCoilToBackpack()
-    local backpack = player:FindFirstChild("Backpack")
-    if not backpack then return end
-    
-    -- Create a fake Speed Coil tool
-    local speedCoil = Instance.new("Tool")
-    speedCoil.Name = "Speed Coil"
-    speedCoil.CanBeDropped = false
-    
-    local handle = Instance.new("Part")
-    handle.Name = "Handle"
-    handle.Size = Vector3.new(0.5, 1, 0.5)
-    handle.Parent = speedCoil
-    
-    speedCoil.Parent = backpack
-    return speedCoil
-end
+createHoverEffect(setBaseBtn, Color3.fromRGB(60, 60, 60), Color3.fromRGB(40, 40, 40))
+createHoverEffect(stealBtn, Color3.fromRGB(80, 30, 30), Color3.fromRGB(50, 20, 20))
 
--- Enhanced Speed Boost with Logic 9000
-local function advancedSpeedBoost()
-    -- Anti-Cheat Bypass Technique 1: Velocity Randomization
-    local function applyRandomizedVelocity()
-        if not rootPart or not humanoid then return end
+-- Advanced Movement System
+local function simulateNaturalMovement()
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
+    if not humanoid or not rootPart or not basePosition then return end
+    
+    -- Calculate direction to base position
+    local currentPos = rootPart.Position
+    local targetPos = basePosition
+    local direction = (targetPos - currentPos).Unit
+    
+    -- Check if we're close to the target
+    local distance = (targetPos - currentPos).Magnitude
+    
+    if distance < 5 then
+        -- We've reached the base, stop the movement
+        isStealActive = false
+        statusLabel.Text = "Status: STEAL COMPLETE"
+        stealBtn.Text = "🔥 INSTANT STEAL 🔥"
+        stealBtn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+        if movementConnection then
+            movementConnection:Disconnect()
+            movementConnection = nil
+        end
+        return
+    end
+    
+    walkTime = walkTime + RunService.Heartbeat:Wait()
+    
+    -- Walking phase (2 seconds with increased speed)
+    if walkTime < 2 and not isJumping then
+        humanoid.WalkSpeed = 20 -- Slightly faster than normal
+        humanoid:MoveTo(currentPos + (direction * 2))
         
-        local moveDir = humanoid.MoveDirection
-        if moveDir.Magnitude > 0 then
-            -- Randomize speed to avoid pattern detection
-            local randomizedSpeed = targetSpeed * (0.95 + math.random() * 0.1)
-            local velocity = moveDir * randomizedSpeed
-            rootPart.Velocity = Vector3.new(velocity.X, rootPart.Velocity.Y, velocity.Z)
-        end
-    end
-    
-    -- Anti-Cheat Bypass Technique 2: Network Ownership
-    local function takeNetworkOwnership()
-        if rootPart and rootPart:GetNetworkOwner() == nil then
-            rootPart:SetNetworkOwner(player)
-        end
-    end
-    
-    -- Anti-Cheat Bypass Technique 3: Physics Jitter
-    local function applyPhysicsJitter()
-        if rootPart then
-            local randomForce = Vector3.new(
-                (math.random() - 0.5) * 5,
-                (math.random() - 0.5) * 2,
-                (math.random() - 0.5) * 5
-            )
-            rootPart:ApplyImpulse(randomForce)
-        end
-    end
-    
-    -- Anti-Cheat Bypass Technique 4: Stealth Mode Switching
-    local function switchStealthModes()
-        local modes = {
-            function()
-                if humanoid then
-                    humanoid.WalkSpeed = originalWalkSpeed + math.random(5, 15)
-                end
-            end,
-            function()
-                if rootPart then
-                    rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 0.1, 0)
-                    task.wait(0.05)
-                    rootPart.CFrame = rootPart.CFrame + Vector3.new(0, -0.1, 0)
-                end
-            end,
-            function()
-                if character then
-                    for _, part in ipairs(character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                            task.wait(0.01)
-                            part.CanCollide = true
-                        end
-                    end
-                end
-            end
-        }
+    -- Jumping phase
+    elseif walkTime >= 2 and not isJumping then
+        isJumping = true
+        jumpCount = 0
+        humanoid.WalkSpeed = 16
         
-        -- Randomly apply a stealth mode
-        modes[math.random(1, #modes)]()
-    end
-    
-    -- Anti-Cheat Bypass Technique 5: Fake Lag Simulation
-    local function simulateFakeLag()
-        if math.random() < 0.2 then
-            for i = 1, math.random(3, 7) do
-                applyRandomizedVelocity()
-                RunService.Heartbeat:Wait()
+        -- Multiple jumps
+        local function performJumps()
+            if jumpCount < 3 then -- 3 jumps
+                humanoid.Jump = true
+                jumpCount = jumpCount + 1
+                wait(0.3)
+                performJumps()
+            else
+                -- Reset for next cycle
+                wait(0.5) -- Wait for landing
+                isJumping = false
+                walkTime = 0
             end
         end
-    end
-    
-    -- Main bypass loop
-    while speedBoostEnabled and infiniteJumpEnabled do
-        takeNetworkOwnership()
-        applyRandomizedVelocity()
         
-        if math.random() < 0.3 then
-            applyPhysicsJitter()
-        end
-        
-        if math.random() < 0.15 then
-            switchStealthModes()
-        end
-        
-        simulateFakeLag()
-        RunService.Heartbeat:Wait()
+        spawn(performJumps)
     end
 end
 
--- Funzioni principali
-function enableInfiniteJump()
-    if jumpConnection then jumpConnection:Disconnect() end
-    
-    jumpConnection = UserInputService.JumpRequest:Connect(function()
-        if infiniteJumpEnabled and humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-    
-    statusLabel.Text = "INFINITE JUMP: ACTIVATED"
-    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
-end
-
-function disableInfiniteJump()
-    if jumpConnection then
-        jumpConnection:Disconnect()
-        jumpConnection = nil
-    end
-    statusLabel.Text = "Infinite Jump: DISABLED"
-    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-end
-
--- Enhanced Speed Boost System
-function enableSpeedBoost()
-    if not humanoid then return end
-    
-    -- Check Speed Coil ownership
-    if playerOwnsSpeedCoil() then
-        speedCoilOwned = true
-        statusLabel.Text = "SPEED COIL: OWNED"
-        statusLabel.TextColor3 = Color3.fromRGB(50, 200, 50)
-        addSpeedCoilToBackpack()
-    else
-        statusLabel.Text = "SIMULATING SPEED COIL..."
-        statusLabel.TextColor3 = Color3.fromRGB(200, 150, 50)
-        speedCoilOwned = false
+-- Set Base Position Function
+local function setBasePosition()
+    local character = player.Character
+    if not character then 
+        statusLabel.Text = "Status: NO CHARACTER"
+        return 
     end
     
-    -- Save original speed
-    originalWalkSpeed = humanoid.WalkSpeed
-    
-    -- Activate advanced speed boost
-    createStealthThread(advancedSpeedBoost)
-    
-    statusLabel.Text = "SPEED BOOST: ACTIVATED"
-    statusLabel.TextColor3 = Color3.fromRGB(50, 200, 200)
-end
-
-function disableSpeedBoost()
-    -- Ripristina velocità originale
-    if humanoid then
-        humanoid.WalkSpeed = originalWalkSpeed
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then 
+        statusLabel.Text = "Status: NO ROOT PART"
+        return 
     end
     
-    statusLabel.Text = "Speed Boost: DISABLED"
-    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-end
-
--- GUI Controls
-closeButton.MouseButton1Click:Connect(function()
-    screenGui:Destroy()
-end)
-
--- Minimize Button Logic
-minimizeButton.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 500, 0, 50) or UDim2.new(0, 500, 0, 200)
-    local targetPos = isMinimized and UDim2.new(0.1, 0, 0, 0) or UDim2.new(0.1, 0, 0.05, 0)
+    basePosition = rootPart.Position
+    statusLabel.Text = "Status: BASE SET ✓"
     
-    local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-        Size = targetSize,
-        Position = targetPos
-    })
+    -- Visual feedback
+    local tween = TweenService:Create(setBaseBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(20, 80, 20)})
     tween:Play()
     
-    contentFrame.Visible = not isMinimized
-    minimizeButton.Text = isMinimized and "+" or "-"
-end)
-
--- Character respawn handling
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-    humanoid = newCharacter:WaitForChild("Humanoid")
-    rootPart = newCharacter:WaitForChild("HumanoidRootPart")
+    wait(1)
     
-    -- Riattiva funzioni se erano abilitate
-    task.wait(1)
-    
-    if infiniteJumpEnabled then
-        enableInfiniteJump()
-    end
-    
-    if speedBoostEnabled then
-        enableSpeedBoost()
-    end
-end)
-
--- Anti-Cheat Evasion
-local function randomizeBehavior()
-    while true do
-        -- Randomize target speed
-        if speedBoostEnabled then
-            targetSpeed = math.random(95, 120)
-        end
-        
-        -- Change GUI name
-        if math.random(1, 100) > 90 then
-            screenGui.Name = "GUI_"..HttpService:GenerateGUID(false):sub(1, 6)
-        end
-        
-        task.wait(math.random(5, 15))
-    end
+    local tween2 = TweenService:Create(setBaseBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)})
+    tween2:Play()
 end
 
-createStealthThread(randomizeBehavior)
+-- Instant Steal Function
+local function startInstantSteal()
+    if not basePosition then
+        statusLabel.Text = "Status: SET BASE FIRST!"
+        return
+    end
+    
+    if isStealActive then
+        -- Stop steal
+        isStealActive = false
+        statusLabel.Text = "Status: STOPPED"
+        stealBtn.Text = "🔥 INSTANT STEAL 🔥"
+        stealBtn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+        
+        if movementConnection then
+            movementConnection:Disconnect()
+            movementConnection = nil
+        end
+        
+        -- Reset player speed
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = 16
+            end
+        end
+        
+        return
+    end
+    
+    -- Start steal
+    isStealActive = true
+    walkTime = 0
+    jumpCount = 0
+    isJumping = false
+    
+    statusLabel.Text = "Status: STEALING..."
+    stealBtn.Text = "⏹️ STOP STEAL"
+    stealBtn.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+    
+    -- Start movement loop
+    movementConnection = RunService.Heartbeat:Connect(simulateNaturalMovement)
+end
 
--- Anti-Reset
-screenGui.DescendantRemoving:Connect(function(descendant)
-    if descendant == screenGui then
-        screenGui.Parent = playerGui
+-- Button connections
+setBaseBtn.MouseButton1Click:Connect(setBasePosition)
+stealBtn.MouseButton1Click:Connect(startInstantSteal)
+
+-- Cleanup on player leaving
+Players.PlayerRemoving:Connect(function(leavingPlayer)
+    if leavingPlayer == player then
+        if movementConnection then
+            movementConnection:Disconnect()
+        end
     end
 end)
 
-print("Sigma Hub v11 loaded successfully!")
-print("Features: Enhanced Speed Coil system, Anti-Cheat Bypass Logic 9000, Minimizable GUI")
+-- Glow animation
+spawn(function()
+    while wait(0.1) do
+        if glowFrame and glowFrame.Parent then
+            local tween = TweenService:Create(glowFrame, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {BackgroundTransparency = 0.95})
+            tween:Play()
+        else
+            break
+        end
+    end
+end)
+
+print("🔥 Instant Steal GUI loaded successfully! 🔥")
