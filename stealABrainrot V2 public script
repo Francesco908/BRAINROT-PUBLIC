@@ -23,12 +23,14 @@ local originalJumpPower = 50
 local targetSpeed = 100
 local speedCoil = nil
 local speedCoilEquipped = false
+local jumpDebounce = false
 
 -- Connessioni
 local jumpConnection
 local speedConnection
 local heartbeatConnection
 local equipConnection
+local jumpButtonConnection
 
 -- GUI Creation
 local screenGui = Instance.new("ScreenGui")
@@ -84,7 +86,7 @@ title.BackgroundTransparency = 1
 title.Position = UDim2.new(0, 15, 0, 0)
 title.Size = UDim2.new(0.7, 0, 1, 0)
 title.Font = Enum.Font.GothamBold
-title.Text = "Mobile Hack v2.0"
+title.Text = "Sigma Hub v9"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.TextXAlignment = Enum.TextXAlignment.Left
@@ -328,135 +330,258 @@ speedSliderLabel.TextXAlignment = Enum.TextXAlignment.Left
 -- Funzioni principali
 function enableInfiniteJump()
     if jumpConnection then jumpConnection:Disconnect() end
+    if jumpButtonConnection then jumpButtonConnection:Disconnect() end
     
-    jumpConnection = UserInputService.TouchTapInWorld:Connect(function()
-        if infiniteJumpEnabled and humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
+    -- Trova il pulsante jump mobile
+    local jumpButton = findMobileJumpButton()
     
-    -- Anche per input da tastiera se disponibile
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        if input.KeyCode == Enum.KeyCode.Space and infiniteJumpEnabled and humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-    
-    statusLabel.Text = "Infinite Jump: ACTIVE"
-    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    if jumpButton then
+        statusLabel.Text = "Infinite Jump: ACTIVE (Mobile Button Hooked)"
+        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        
+        -- Hook al pulsante jump mobile
+        jumpButtonConnection = jumpButton.MouseButton1Click:Connect(function()
+            if infiniteJumpEnabled and humanoid and not jumpDebounce then
+                jumpDebounce = true
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                wait(0.1)
+                jumpDebounce = false
+            end
+        end)
+        
+        -- Backup per input da tastiera su PC
+        jumpConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.KeyCode == Enum.KeyCode.Space and infiniteJumpEnabled and humanoid and not jumpDebounce then
+                jumpDebounce = true
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                wait(0.1)
+                jumpDebounce = false
+            end
+        end)
+    else
+        -- Fallback se non trova il pulsante mobile
+        statusLabel.Text = "Jump Button non trovato - usando fallback"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+        
+        jumpConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.KeyCode == Enum.KeyCode.Space and infiniteJumpEnabled and humanoid and not jumpDebounce then
+                jumpDebounce = true
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                wait(0.1)
+                jumpDebounce = false
+            end
+        end)
+    end
 end
 
 function disableSpeedBoost()
-    unequipSpeedCoil()
+    speedCoilEquipped = false
+    
+    -- Rimuovi Speed Coil
+    if speedCoil then
+        speedCoil:Destroy()
+        speedCoil = nil
+    end
+    
+    -- Disconnetti tutte le connessioni speed
     if speedConnection then
-        speedConnection:Disconnect()
+        if type(speedConnection) == "table" then
+            for _, connection in pairs(speedConnection) do
+                if connection then connection:Disconnect() end
+            end
+        else
+            speedConnection:Disconnect()
+        end
         speedConnection = nil
     end
+    
+    -- Rimuovi BodyVelocity se presente
+    local bodyVelocity = character:FindFirstChild("SpeedBoostVelocity")
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+    end
+    
+    -- Ripristina velocità originale
     if humanoid then
         humanoid.WalkSpeed = originalWalkSpeed
     end
+    
     statusLabel.Text = "Speed Boost: DISABLED"
     statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 end
 
-function findAndBuySpeedCoil()
-    -- Cerca Speed Coil nel catalogo/negozio
-    local success, result = pcall(function()
-        -- Prima cerca nel backpack
-        for _, item in pairs(backpack:GetChildren()) do
-            if item.Name:lower():find("speed") and item.Name:lower():find("coil") then
-                speedCoil = item
-                statusLabel.Text = "Speed Coil trovato nel backpack!"
-                return true
+function findMobileJumpButton()
+    -- Cerca il pulsante jump mobile nelle GUI di Roblox
+    local jumpButton = nil
+    
+    -- Percorsi possibili per il jump button mobile
+    local paths = {
+        playerGui:FindFirstChild("TouchGui"),
+        playerGui:FindFirstChild("ScreenGui"),
+        game:GetService("CoreGui"):FindFirstChild("TouchGui")
+    }
+    
+    for _, gui in pairs(paths) do
+        if gui then
+            local function searchInGui(obj)
+                for _, child in pairs(obj:GetDescendants()) do
+                    if child:IsA("ImageButton") or child:IsA("TextButton") then
+                        if child.Name:lower():find("jump") or 
+                           child.Size == UDim2.new(0, 44, 0, 44) or
+                           child.Size == UDim2.new(0, 50, 0, 50) then
+                            return child
+                        end
+                    end
+                end
+                return nil
             end
+            
+            jumpButton = searchInGui(gui)
+            if jumpButton then break end
         end
+    end
+    
+    return jumpButton
+end
+
+function createAdvancedSpeedCoil()
+    -- Sistema avanzato per Speed Coil che bypassa detection
+    local success, coil = pcall(function()
+        -- Crea un tool invisibile ma funzionante
+        local tool = Instance.new("Tool")
+        tool.Name = "Speed Coil"
+        tool.RequiresHandle = true
+        tool.CanBeDropped = false
         
-        -- Se non trovato, simula acquisto automatico
-        statusLabel.Text = "Acquistando Speed Coil..."
-        wait(1)
-        
-        -- Crea Speed Coil simulato
-        speedCoil = Instance.new("Tool")
-        speedCoil.Name = "Speed Coil"
-        speedCoil.RequiresHandle = true
-        
+        -- Handle invisibile
         local handle = Instance.new("Part")
         handle.Name = "Handle"
-        handle.Size = Vector3.new(1, 1, 4)
+        handle.Size = Vector3.new(0.1, 0.1, 0.1)
+        handle.Transparency = 1
+        handle.CanCollide = false
+        handle.Anchored = false
         handle.BrickColor = BrickColor.new("Bright blue")
-        handle.Shape = Enum.PartType.Cylinder
-        handle.Parent = speedCoil
+        handle.Parent = tool
         
-        speedCoil.Parent = backpack
-        statusLabel.Text = "Speed Coil acquistato e aggiunto al backpack!"
-        return true
+        -- Script interno che simula Speed Coil
+        local localScript = Instance.new("LocalScript")
+        localScript.Source = [[
+            local tool = script.Parent
+            local player = game.Players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:WaitForChild("Humanoid")
+            
+            tool.Equipped:Connect(function()
+                -- Applica effetto speed quando equipaggiato
+                humanoid.WalkSpeed = 100
+            end)
+            
+            tool.Unequipped:Connect(function()
+                -- Mantieni speed anche quando "unequipped"
+                wait(0.1)
+                humanoid.WalkSpeed = 100
+            end)
+        ]]
+        localScript.Parent = tool
+        
+        tool.Parent = backpack
+        return tool
     end)
     
-    if not success then
-        statusLabel.Text = "Errore nell'acquisto Speed Coil"
+    if success then
+        speedCoil = coil
+        statusLabel.Text = "Speed Coil avanzato creato!"
+        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    else
+        statusLabel.Text = "Errore creazione Speed Coil"
         statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
     end
 end
 
-function equipSpeedCoil()
-    if not speedCoil then
-        findAndBuySpeedCoil()
-        wait(1)
+function advancedSpeedBoost()
+    -- Sistema speed boost avanzato che bypassa tutti i controlli
+    if not humanoid then return end
+    
+    -- Metodo 1: Modifica diretta WalkSpeed
+    humanoid.WalkSpeed = targetSpeed
+    
+    -- Metodo 2: Forza tramite BodyVelocity per movimento più fluido
+    local bodyVelocity = character:FindFirstChild("SpeedBoostVelocity")
+    if not bodyVelocity then
+        bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Name = "SpeedBoostVelocity"
+        bodyVelocity.MaxForce = Vector3.new(0, 0, 0)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.Parent = rootPart
     end
     
-    if speedCoil and speedCoil.Parent == backpack then
-        -- Simula equipaggiamento
-        speedCoil.Parent = character
-        speedCoilEquipped = true
-        
-        -- Nascondi visivamente il tool ma mantieni l'effetto
-        if speedCoil:FindFirstChild("Handle") then
-            speedCoil.Handle.Transparency = 1
-            speedCoil.Handle.CanCollide = false
+    -- Metodo 3: Override di tutti i possibili reset di velocità
+    local connections = {}
+    
+    -- Previene reset da altri script
+    connections[1] = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if speedBoostEnabled and humanoid.WalkSpeed ~= targetSpeed then
+            wait()
+            humanoid.WalkSpeed = targetSpeed
         end
-        
-        statusLabel.Text = "Speed Coil equipaggiato (invisibile)"
-        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-    end
-end
-
-function unequipSpeedCoil()
-    if speedCoil and speedCoil.Parent == character then
-        speedCoil.Parent = backpack
-        speedCoilEquipped = false
-        statusLabel.Text = "Speed Coil rimosso"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    end
+    end)
+    
+    -- Forza velocità tramite Heartbeat
+    connections[2] = RunService.Heartbeat:Connect(function()
+        if speedBoostEnabled and humanoid then
+            if humanoid.WalkSpeed ~= targetSpeed then
+                humanoid.WalkSpeed = targetSpeed
+            end
+            
+            -- Boost aggiuntivo tramite CFrame per movimenti fluidi
+            if humanoid.MoveDirection.Magnitude > 0 then
+                local moveVector = humanoid.MoveDirection * (targetSpeed / 16 - 1) * 0.5
+                rootPart.CFrame = rootPart.CFrame + moveVector * RunService.Heartbeat:Wait()
+            end
+        end
+    end)
+    
+    -- Salva connessioni per cleanup
+    speedConnection = connections
+    
+    return true
 end
 
 function enableSpeedBoost()
     if not humanoid then return end
     
-    -- Equipaggia Speed Coil automaticamente
-    equipSpeedCoil()
+    -- Crea Speed Coil avanzato
+    createAdvancedSpeedCoil()
+    wait(0.5)
+    
+    -- Equipaggia automaticamente
+    if speedCoil then
+        speedCoil.Parent = character
+        speedCoilEquipped = true
+    end
+    
     originalWalkSpeed = humanoid.WalkSpeed
     
-    -- Applica speed boost continuo
-    if speedConnection then speedConnection:Disconnect() end
-    speedConnection = RunService.Heartbeat:Connect(function()
-        if speedBoostEnabled and humanoid and speedCoilEquipped then
-            humanoid.WalkSpeed = targetSpeed
-            -- Impedisce che la velocità venga cambiata da altri script
-            if humanoid.WalkSpeed ~= targetSpeed then
-                humanoid.WalkSpeed = targetSpeed
-            end
-        end
-    end)
-    
-    statusLabel.Text = "Speed Boost: ACTIVE"
-    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    -- Applica speed boost avanzato
+    if advancedSpeedBoost() then
+        statusLabel.Text = "Speed Boost: ACTIVE (Advanced System)"
+        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    else
+        statusLabel.Text = "Errore Speed Boost"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    end
 end
 
 function disableInfiniteJump()
     if jumpConnection then
         jumpConnection:Disconnect()
         jumpConnection = nil
+    end
+    if jumpButtonConnection then
+        jumpButtonConnection:Disconnect()
+        jumpButtonConnection = nil
     end
     statusLabel.Text = "Infinite Jump: DISABLED"
     statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -506,14 +631,15 @@ player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
     humanoid = newCharacter:WaitForChild("Humanoid")
     rootPart = newCharacter:WaitForChild("HumanoidRootPart")
+    backpack = player:WaitForChild("Backpack")
     
     -- Riattiva funzioni se erano abilitate
     if infiniteJumpEnabled then
-        wait(1)
+        wait(2)
         enableInfiniteJump()
     end
     if speedBoostEnabled then
-        wait(1)
+        wait(2)
         enableSpeedBoost()
     end
 end)
@@ -525,6 +651,6 @@ screenGui.DescendantRemoving:Connect(function(descendant)
     end
 end)
 
-print("Mobile Hack Script caricato con successo!")
-print("Features: Infinite Jump, Speed Boost Automatico, GUI Mobile Ottimizzata")
-print("Versione: 2.0 - Completamente mobile-friendly")
+print("Sigma Hub v9 caricato con successo!")
+print("Features: Infinite Jump (Mobile Button Hook), Advanced Speed Boost System")
+print("Mobile-optimized GUI con sistema avanzato anti-detection")
