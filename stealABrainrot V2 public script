@@ -260,8 +260,11 @@ end
 
         -- Remove old float movement function since we're not using it anymore
 
--- Advanced Instant Steal (Persistent Teleport System)
-local function advancedPersistentTeleport()
+-- Advanced Instant Steal (Ultra Persistent System)
+local instantStealAttempts = 0
+local lastTeleportTime = 0
+
+local function ultraPersistentTeleport()
     local character = player.Character
     if not character then return end
     
@@ -270,77 +273,93 @@ local function advancedPersistentTeleport()
     
     if not rootPart or not basePosition then return end
     
-    -- Calculate distance from base
     local currentPos = rootPart.Position
     local distance = (basePosition - currentPos).Magnitude
+    local currentTime = tick()
     
-    -- Multi-method teleport approach for advanced anti-cheat bypass
-    if distance > 5 then
-        -- Method 1: Direct CFrame teleport
-        rootPart.CFrame = CFrame.new(basePosition)
+    -- Aggressive teleport every frame if not at base
+    if distance > 2 then
+        instantStealAttempts = instantStealAttempts + 1
         
-        -- Method 2: Velocity reset
+        -- Method 1: Immediate CFrame override
+        rootPart.CFrame = CFrame.new(basePosition + Vector3.new(0, 2, 0))
+        
+        -- Method 2: Disable all physics
+        rootPart.CanCollide = false
+        rootPart.Anchored = true
+        
+        -- Method 3: Force through multiple position methods
+        spawn(function()
+            rootPart.Position = basePosition
+            rootPart.CFrame = CFrame.new(basePosition)
+        end)
+        
+        -- Method 4: Humanoid override
+        if humanoid then
+            humanoid.Sit = false
+            humanoid.PlatformStand = true
+            humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+        end
+        
+        -- Method 5: Velocity nullification
         rootPart.Velocity = Vector3.new(0, 0, 0)
         rootPart.RotVelocity = Vector3.new(0, 0, 0)
         
-        -- Method 3: Force position through multiple properties
-        rootPart.Position = basePosition
-        
-        -- Method 4: Humanoid state manipulation
-        if humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-            wait(0.01)
-            humanoid:ChangeState(Enum.HumanoidStateType.Running)
-        end
-        
-        -- Method 5: AssemblyLinearVelocity (newer Roblox property)
+        -- Method 6: Assembly properties (modern Roblox)
         pcall(function()
             rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
         end)
         
-        -- Method 6: Network ownership bypass attempt
-        pcall(function()
-            rootPart:SetNetworkOwner(player)
-        end)
+        -- Method 7: BodyMovers for persistent positioning
+        local bodyPos = rootPart:FindFirstChild("InstantStealBodyPos")
+        if not bodyPos then
+            bodyPos = Instance.new("BodyPosition")
+            bodyPos.Name = "InstantStealBodyPos"
+            bodyPos.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bodyPos.P = 50000
+            bodyPos.D = 5000
+            bodyPos.Parent = rootPart
+        end
+        bodyPos.Position = basePosition
         
-        statusLabel.Text = "Status: FORCING TELEPORT | Distance: " .. math.floor(distance) .. " | Immortal Mode: ON"
+        local bodyAngular = rootPart:FindFirstChild("InstantStealBodyAngular")
+        if not bodyAngular then
+            bodyAngular = Instance.new("BodyAngularVelocity")
+            bodyAngular.Name = "InstantStealBodyAngular"
+            bodyAngular.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            bodyAngular.AngularVelocity = Vector3.new(0, 0, 0)
+            bodyAngular.Parent = rootPart
+        end
+        
+        -- Method 8: Character MoveTo as backup
+        if currentTime - lastTeleportTime > 0.1 then
+            character:MoveTo(basePosition)
+            lastTeleportTime = currentTime
+        end
+        
+        statusLabel.Text = "Status: FORCING TELEPORT [" .. instantStealAttempts .. "] | Dist: " .. math.floor(distance) .. " | Immortal Mode: ON"
+        
     else
-        -- Successfully at base, maintain position
+        -- Successfully at base - lock everything
         rootPart.CFrame = CFrame.new(basePosition)
         rootPart.Anchored = true
+        rootPart.CanCollide = false
         
         if humanoid then
             humanoid.PlatformStand = true
+            humanoid.Sit = false
         end
         
-        statusLabel.Text = "Status: LOCKED AT BASE | Immortal Mode: ON"
+        statusLabel.Text = "Status: LOCKED AT BASE [SUCCESS] | Immortal Mode: ON"
     end
-    
-    -- Additional anti-teleport-back protection
-    pcall(function()
-        -- Override any external position changes
-        local bodyPosition = rootPart:FindFirstChild("BodyPosition")
-        if not bodyPosition then
-            bodyPosition = Instance.new("BodyPosition")
-            bodyPosition.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-            bodyPosition.Parent = rootPart
-        end
-        bodyPosition.Position = basePosition
-        bodyPosition.D = 5000
-        bodyPosition.P = 10000
-    end)
-    
-    -- Backup teleport method using character:MoveTo
-    pcall(function()
-        if character and distance > 3 then
-            character:MoveTo(basePosition)
-        end
-    end)
 end
 
--- Test V1 System (Horizontal Float Flight)
-local function testV1FloatSystem()
+-- Test V1 System (Ultra Stable Float Flight)
+local testV1LastPos = nil
+local testV1ForceCounter = 0
+
+local function ultraStableFloatSystem()
     local character = player.Character
     if not character then return end
     
@@ -352,30 +371,66 @@ local function testV1FloatSystem()
     local currentPos = rootPart.Position
     local targetPos = basePosition
     
-    -- Calculate horizontal distance only
+    -- Calculate horizontal target maintaining current height
     local horizontalTarget = Vector3.new(targetPos.X, currentPos.Y, targetPos.Z)
     local horizontalDistance = (horizontalTarget - currentPos).Magnitude
     
+    -- Check if we got teleported back (anti-cheat detection)
+    if testV1LastPos and (currentPos - testV1LastPos).Magnitude > 20 then
+        testV1ForceCounter = testV1ForceCounter + 1
+        statusLabel.Text = "Status: ANTI-CHEAT DETECTED [" .. testV1ForceCounter .. "] | Fighting Back | Immortal Mode: ON"
+        
+        -- Force back to last position with multiple methods
+        rootPart.CFrame = CFrame.new(testV1LastPos)
+        rootPart.Anchored = true
+        wait(0.05)
+        rootPart.Anchored = false
+    end
+    
     if horizontalDistance > 2 then
-        -- Float horizontally to base at consistent height
+        -- Calculate movement direction
         local direction = (horizontalTarget - currentPos).Unit
-        local floatSpeed = 1.5
+        local floatSpeed = 1.2 -- Slower for more stability
         local newPos = currentPos + (direction * floatSpeed)
         
-        -- Maintain float height
+        -- Maintain exact height
         newPos = Vector3.new(newPos.X, currentPos.Y, newPos.Z)
         
-        -- Direct CFrame movement (no tween)
+        -- Ultra-stable movement with multiple safety checks
         rootPart.CFrame = CFrame.new(newPos)
         rootPart.Velocity = Vector3.new(0, 0, 0)
+        rootPart.RotVelocity = Vector3.new(0, 0, 0)
         
-        -- Keep humanoid in flying state
+        -- Force physics state
         humanoid.PlatformStand = true
+        humanoid.Sit = false
+        
+        -- Assembly velocity override (modern Roblox)
+        pcall(function()
+            rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end)
+        
+        -- Anti-fall protection
+        if newPos.Y < currentPos.Y - 5 then
+            newPos = Vector3.new(newPos.X, currentPos.Y, newPos.Z)
+            rootPart.CFrame = CFrame.new(newPos)
+        end
+        
+        -- Update last position for teleport-back detection
+        testV1LastPos = newPos
+        
+        statusLabel.Text = "Status: TEST V1 FLYING | Dist: " .. math.floor(horizontalDistance) .. " | Immortal Mode: ON"
+        
     else
-        -- Arrived at base, land
-        local landPos = Vector3.new(targetPos.X, targetPos.Y, targetPos.Z)
+        -- Arrived at base - safe landing
+        local landPos = Vector3.new(targetPos.X, targetPos.Y + 1, targetPos.Z)
         rootPart.CFrame = CFrame.new(landPos)
+        
+        -- Gradual landing
+        wait(0.2)
         humanoid.PlatformStand = false
+        rootPart.Anchored = false
         
         -- Stop the test
         isTestV1Active = false
@@ -387,6 +442,9 @@ local function testV1FloatSystem()
             testV1Connection:Disconnect()
             testV1Connection = nil
         end
+        
+        testV1LastPos = nil
+        testV1ForceCounter = 0
     end
 end
 
@@ -442,7 +500,7 @@ local function startInstantSteal()
             movementConnection = nil
         end
         
-        -- Advanced reset for persistent teleport
+        -- Ultra-advanced reset system
         local character = player.Character
         if character then
             local rootPart = character:FindFirstChild("HumanoidRootPart")
@@ -450,21 +508,26 @@ local function startInstantSteal()
             
             if rootPart then
                 rootPart.Anchored = false
+                rootPart.CanCollide = true
                 rootPart.Velocity = Vector3.new(0, 0, 0)
                 
-                -- Remove BodyPosition if exists
-                local bodyPosition = rootPart:FindFirstChild("BodyPosition")
-                if bodyPosition then
-                    bodyPosition:Destroy()
-                end
+                -- Remove all custom BodyMovers
+                local bodyPos = rootPart:FindFirstChild("InstantStealBodyPos")
+                if bodyPos then bodyPos:Destroy() end
+                
+                local bodyAngular = rootPart:FindFirstChild("InstantStealBodyAngular")
+                if bodyAngular then bodyAngular:Destroy() end
             end
             
             if humanoid then
                 humanoid.PlatformStand = false
+                humanoid.Sit = false
                 humanoid.WalkSpeed = 16
                 humanoid:ChangeState(Enum.HumanoidStateType.Running)
             end
         end
+        
+        instantStealAttempts = 0
         
         return
     end
@@ -476,8 +539,9 @@ local function startInstantSteal()
     stealBtn.Text = "STOP STEAL"
     stealBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
     
-    -- Start infinite persistent teleport
-    movementConnection = RunService.Heartbeat:Connect(advancedPersistentTeleport)
+    -- Start ultra persistent teleport system
+    instantStealAttempts = 0
+    movementConnection = RunService.Heartbeat:Connect(ultraPersistentTeleport)
 end
 
 -- Test V1 Function
@@ -499,15 +563,26 @@ local function startTestV1()
             testV1Connection = nil
         end
         
-        -- Reset player state
+        -- Advanced Test V1 reset
         local character = player.Character
         if character then
             local humanoid = character:FindFirstChild("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            
             if humanoid then
                 humanoid.PlatformStand = false
+                humanoid.Sit = false
                 humanoid.WalkSpeed = 16
             end
+            
+            if rootPart then
+                rootPart.Anchored = false
+                rootPart.CanCollide = true
+            end
         end
+        
+        testV1LastPos = nil
+        testV1ForceCounter = 0
         
         return
     end
@@ -529,8 +604,10 @@ local function startTestV1()
         end
     end
     
-    -- Start horizontal float movement
-    testV1Connection = RunService.Heartbeat:Connect(testV1FloatSystem)
+    -- Start ultra-stable horizontal float movement
+    testV1LastPos = nil
+    testV1ForceCounter = 0
+    testV1Connection = RunService.Heartbeat:Connect(ultraStableFloatSystem)
 end
 
 -- Button connections
