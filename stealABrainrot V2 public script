@@ -1,19 +1,19 @@
--- Sigma Hub v10 - Mobile Advanced Hax
--- Features: Infinite Jump, God Mode, Advanced Speed Coil Simulation
+-- Sigma Hub v11 - Ultimate Mobile Hax
+-- Features: Speed Coil ownership check, Anti-Cheat Bypass, Minimizable GUI
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
-local backpack = player:WaitForChild("Backpack")
 
 -- Variabili principali
 local infiniteJumpEnabled = false
@@ -23,6 +23,7 @@ local originalWalkSpeed = humanoid.WalkSpeed
 local originalJumpPower = humanoid.JumpPower
 local targetSpeed = 100
 local jumpDebounce = false
+local isMinimized = false
 
 -- Connessioni
 local jumpConnection
@@ -30,16 +31,19 @@ local speedConnection
 local godModeConnection
 local heartbeatConnection
 
+-- Genera un ID unico per evitare detection
+local uniqueId = HttpService:GenerateGUID(false):sub(1, 8)
+
 -- GUI Creation
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SigmaHubv10"
+screenGui.Name = "SigmaHub_"..uniqueId
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 -- Main Frame (Draggable)
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
+mainFrame.Name = "MainFrame_"..uniqueId
 mainFrame.Parent = screenGui
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 mainFrame.BackgroundTransparency = 0.1
@@ -84,7 +88,7 @@ title.BackgroundTransparency = 1
 title.Position = UDim2.new(0, 15, 0, 0)
 title.Size = UDim2.new(0.7, 0, 1, 0)
 title.Font = Enum.Font.GothamBold
-title.Text = "Sigma Hub v10"
+title.Text = "Sigma Hub v11"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.TextScaled = true
 title.TextXAlignment = Enum.TextXAlignment.Left
@@ -106,6 +110,23 @@ local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeButton
 
+-- Minimize Button
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Name = "MinimizeButton"
+minimizeButton.Parent = header
+minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 150, 50)
+minimizeButton.BorderSizePixel = 0
+minimizeButton.Position = UDim2.new(1, -75, 0.5, -12.5)
+minimizeButton.Size = UDim2.new(0, 25, 0, 25)
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextScaled = true
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 6)
+minimizeCorner.Parent = minimizeButton
+
 -- Content Frame
 local contentFrame = Instance.new("Frame")
 contentFrame.Name = "ContentFrame"
@@ -117,7 +138,7 @@ contentFrame.Size = UDim2.new(1, 0, 1, -60)
 -- Funzione per creare switch
 local function createSwitch(parent, text, position, callback)
     local switchFrame = Instance.new("Frame")
-    switchFrame.Name = text .. "Switch"
+    switchFrame.Name = text.."Switch_"..uniqueId
     switchFrame.Parent = parent
     switchFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
     switchFrame.BorderSizePixel = 0
@@ -221,7 +242,7 @@ local speedBoostSwitch, speedBoostToggle = createSwitch(
 
 -- Status Display
 local statusFrame = Instance.new("Frame")
-statusFrame.Name = "StatusFrame"
+statusFrame.Name = "StatusFrame_"..uniqueId
 statusFrame.Parent = contentFrame
 statusFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
 statusFrame.BorderSizePixel = 0
@@ -242,26 +263,42 @@ statusLabel.Text = "Status: Ready"
 statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 statusLabel.TextScaled = true
 
+-- ANTI-CHEAT BYPASS TECHNIQUES --
+local function stealthHook(remote, callback)
+    if typeof(remote) == "Instance" and remote:IsA("RemoteEvent") then
+        local oldFireServer = remote.FireServer
+        remote.FireServer = function(self, ...)
+            callback(...)
+            return oldFireServer(self, ...)
+        end
+        return true
+    end
+    return false
+end
+
+local function createStealthThread(func)
+    coroutine.wrap(func)()
+end
+
 -- Funzioni avanzate
 function enableGodMode()
     if not humanoid then return end
     
-    -- Protezione da danni
-    if godModeConnection then godModeConnection:Disconnect() end
-    
-    godModeConnection = humanoid.HealthChanged:Connect(function()
-        if godModeEnabled and humanoid.Health < humanoid.MaxHealth then
-            humanoid.Health = humanoid.MaxHealth
+    -- Protezione da danni (stealth)
+    createStealthThread(function()
+        while godModeEnabled do
+            if humanoid and humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth
+            end
+            task.wait(0.2)
         end
     end)
     
-    -- Imposta la salute al massimo
-    humanoid.Health = humanoid.MaxHealth
-    
-    -- Protezione aggiuntiva
+    -- Protezione fisica (anti-ragdoll)
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             part.CanCollide = false
+            part.Massless = true
         end
     end
     
@@ -270,15 +307,11 @@ function enableGodMode()
 end
 
 function disableGodMode()
-    if godModeConnection then
-        godModeConnection:Disconnect()
-        godModeConnection = nil
-    end
-    
-    -- Ripristina collisioni
+    -- Ripristina proprietà fisiche
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             part.CanCollide = true
+            part.Massless = false
         end
     end
     
@@ -308,74 +341,86 @@ function disableInfiniteJump()
     statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 end
 
-function findRealSpeedCoil()
-    -- Ricerca nel Marketplace
-    local productId = nil
+-- Ricerca avanzata Speed Coil
+local function findSpeedCoilProduct()
     local searchTerm = "Speed Coil"
+    local results = MarketplaceService:GetProductsAsync(nil, searchTerm, 1)
     
-    pcall(function()
-        local results = MarketplaceService:GetProducts(nil, searchTerm, 1)
-        if #results > 0 then
-            productId = results[1].TargetId
-        end
-    end)
-    
-    return productId
-end
-
-function simulateSpeedCoilEffect()
-    if not humanoid then return end
-    
-    -- Salva velocità originale
-    originalWalkSpeed = humanoid.WalkSpeed
-    
-    -- Applica effetto velocità
-    humanoid.WalkSpeed = targetSpeed
-    
-    -- Sistema avanzato di movimento
-    if speedConnection then speedConnection:Disconnect() end
-    
-    speedConnection = RunService.Heartbeat:Connect(function(delta)
-        if speedBoostEnabled and humanoid then
-            -- Mantieni la velocità
-            if humanoid.WalkSpeed ~= targetSpeed then
-                humanoid.WalkSpeed = targetSpeed
-            end
-            
-            -- Movimento fluido avanzato
-            if humanoid.MoveDirection.Magnitude > 0 then
-                local moveVector = humanoid.MoveDirection * targetSpeed
-                rootPart.Velocity = Vector3.new(moveVector.X, rootPart.Velocity.Y, moveVector.Z)
+    if results and #results > 0 then
+        for _, item in ipairs(results) do
+            if string.find(string.lower(item.Name), "speed") and string.find(string.lower(item.Name), "coil") then
+                return item.TargetId
             end
         end
-    end)
+    end
+    return nil
 end
 
+local function playerOwnsSpeedCoil()
+    local coilId = findSpeedCoilProduct()
+    if not coilId then return false end
+    
+    local success, owns = pcall(function()
+        return MarketplaceService:PlayerOwnsAsset(player, coilId)
+    end)
+    
+    return success and owns
+end
+
+local function purchaseSpeedCoil()
+    local coilId = findSpeedCoilProduct()
+    if not coilId then return false end
+    
+    local success, result = pcall(function()
+        MarketplaceService:PromptPurchase(player, coilId)
+    end)
+    
+    return success
+end
+
+-- Sistema Speed Boost con proprietà dell'oggetto
 function enableSpeedBoost()
     if not humanoid then return end
     
-    -- Cerca il vero Speed Coil
-    local coilId = findRealSpeedCoil()
-    
-    if coilId then
-        statusLabel.Text = "SPEED COIL: ACQUIRED"
+    -- Verifica se il player possiede lo Speed Coil
+    if playerOwnsSpeedCoil() then
+        statusLabel.Text = "SPEED COIL: OWNED"
         statusLabel.TextColor3 = Color3.fromRGB(50, 200, 50)
     else
-        statusLabel.Text = "SPEED COIL: SIMULATED"
+        statusLabel.Text = "PURCHASING SPEED COIL..."
         statusLabel.TextColor3 = Color3.fromRGB(200, 150, 50)
+        
+        -- Simula acquisto
+        if purchaseSpeedCoil() then
+            wait(3)
+            statusLabel.Text = "SPEED COIL: PURCHASED"
+        else
+            statusLabel.Text = "SPEED COIL: SIMULATED"
+        end
     end
     
-    -- Applica l'effetto indipendentemente dal possesso
-    simulateSpeedCoilEffect()
+    -- Applica effetto velocità (metodo stealth)
+    originalWalkSpeed = humanoid.WalkSpeed
+    
+    createStealthThread(function()
+        while speedBoostEnabled do
+            if humanoid then
+                -- Metodo 1: Modifica diretta (low detection)
+                humanoid.WalkSpeed = targetSpeed
+                
+                -- Metodo 2: Movimento fluido avanzato
+                if humanoid.MoveDirection.Magnitude > 0 then
+                    local moveVector = humanoid.MoveDirection * (targetSpeed / 1.5)
+                    rootPart.Velocity = Vector3.new(moveVector.X, rootPart.Velocity.Y, moveVector.Z)
+                end
+            end
+            RunService.Heartbeat:Wait()
+        end
+    end)
 end
 
 function disableSpeedBoost()
-    if speedConnection then
-        speedConnection:Disconnect()
-        speedConnection = nil
-    end
-    
-    -- Ripristina velocità
+    -- Ripristina velocità originale
     if humanoid then
         humanoid.WalkSpeed = originalWalkSpeed
     end
@@ -389,6 +434,22 @@ closeButton.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
+-- Minimize Button Logic
+minimizeButton.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    local targetSize = isMinimized and UDim2.new(0, 500, 0, 50) or UDim2.new(0, 500, 0, 220)
+    local targetPos = isMinimized and UDim2.new(0.1, 0, 0, 0) or UDim2.new(0.1, 0, 0.05, 0)
+    
+    local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+        Size = targetSize,
+        Position = targetPos
+    })
+    tween:Play()
+    
+    contentFrame.Visible = not isMinimized
+    minimizeButton.Text = isMinimized and "+" or "-"
+end)
+
 -- Character respawn handling
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
@@ -396,7 +457,7 @@ player.CharacterAdded:Connect(function(newCharacter)
     rootPart = newCharacter:WaitForChild("HumanoidRootPart")
     
     -- Riattiva funzioni se erano abilitate
-    wait(1)
+    task.wait(1)
     
     if infiniteJumpEnabled then
         enableInfiniteJump()
@@ -411,6 +472,25 @@ player.CharacterAdded:Connect(function(newCharacter)
     end
 end)
 
+-- Anti-Cheat Evasion
+local function randomizeBehavior()
+    while true do
+        -- Variazione casuale dei valori per evitare pattern detection
+        if speedBoostEnabled then
+            targetSpeed = math.random(95, 105)
+        end
+        
+        -- Modifica casuale del nome del GUI
+        if math.random(1, 100) > 90 then
+            screenGui.Name = "GUI_"..HttpService:GenerateGUID(false):sub(1, 6)
+        end
+        
+        task.wait(math.random(5, 15))
+    end
+end
+
+createStealthThread(randomizeBehavior)
+
 -- Anti-Reset
 screenGui.DescendantRemoving:Connect(function(descendant)
     if descendant == screenGui then
@@ -418,5 +498,5 @@ screenGui.DescendantRemoving:Connect(function(descendant)
     end
 end)
 
-print("Sigma Hub v10 loaded successfully!")
-print("Features: Infinite Jump + God Mode, Advanced Speed Coil Simulation")
+print("Sigma Hub v11 loaded successfully!")
+print("Features: Speed Coil ownership system, Anti-Cheat Bypass, Minimizable GUI")
