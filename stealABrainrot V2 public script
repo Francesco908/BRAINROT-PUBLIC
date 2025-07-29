@@ -1,741 +1,853 @@
--- 🔥 SIGMA HUB V4.0 - ULTIMATE EDITION 🔥
--- Anti-bug system with floating infinite teleport
+-- Advanced Mobile Roblox Script
+-- Infinite Jump + Speed Boost + GUI
+-- Ottimizzato per dispositivi mobili
 
-local Services = {
-    Players = game:GetService("Players"),
-    UserInputService = game:GetService("UserInputService"),
-    RunService = game:GetService("RunService"),
-    TweenService = game:GetService("TweenService"),
-    StarterGui = game:GetService("StarterGui"),
-    Workspace = game:GetService("Workspace"),
-    ReplicatedStorage = game:GetService("ReplicatedStorage")
-}
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local GuiService = game:GetService("GuiService")
 
-local player = Services.Players.LocalPlayer
-local connections = {}
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local mouse = player:GetMouse()
 
--- Safe character functions with error handling
-local function safeGetChar()
-    return player.Character or player.CharacterAdded:Wait()
-end
+-- Variabili globali
+local isInfiniteJumpEnabled = false
+local isSpeedBoostEnabled = false
+local originalWalkSpeed = 16
+local currentSpeedBoost = 50
+local jumpConnection = nil
+local speedConnection = nil
+local gui = nil
+local dragToggle = nil
+local dragSpeed = 0.25
+local dragStart = nil
+local startPos = nil
+local isMinimized = false
 
-local function safeGetHuman()
-    local char = safeGetChar()
-    return char and char:FindFirstChildOfClass("Humanoid")
-end
-
-local function safeGetRoot()
-    local char = safeGetChar()
-    return char and char:FindFirstChild("HumanoidRootPart")
-end
-
--- SIGMA HUB Core System
-local SigmaHub = {
-    -- Base settings
-    basePosition = nil,
-    currentTab = "Movement",
-    menuOpen = false,
-    gui = nil,
+-- Funzione per creare la GUI principale
+local function createMainGUI()
+    -- ScreenGui principale
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AdvancedMobileScript"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Parent = playerGui
     
-    -- States
-    isFloatTeleporting = false,
-    isSmartJumping = false,
-    isFloating = false,
-    isInfiniteJumping = false,
+    -- Frame principale (draggable)
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = UDim2.new(0, 350, 0, 450)
+    mainFrame.Position = UDim2.new(0.5, -175, 0.5, -225)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.ClipsDescendants = true
+    mainFrame.Parent = screenGui
     
-    -- Settings
-    jumpPower = 16,
-    floatHeight = 16,
-    teleportHeight = 8,
-    antiKickEnabled = true,
-    safeMode = true,
-    
-    -- Advanced settings
-    maxTeleportDistance = 500,
-    teleportSpeed = 0.1,
-    jumpCooldown = 0.5
-}
-
--- Colors
-local Colors = {
-    bg = Color3.fromRGB(15, 15, 20),
-    accent = Color3.fromRGB(0, 255, 100),
-    danger = Color3.fromRGB(255, 60, 60),
-    warning = Color3.fromRGB(255, 180, 0),
-    info = Color3.fromRGB(60, 150, 255),
-    inactive = Color3.fromRGB(80, 80, 90),
-    text = Color3.fromRGB(220, 220, 230)
-}
-
--- Safe notification system
-local function notify(title, text, color)
-    spawn(function()
-        pcall(function()
-            Services.StarterGui:SetCore("SendNotification", {
-                Title = "⚡ SIGMA | " .. title,
-                Text = text,
-                Duration = 3
-            })
-        end)
-    end)
-end
-
--- FLOATING INFINITE TELEPORT SYSTEM
-local function startFloatingTeleport()
-    if SigmaHub.isFloatTeleporting or not SigmaHub.basePosition then 
-        return 
-    end
-    
-    SigmaHub.isFloatTeleporting = true
-    notify("FLOAT TP", "Infinite floating teleport started", Colors.accent)
-    
-    local function performFloatingTeleport()
-        local root = safeGetRoot()
-        local human = safeGetHuman()
-        
-        if not root or not human then
-            return false
-        end
-        
-        -- Calculate floating position above base
-        local targetPos = SigmaHub.basePosition + Vector3.new(
-            math.random(-2, 2), -- Small random X offset
-            SigmaHub.teleportHeight + math.random(0, 3), -- Float above base
-            math.random(-2, 2)  -- Small random Z offset
-        )
-        
-        -- Safety check - don't teleport too far
-        local distance = (root.Position - SigmaHub.basePosition).Magnitude
-        if distance > SigmaHub.maxTeleportDistance then
-            -- Use safer intermediate position
-            local direction = (SigmaHub.basePosition - root.Position).Unit
-            targetPos = root.Position + (direction * 50)
-            targetPos = targetPos + Vector3.new(0, SigmaHub.teleportHeight, 0)
-        end
-        
-        -- Advanced raycast for safety
-        local raycast = Services.Workspace:Raycast(
-            targetPos + Vector3.new(0, 20, 0),
-            Vector3.new(0, -40, 0),
-            RaycastParams.new()
-        )
-        
-        if raycast and SigmaHub.safeMode then
-            targetPos = raycast.Position + Vector3.new(0, SigmaHub.teleportHeight, 0)
-        end
-        
-        -- Safe teleport with multiple fallbacks
-        local success = false
-        
-        -- Method 1: CFrame teleport
-        pcall(function()
-            root.CFrame = CFrame.new(targetPos)
-            success = true
-        end)
-        
-        -- Method 2: Position assignment (fallback)
-        if not success then
-            pcall(function()
-                root.Position = targetPos
-                success = true
-            end)
-        end
-        
-        -- Method 3: BodyPosition (ultimate fallback)
-        if not success then
-            pcall(function()
-                local bodyPos = Instance.new("BodyPosition")
-                bodyPos.MaxForce = Vector3.new(4000, 4000, 4000)
-                bodyPos.Position = targetPos
-                bodyPos.Parent = root
-                
-                spawn(function()
-                    wait(0.2)
-                    if bodyPos and bodyPos.Parent then
-                        bodyPos:Destroy()
-                    end
-                end)
-                success = true
-            end)
-        end
-        
-        -- Create floating effect
-        if success then
-            local bodyVelocity = Instance.new("BodyVelocity")
-            bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
-            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-            bodyVelocity.Parent = root
-            
-            spawn(function()
-                wait(0.5)
-                if bodyVelocity and bodyVelocity.Parent then
-                    bodyVelocity:Destroy()
-                end
-            end)
-        end
-        
-        return success
-    end
-    
-    -- Continuous floating teleport loop
-    connections.floatingTP = Services.RunService.Heartbeat:Connect(function()
-        if not SigmaHub.isFloatTeleporting then
-            connections.floatingTP:Disconnect()
-            return
-        end
-        
-        performFloatingTeleport()
-        wait(SigmaHub.teleportSpeed)
-    end)
-end
-
-local function stopFloatingTeleport()
-    SigmaHub.isFloatTeleporting = false
-    if connections.floatingTP then
-        connections.floatingTP:Disconnect()
-        connections.floatingTP = nil
-    end
-    notify("FLOAT TP", "Stopped floating teleport", Colors.warning)
-end
-
--- FIXED SMART JUMP SYSTEM
-local function startSmartJump()
-    if SigmaHub.isSmartJumping or not SigmaHub.basePosition then
-        return
-    end
-    
-    SigmaHub.isSmartJumping = true
-    notify("SMART JUMP", "Jumping to base position", Colors.info)
-    
-    local function performJump()
-        local root = safeGetRoot()
-        local human = safeGetHuman()
-        
-        if not root or not human then return end
-        
-        local distance = (SigmaHub.basePosition - root.Position).Magnitude
-        
-        -- Stop when close enough
-        if distance < 10 then
-            stopSmartJump()
-            return
-        end
-        
-        -- Calculate jump direction
-        local direction = (SigmaHub.basePosition - root.Position).Unit
-        
-        -- Add vertical component for long distances
-        if distance > 30 then
-            direction = direction + Vector3.new(0, 0.5, 0)
-        else
-            direction = direction + Vector3.new(0, 0.3, 0)
-        end
-        
-        -- Safe jump with bodyvelocity
-        pcall(function()
-            local bodyVel = Instance.new("BodyVelocity")
-            bodyVel.MaxForce = Vector3.new(4000, 4000, 4000)
-            bodyVel.Velocity = direction * SigmaHub.jumpPower
-            bodyVel.Parent = root
-            
-            spawn(function()
-                wait(1)
-                if bodyVel and bodyVel.Parent then
-                    bodyVel:Destroy()
-                end
-            end)
-        end)
-    end
-    
-    connections.smartJump = Services.RunService.Heartbeat:Connect(function()
-        if not SigmaHub.isSmartJumping then
-            connections.smartJump:Disconnect()
-            return
-        end
-        
-        local root = safeGetRoot()
-        if not root then return end
-        
-        -- Check if grounded for next jump
-        local raycast = Services.Workspace:Raycast(
-            root.Position,
-            Vector3.new(0, -10, 0),
-            RaycastParams.new()
-        )
-        
-        if raycast then
-            wait(SigmaHub.jumpCooldown)
-            performJump()
-        end
-    end)
-end
-
-local function stopSmartJump()
-    SigmaHub.isSmartJumping = false
-    if connections.smartJump then
-        connections.smartJump:Disconnect()
-        connections.smartJump = nil
-    end
-    notify("SMART JUMP", "Jump system stopped", Colors.warning)
-end
-
--- FIXED FLOAT SYSTEM
-local function toggleFloat()
-    SigmaHub.isFloating = not SigmaHub.isFloating
-    
-    if SigmaHub.isFloating then
-        startFloat()
-    else
-        stopFloat()
-    end
-end
-
-local function startFloat()
-    local root = safeGetRoot()
-    if not root then return end
-    
-    local bodyPos = Instance.new("BodyPosition")
-    bodyPos.MaxForce = Vector3.new(0, math.huge, 0)
-    bodyPos.Position = root.Position + Vector3.new(0, SigmaHub.floatHeight, 0)
-    bodyPos.Parent = root
-    bodyPos.Name = "SigmaFloat"
-    
-    connections.floatSystem = Services.RunService.Heartbeat:Connect(function()
-        if not SigmaHub.isFloating then
-            stopFloat()
-            return
-        end
-        
-        local root = safeGetRoot()
-        if root and bodyPos and bodyPos.Parent then
-            bodyPos.Position = root.Position + Vector3.new(0, SigmaHub.floatHeight, 0)
-        end
-    end)
-    
-    notify("FLOAT", "Float mode activated", Colors.accent)
-end
-
-local function stopFloat()
-    SigmaHub.isFloating = false
-    
-    if connections.floatSystem then
-        connections.floatSystem:Disconnect()
-        connections.floatSystem = nil
-    end
-    
-    local root = safeGetRoot()
-    if root then
-        for _, obj in pairs(root:GetChildren()) do
-            if obj.Name == "SigmaFloat" then
-                obj:Destroy()
-            end
-        end
-    end
-    
-    notify("FLOAT", "Float mode deactivated", Colors.warning)
-end
-
--- INFINITE JUMP SYSTEM
-local function toggleInfiniteJump()
-    SigmaHub.isInfiniteJumping = not SigmaHub.isInfiniteJumping
-    
-    if SigmaHub.isInfiniteJumping then
-        connections.infiniteJump = Services.RunService.Heartbeat:Connect(function()
-            local human = safeGetHuman()
-            if human and Services.UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                human:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end)
-        notify("INF JUMP", "Infinite jump enabled", Colors.accent)
-    else
-        if connections.infiniteJump then
-            connections.infiniteJump:Disconnect()
-            connections.infiniteJump = nil
-        end
-        notify("INF JUMP", "Infinite jump disabled", Colors.warning)
-    end
-end
-
--- ANTI-KICK SYSTEM
-local function startAntiKick()
-    if not SigmaHub.antiKickEnabled then return end
-    
-    connections.antiKick = Services.RunService.Heartbeat:Connect(function()
-        local root = safeGetRoot()
-        local human = safeGetHuman()
-        
-        if root and human then
-            -- Random micro movements
-            if math.random(1, 60) == 1 then
-                local offset = Vector3.new(
-                    math.random(-1, 1) * 0.5,
-                    0,
-                    math.random(-1, 1) * 0.5
-                )
-                root.CFrame = root.CFrame + offset
-            end
-            
-            -- Random look around
-            if math.random(1, 120) == 1 then
-                root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(math.random(-30, 30)), 0)
-            end
-        end
-    end)
-end
-
--- GUI CREATION WITH TABS
-local function createSigmaHub()
-    if SigmaHub.gui then
-        SigmaHub.gui:Destroy()
-    end
-    
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "SigmaHub"
-    gui.ResetOnSpawn = false
-    gui.Parent = player:WaitForChild("PlayerGui")
-    
-    -- Main frame
-    local main = Instance.new("Frame")
-    main.Name = "MainFrame"
-    main.Size = UDim2.new(0, 400, 0, 350)
-    main.Position = UDim2.new(0.5, -200, 0.5, -175)
-    main.BackgroundColor3 = Colors.bg
-    main.BorderSizePixel = 0
-    main.Visible = false
-    main.Parent = gui
-    
+    -- Corner per il frame principale
     local mainCorner = Instance.new("UICorner")
     mainCorner.CornerRadius = UDim.new(0, 12)
-    mainCorner.Parent = main
+    mainCorner.Parent = mainFrame
     
-    -- Glowing border
-    local border = Instance.new("Frame")
-    border.Size = UDim2.new(1, 4, 1, 4)
-    border.Position = UDim2.new(0, -2, 0, -2)
-    border.BackgroundColor3 = Colors.accent
-    border.BackgroundTransparency = 0.7
-    border.ZIndex = main.ZIndex - 1
-    border.Parent = main
+    -- Gradient per il frame principale
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 35, 50)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 30))
+    }
+    gradient.Rotation = 45
+    gradient.Parent = mainFrame
     
-    local borderCorner = Instance.new("UICorner")
-    borderCorner.CornerRadius = UDim.new(0, 14)
-    borderCorner.Parent = border
+    -- Header bar per il dragging
+    local headerBar = Instance.new("Frame")
+    headerBar.Name = "HeaderBar"
+    headerBar.Size = UDim2.new(1, 0, 0, 50)
+    headerBar.Position = UDim2.new(0, 0, 0, 0)
+    headerBar.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
+    headerBar.BorderSizePixel = 0
+    headerBar.Parent = mainFrame
     
-    -- Header
-    local header = Instance.new("Frame")
-    header.Size = UDim2.new(1, 0, 0, 60)
-    header.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
-    header.BorderSizePixel = 0
-    header.Parent = main
-    
+    -- Corner per header
     local headerCorner = Instance.new("UICorner")
     headerCorner.CornerRadius = UDim.new(0, 12)
-    headerCorner.Parent = header
+    headerCorner.Parent = headerBar
     
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -20, 1, 0)
-    title.Position = UDim2.new(0, 10, 0, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "⚡ SIGMA HUB"
-    title.TextColor3 = Colors.accent
-    title.TextScaled = true
-    title.Font = Enum.Font.GothamBold
-    title.Parent = header
+    -- Titolo
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "TitleLabel"
+    titleLabel.Size = UDim2.new(1, -100, 1, 0)
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "🚀 Advanced Mobile Script"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextScaled = true
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Parent = headerBar
     
-    -- Tab buttons container
-    local tabContainer = Instance.new("Frame")
-    tabContainer.Size = UDim2.new(1, -20, 0, 40)
-    tabContainer.Position = UDim2.new(0, 10, 0, 70)
-    tabContainer.BackgroundTransparency = 1
-    tabContainer.Parent = main
+    -- Bottone minimizza
+    local minimizeBtn = Instance.new("TextButton")
+    minimizeBtn.Name = "MinimizeButton"
+    minimizeBtn.Size = UDim2.new(0, 35, 0, 35)
+    minimizeBtn.Position = UDim2.new(1, -80, 0.5, -17.5)
+    minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 193, 7)
+    minimizeBtn.BorderSizePixel = 0
+    minimizeBtn.Text = "−"
+    minimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    minimizeBtn.TextScaled = true
+    minimizeBtn.Font = Enum.Font.GothamBold
+    minimizeBtn.Parent = headerBar
     
-    local tabLayout = Instance.new("UIListLayout")
-    tabLayout.FillDirection = Enum.FillDirection.Horizontal
-    tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabLayout.Padding = UDim.new(0, 5)
-    tabLayout.Parent = tabContainer
+    local minimizeCorner = Instance.new("UICorner")
+    minimizeCorner.CornerRadius = UDim.new(0, 8)
+    minimizeCorner.Parent = minimizeBtn
     
-    -- Content area
-    local content = Instance.new("Frame")
-    content.Size = UDim2.new(1, -20, 1, -120)
-    content.Position = UDim2.new(0, 10, 0, 120)
-    content.BackgroundTransparency = 1
-    content.Parent = main
+    -- Bottone chiudi
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Name = "CloseButton"
+    closeBtn.Size = UDim2.new(0, 35, 0, 35)
+    closeBtn.Position = UDim2.new(1, -40, 0.5, -17.5)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+    closeBtn.BorderSizePixel = 0
+    closeBtn.Text = "✕"
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.TextScaled = true
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.Parent = headerBar
     
-    -- Tab system
-    local tabs = {
-        {name = "Movement", color = Colors.accent},
-        {name = "Teleport", color = Colors.danger},
-        {name = "Settings", color = Colors.info}
-    }
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 8)
+    closeCorner.Parent = closeBtn
     
-    local tabButtons = {}
-    local tabContents = {}
+    -- Container per il contenuto
+    local contentFrame = Instance.new("Frame")
+    contentFrame.Name = "ContentFrame"
+    contentFrame.Size = UDim2.new(1, 0, 1, -50)
+    contentFrame.Position = UDim2.new(0, 0, 0, 50)
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.Parent = mainFrame
     
-    -- Create tab buttons
-    for i, tab in ipairs(tabs) do
-        local tabBtn = Instance.new("TextButton")
-        tabBtn.Size = UDim2.new(0, 120, 1, 0)
-        tabBtn.BackgroundColor3 = i == 1 and tab.color or Colors.inactive
-        tabBtn.BorderSizePixel = 0
-        tabBtn.Text = tab.name:upper()
-        tabBtn.TextColor3 = Colors.text
-        tabBtn.TextScaled = true
-        tabBtn.Font = Enum.Font.Gotham
-        tabBtn.LayoutOrder = i
-        tabBtn.Parent = tabContainer
-        
-        local tabCorner = Instance.new("UICorner")
-        tabCorner.CornerRadius = UDim.new(0, 8)
-        tabCorner.Parent = tabBtn
-        
-        tabButtons[tab.name] = tabBtn
-        
-        -- Create tab content
-        local tabContent = Instance.new("ScrollingFrame")
-        tabContent.Size = UDim2.new(1, 0, 1, 0)
-        tabContent.BackgroundTransparency = 1
-        tabContent.BorderSizePixel = 0
-        tabContent.ScrollBarThickness = 6
-        tabContent.ScrollBarImageColor3 = Colors.accent
-        tabContent.CanvasSize = UDim2.new(0, 0, 0, 300)
-        tabContent.Visible = i == 1
-        tabContent.Parent = content
-        
-        local contentLayout = Instance.new("UIListLayout")
-        contentLayout.Padding = UDim.new(0, 8)
-        contentLayout.Parent = tabContent
-        
-        tabContents[tab.name] = tabContent
-        
-        -- Tab click handler
-        tabBtn.MouseButton1Click:Connect(function()
-            SigmaHub.currentTab = tab.name
-            
-            -- Update tab buttons
-            for name, btn in pairs(tabButtons) do
-                if name == tab.name then
-                    btn.BackgroundColor3 = tab.color
-                else
-                    btn.BackgroundColor3 = Colors.inactive
-                end
-            end
-            
-            -- Update content visibility
-            for name, cont in pairs(tabContents) do
-                cont.Visible = name == tab.name
-            end
-        end)
-    end
-    
-    -- Button creator function
-    local function createButton(parent, text, color, callback)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, 0, 0, 40)
-        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
-        btn.BorderSizePixel = 0
-        btn.Text = text
-        btn.TextColor3 = color
-        btn.TextScaled = true
-        btn.Font = Enum.Font.Gotham
-        btn.Parent = parent
-        
-        local btnCorner = Instance.new("UICorner")
-        btnCorner.CornerRadius = UDim.new(0, 8)
-        btnCorner.Parent = btn
-        
-        local btnStroke = Instance.new("UIStroke")
-        btnStroke.Color = color
-        btnStroke.Thickness = 1
-        btnStroke.Transparency = 0.5
-        btnStroke.Parent = btn
-        
-        btn.MouseButton1Click:Connect(callback)
-        return btn
-    end
-    
-    -- Movement tab buttons
-    createButton(tabContents.Movement, "🦘 Smart Jump to Base", Colors.accent, function()
-        if SigmaHub.basePosition then
-            if SigmaHub.isSmartJumping then
-                stopSmartJump()
-            else
-                startSmartJump()
-            end
-        else
-            notify("ERROR", "Set base position first!", Colors.danger)
-        end
-    end)
-    
-    createButton(tabContents.Movement, "🎈 Toggle Float Mode", Colors.info, function()
-        toggleFloat()
-    end)
-    
-    createButton(tabContents.Movement, "🚀 Infinite Jump", Colors.warning, function()
-        toggleInfiniteJump()
-    end)
-    
-    -- Teleport tab buttons
-    createButton(tabContents.Teleport, "📍 Set Base Position", Colors.accent, function()
-        local root = safeGetRoot()
-        if root then
-            SigmaHub.basePosition = root.Position
-            notify("BASE SET", "Position locked: " .. tostring(SigmaHub.basePosition), Colors.accent)
-        end
-    end)
-    
-    createButton(tabContents.Teleport, "⚡ Floating Infinite TP", Colors.danger, function()
-        if SigmaHub.basePosition then
-            if SigmaHub.isFloatTeleporting then
-                stopFloatingTeleport()
-            else
-                startFloatingTeleport()
-            end
-        else
-            notify("ERROR", "Set base position first!", Colors.danger)
-        end
-    end)
-    
-    createButton(tabContents.Teleport, "🎯 Instant Teleport", Colors.warning, function()
-        if SigmaHub.basePosition then
-            local root = safeGetRoot()
-            if root then
-                root.CFrame = CFrame.new(SigmaHub.basePosition + Vector3.new(0, 5, 0))
-                notify("TELEPORTED", "Warped to base!", Colors.accent)
-            end
-        else
-            notify("ERROR", "Set base position first!", Colors.danger)
-        end
-    end)
-    
-    -- Settings tab buttons
-    createButton(tabContents.Settings, "🛡️ Anti-Kick: " .. (SigmaHub.antiKickEnabled and "ON" or "OFF"), Colors.accent, function()
-        SigmaHub.antiKickEnabled = not SigmaHub.antiKickEnabled
-        notify("ANTI-KICK", SigmaHub.antiKickEnabled and "Enabled" or "Disabled", Colors.info)
-    end)
-    
-    createButton(tabContents.Settings, "⚙️ Jump Power: " .. SigmaHub.jumpPower, Colors.info, function()
-        SigmaHub.jumpPower = SigmaHub.jumpPower >= 50 and 16 or SigmaHub.jumpPower + 8
-        notify("JUMP POWER", "Set to: " .. SigmaHub.jumpPower, Colors.info)
-    end)
-    
-    createButton(tabContents.Settings, "🔒 Safe Mode: " .. (SigmaHub.safeMode and "ON" or "OFF"), Colors.warning, function()
-        SigmaHub.safeMode = not SigmaHub.safeMode
-        notify("SAFE MODE", SigmaHub.safeMode and "Enabled" or "Disabled", Colors.info)
-    end)
-    
-    -- Toggle button
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(0, 120, 0, 40)
-    toggleBtn.Position = UDim2.new(0.5, -60, 0, 20)
-    toggleBtn.BackgroundColor3 = Colors.bg
-    toggleBtn.BorderSizePixel = 0
-    toggleBtn.Text = "SIGMA HUB"
-    toggleBtn.TextColor3 = Colors.accent
-    toggleBtn.TextScaled = true
-    toggleBtn.Font = Enum.Font.GothamBold
-    toggleBtn.Parent = gui
-    
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 10)
-    toggleCorner.Parent = toggleBtn
-    
-    local toggleStroke = Instance.new("UIStroke")
-    toggleStroke.Color = Colors.accent
-    toggleStroke.Thickness = 2
-    toggleStroke.Parent = toggleBtn
-    
-    -- Toggle function
-    toggleBtn.MouseButton1Click:Connect(function()
-        SigmaHub.menuOpen = not SigmaHub.menuOpen
-        
-        if SigmaHub.menuOpen then
-            main.Visible = true
-            main.Size = UDim2.new(0, 0, 0, 0)
-            main.Position = UDim2.new(0.5, 0, 0.5, 0)
-            
-            Services.TweenService:Create(main, TweenInfo.new(0.5, Enum.EasingStyle.Back), {
-                Size = UDim2.new(0, 400, 0, 350),
-                Position = UDim2.new(0.5, -200, 0.5, -175)
-            }):Play()
-            
-            toggleBtn.Text = "CLOSE"
-            toggleStroke.Color = Colors.danger
-            toggleBtn.TextColor3 = Colors.danger
-        else
-            Services.TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-                Size = UDim2.new(0, 0, 0, 0),
-                Position = UDim2.new(0.5, 0, 0.5, 0)
-            }):Play()
-            
-            spawn(function()
-                wait(0.3)
-                main.Visible = false
-            end)
-            
-            toggleBtn.Text = "SIGMA HUB"
-            toggleStroke.Color = Colors.accent
-            toggleBtn.TextColor3 = Colors.accent
-        end
-    end)
-    
-    SigmaHub.gui = gui
+    return screenGui, mainFrame, headerBar, contentFrame, minimizeBtn, closeBtn
 end
 
--- Keyboard controls
-Services.UserInputService.InputBegan:Connect(function(input, processed)
-    if processed then return end
+-- Funzione per creare le tabs
+local function createTabs(contentFrame)
+    -- Tab container
+    local tabContainer = Instance.new("Frame")
+    tabContainer.Name = "TabContainer"
+    tabContainer.Size = UDim2.new(1, -20, 0, 40)
+    tabContainer.Position = UDim2.new(0, 10, 0, 10)
+    tabContainer.BackgroundTransparency = 1
+    tabContainer.Parent = contentFrame
     
-    if input.KeyCode == Enum.KeyCode.RightControl then
-        if SigmaHub.gui then
-            SigmaHub.gui:FindFirstChild("TextButton").MouseButton1Click:Fire()
-        end
-    elseif input.KeyCode == Enum.KeyCode.T then
-        if SigmaHub.basePosition then
-            if SigmaHub.isFloatTeleporting then
-                stopFloatingTeleport()
-            else
-                startFloatingTeleport()
-            end
-        end
-    elseif input.KeyCode == Enum.KeyCode.J then
-        if SigmaHub.basePosition then
-            if SigmaHub.isSmartJumping then
-                stopSmartJump()
-            else
-                startSmartJump()
-            end
-        end
-    elseif input.KeyCode == Enum.KeyCode.F then
-        toggleFloat()
-    elseif input.KeyCode == Enum.KeyCode.H then
-        -- Emergency stop
-        stopFloatingTeleport()
-        stopSmartJump()
-        stopFloat()
-        SigmaHub.isInfiniteJumping = false
-        notify("EMERGENCY", "All systems stopped!", Colors.danger)
+    -- Tab buttons
+    local jumpTab = Instance.new("TextButton")
+    jumpTab.Name = "JumpTab"
+    jumpTab.Size = UDim2.new(0.5, -5, 1, 0)
+    jumpTab.Position = UDim2.new(0, 0, 0, 0)
+    jumpTab.BackgroundColor3 = Color3.fromRGB(0, 123, 255)
+    jumpTab.BorderSizePixel = 0
+    jumpTab.Text = "🦘 Jump"
+    jumpTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+    jumpTab.TextScaled = true
+    jumpTab.Font = Enum.Font.GothamBold
+    jumpTab.Parent = tabContainer
+    
+    local jumpTabCorner = Instance.new("UICorner")
+    jumpTabCorner.CornerRadius = UDim.new(0, 8)
+    jumpTabCorner.Parent = jumpTab
+    
+    local speedTab = Instance.new("TextButton")
+    speedTab.Name = "SpeedTab"
+    speedTab.Size = UDim2.new(0.5, -5, 1, 0)
+    speedTab.Position = UDim2.new(0.5, 5, 0, 0)
+    speedTab.BackgroundColor3 = Color3.fromRGB(108, 117, 125)
+    speedTab.BorderSizePixel = 0
+    speedTab.Text = "⚡ Speed"
+    speedTab.TextColor3 = Color3.fromRGB(255, 255, 255)
+    speedTab.TextScaled = true
+    speedTab.Font = Enum.Font.GothamBold
+    speedTab.Parent = tabContainer
+    
+    local speedTabCorner = Instance.new("UICorner")
+    speedTabCorner.CornerRadius = UDim.new(0, 8)
+    speedTabCorner.Parent = speedTab
+    
+    -- Content areas
+    local jumpContent = Instance.new("Frame")
+    jumpContent.Name = "JumpContent"
+    jumpContent.Size = UDim2.new(1, -20, 1, -70)
+    jumpContent.Position = UDim2.new(0, 10, 0, 60)
+    jumpContent.BackgroundTransparency = 1
+    jumpContent.Visible = true
+    jumpContent.Parent = contentFrame
+    
+    local speedContent = Instance.new("Frame")
+    speedContent.Name = "SpeedContent"
+    speedContent.Size = UDim2.new(1, -20, 1, -70)
+    speedContent.Position = UDim2.new(0, 10, 0, 60)
+    speedContent.BackgroundTransparency = 1
+    speedContent.Visible = false
+    speedContent.Parent = contentFrame
+    
+    return tabContainer, jumpTab, speedTab, jumpContent, speedContent
+end
+
+-- Funzione per creare i controlli Jump
+local function createJumpControls(jumpContent)
+    -- Toggle per Infinite Jump
+    local jumpToggleFrame = Instance.new("Frame")
+    jumpToggleFrame.Size = UDim2.new(1, 0, 0, 80)
+    jumpToggleFrame.Position = UDim2.new(0, 0, 0, 0)
+    jumpToggleFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    jumpToggleFrame.BorderSizePixel = 0
+    jumpToggleFrame.Parent = jumpContent
+    
+    local jumpToggleCorner = Instance.new("UICorner")
+    jumpToggleCorner.CornerRadius = UDim.new(0, 10)
+    jumpToggleCorner.Parent = jumpToggleFrame
+    
+    local jumpLabel = Instance.new("TextLabel")
+    jumpLabel.Size = UDim2.new(1, -80, 1, 0)
+    jumpLabel.Position = UDim2.new(0, 15, 0, 0)
+    jumpLabel.BackgroundTransparency = 1
+    jumpLabel.Text = "🦘 Infinite Jump\nSalta infinitamente ovunque!"
+    jumpLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    jumpLabel.TextScaled = true
+    jumpLabel.Font = Enum.Font.Gotham
+    jumpLabel.TextXAlignment = Enum.TextXAlignment.Left
+    jumpLabel.Parent = jumpToggleFrame
+    
+    local jumpToggle = Instance.new("TextButton")
+    jumpToggle.Name = "JumpToggle"
+    jumpToggle.Size = UDim2.new(0, 60, 0, 30)
+    jumpToggle.Position = UDim2.new(1, -70, 0.5, -15)
+    jumpToggle.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+    jumpToggle.BorderSizePixel = 0
+    jumpToggle.Text = "OFF"
+    jumpToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    jumpToggle.TextScaled = true
+    jumpToggle.Font = Enum.Font.GothamBold
+    jumpToggle.Parent = jumpToggleFrame
+    
+    local jumpToggleCorner2 = Instance.new("UICorner")
+    jumpToggleCorner2.CornerRadius = UDim.new(0, 15)
+    jumpToggleCorner2.Parent = jumpToggle
+    
+    -- Info panel
+    local infoFrame = Instance.new("Frame")
+    infoFrame.Size = UDim2.new(1, 0, 0, 120)
+    infoFrame.Position = UDim2.new(0, 0, 0, 100)
+    infoFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    infoFrame.BorderSizePixel = 0
+    infoFrame.Parent = jumpContent
+    
+    local infoCorner = Instance.new("UICorner")
+    infoCorner.CornerRadius = UDim.new(0, 10)
+    infoCorner.Parent = infoFrame
+    
+    local infoLabel = Instance.new("TextLabel")
+    infoLabel.Size = UDim2.new(1, -20, 1, -20)
+    infoLabel.Position = UDim2.new(0, 10, 0, 10)
+    infoLabel.BackgroundTransparency = 1
+    infoLabel.Text = "ℹ️ COME FUNZIONA:\n\n• Tocca lo schermo per saltare\n• Funziona anche in aria\n• Logica avanzata mobile-friendly\n• Nessun limite di salti!"
+    infoLabel.TextColor3 = Color3.fromRGB(173, 216, 230)
+    infoLabel.TextScaled = true
+    infoLabel.Font = Enum.Font.Gotham
+    infoLabel.TextXAlignment = Enum.TextXAlignment.Left
+    infoLabel.TextYAlignment = Enum.TextYAlignment.Top
+    infoLabel.Parent = infoFrame
+    
+    return jumpToggle
+end
+
+-- Funzione per creare i controlli Speed
+local function createSpeedControls(speedContent)
+    -- Toggle per Speed Boost
+    local speedToggleFrame = Instance.new("Frame")
+    speedToggleFrame.Size = UDim2.new(1, 0, 0, 80)
+    speedToggleFrame.Position = UDim2.new(0, 0, 0, 0)
+    speedToggleFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    speedToggleFrame.BorderSizePixel = 0
+    speedToggleFrame.Parent = speedContent
+    
+    local speedToggleCorner = Instance.new("UICorner")
+    speedToggleCorner.CornerRadius = UDim.new(0, 10)
+    speedToggleCorner.Parent = speedToggleFrame
+    
+    local speedLabel = Instance.new("TextLabel")
+    speedLabel.Size = UDim2.new(1, -80, 1, 0)
+    speedLabel.Position = UDim2.new(0, 15, 0, 0)
+    speedLabel.BackgroundTransparency = 1
+    speedLabel.Text = "⚡ Speed Coil Simulator\nVelocità costante automatica!"
+    speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    speedLabel.TextScaled = true
+    speedLabel.Font = Enum.Font.Gotham
+    speedLabel.TextXAlignment = Enum.TextXAlignment.Left
+    speedLabel.Parent = speedToggleFrame
+    
+    local speedToggle = Instance.new("TextButton")
+    speedToggle.Name = "SpeedToggle"
+    speedToggle.Size = UDim2.new(0, 60, 0, 30)
+    speedToggle.Position = UDim2.new(1, -70, 0.5, -15)
+    speedToggle.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+    speedToggle.BorderSizePixel = 0
+    speedToggle.Text = "OFF"
+    speedToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    speedToggle.TextScaled = true
+    speedToggle.Font = Enum.Font.GothamBold
+    speedToggle.Parent = speedToggleFrame
+    
+    local speedToggleCorner2 = Instance.new("UICorner")
+    speedToggleCorner2.CornerRadius = UDim.new(0, 15)
+    speedToggleCorner2.Parent = speedToggle
+    
+    -- Speed slider
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Size = UDim2.new(1, 0, 0, 60)
+    sliderFrame.Position = UDim2.new(0, 0, 0, 100)
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    sliderFrame.BorderSizePixel = 0
+    sliderFrame.Parent = speedContent
+    
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(0, 10)
+    sliderCorner.Parent = sliderFrame
+    
+    local sliderLabel = Instance.new("TextLabel")
+    sliderLabel.Size = UDim2.new(1, 0, 0, 25)
+    sliderLabel.Position = UDim2.new(0, 0, 0, 5)
+    sliderLabel.BackgroundTransparency = 1
+    sliderLabel.Text = "Velocità: 50"
+    sliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    sliderLabel.TextScaled = true
+    sliderLabel.Font = Enum.Font.GothamBold
+    sliderLabel.Parent = sliderFrame
+    
+    local sliderBg = Instance.new("Frame")
+    sliderBg.Size = UDim2.new(1, -40, 0, 8)
+    sliderBg.Position = UDim2.new(0, 20, 0, 35)
+    sliderBg.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
+    sliderBg.BorderSizePixel = 0
+    sliderBg.Parent = sliderFrame
+    
+    local sliderBgCorner = Instance.new("UICorner")
+    sliderBgCorner.CornerRadius = UDim.new(0, 4)
+    sliderBgCorner.Parent = sliderBg
+    
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new(0.33, 0, 1, 0)
+    sliderFill.Position = UDim2.new(0, 0, 0, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(0, 123, 255)
+    sliderFill.BorderSizePixel = 0
+    sliderFill.Parent = sliderBg
+    
+    local sliderFillCorner = Instance.new("UICorner")
+    sliderFillCorner.CornerRadius = UDim.new(0, 4)
+    sliderFillCorner.Parent = sliderFill
+    
+    local sliderButton = Instance.new("TextButton")
+    sliderButton.Size = UDim2.new(0, 20, 0, 20)
+    sliderButton.Position = UDim2.new(0.33, -10, 0.5, -10)
+    sliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sliderButton.BorderSizePixel = 0
+    sliderButton.Text = ""
+    sliderButton.Parent = sliderBg
+    
+    local sliderButtonCorner = Instance.new("UICorner")
+    sliderButtonCorner.CornerRadius = UDim.new(0, 10)
+    sliderButtonCorner.Parent = sliderButton
+    
+    -- Info panel
+    local speedInfoFrame = Instance.new("Frame")
+    speedInfoFrame.Size = UDim2.new(1, 0, 0, 120)
+    speedInfoFrame.Position = UDim2.new(0, 0, 0, 180)
+    speedInfoFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    speedInfoFrame.BorderSizePixel = 0
+    speedInfoFrame.Parent = speedContent
+    
+    local speedInfoCorner = Instance.new("UICorner")
+    speedInfoCorner.CornerRadius = UDim.new(0, 10)
+    speedInfoCorner.Parent = speedInfoFrame
+    
+    local speedInfoLabel = Instance.new("TextLabel")
+    speedInfoLabel.Size = UDim2.new(1, -20, 1, -20)
+    speedInfoLabel.Position = UDim2.new(0, 10, 0, 10)
+    speedInfoLabel.BackgroundTransparency = 1
+    speedInfoLabel.Text = "ℹ️ SPEED COIL SIMULATOR:\n\n• Simula Speed Coil automaticamente\n• Velocità costante garantita\n• Rilevamento automatico cambi\n• Nessun item richiesto!"
+    speedInfoLabel.TextColor3 = Color3.fromRGB(173, 216, 230)
+    speedInfoLabel.TextScaled = true
+    speedInfoLabel.Font = Enum.Font.Gotham
+    speedInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+    speedInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
+    speedInfoLabel.Parent = speedInfoFrame
+    
+    return speedToggle, sliderLabel, sliderFill, sliderButton, sliderBg
+end
+
+-- Funzione per il dragging
+local function makeDraggable(frame, dragHandle)
+    local function updateInput(input)
+        local delta = input.Position - dragStart
+        local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        
+        -- Animazione smooth
+        local tween = TweenService:Create(frame, TweenInfo.new(dragSpeed, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = position})
+        tween:Play()
     end
-end)
+    
+    dragHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragToggle = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragToggle = false
+                end
+            end)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateInput(input)
+        end
+    end)
+end
 
--- Character respawn handling
-player.CharacterAdded:Connect(function()
-    wait(2)
-    createSigmaHub()
-    startAntiKick()
-end)
+-- Funzione Infinite Jump (logica avanzata mobile)
+local function enableInfiniteJump()
+    if jumpConnection then
+        jumpConnection:Disconnect()
+    end
+    
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    -- Logica avanzata per mobile
+    local lastJumpTime = 0
+    local jumpCooldown = 0.1
+    local isJumping = false
+    
+    -- Touch/Click handler per mobile
+    local function onTouch()
+        local currentTime = tick()
+        if currentTime - lastJumpTime > jumpCooldown and not isJumping then
+            isJumping = true
+            lastJumpTime = currentTime
+            
+            -- Jump logic avanzata
+            humanoid.JumpPower = 50
+            humanoid.Jump = true
+            
+            -- Reset dopo breve delay
+            wait(0.1)
+            isJumping = false
+        end
+    end
+    
+    -- Connessioni multiple per compatibilità
+    jumpConnection = RunService.Heartbeat:Connect(function()
+        if UserInputService.TouchEnabled then
+            -- Mobile touch detection
+            local touches = UserInputService:GetTouchInputs()
+            for _, touch in pairs(touches) do
+                if touch.UserInputState == Enum.UserInputState.Begin then
+                    onTouch()
+                    break
+                end
+            end
+        end
+    end)
+    
+    -- Backup per mouse click
+    mouse.Button1Down:Connect(onTouch)
+    
+    -- Mantieni jump power costante
+    humanoid.Changed:Connect(function(property)
+        if property == "JumpPower" and isInfiniteJumpEnabled then
+            if humanoid.JumpPower ~= 50 then
+                humanoid.JumpPower = 50
+            end
+        end
+    end)
+end
 
--- Initialize
-spawn(function()
-    wait(1)
-    createSigmaHub()
-    startAntiKick()
-    notify("SIGMA HUB", "Successfully loaded!", Colors.accent)
-    print("⚡ SIGMA HUB V4.0 LOADED")
-    print("🎮 Controls:")
-    print("   Right Ctrl - Toggle GUI")
-    print("   T - Floating Infinite TP")
-    print("   J - Smart Jump")
-    print("   F - Float Mode")
-    print("   H - Emergency Stop")
-end)
+-- Funzione Speed Boost (simula Speed Coil)
+local function enableSpeedBoost()
+    if speedConnection then
+        speedConnection:Disconnect()
+    end
+    
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    -- Salva velocità originale se non già salvata
+    if originalWalkSpeed == 16 then
+        originalWalkSpeed = humanoid.WalkSpeed
+    end
+    
+    -- Applica velocità Speed Coil
+    humanoid.WalkSpeed = currentSpeedBoost
+    
+    -- Monitoraggio continuo per mantenere velocità
+    speedConnection = RunService.Heartbeat:Connect(function()
+        if isSpeedBoostEnabled and humanoid.WalkSpeed ~= currentSpeedBoost then
+            humanoid.WalkSpeed = currentSpeedBoost
+        end
+    end)
+    
+    -- Listener per cambi character
+    player.CharacterAdded:Connect(function(newCharacter)
+        wait(1)
+        if isSpeedBoostEnabled then
+            local newHumanoid = newCharacter:WaitForChild("Humanoid")
+            newHumanoid.WalkSpeed = currentSpeedBoost
+        end
+    end)
+end
+
+-- Funzione principale
+local function initializeScript()
+    -- Crea GUI
+    local screenGui, mainFrame, headerBar, contentFrame, minimizeBtn, closeBtn = createMainGUI()
+    local tabContainer, jumpTab, speedTab, jumpContent, speedContent = createTabs(contentFrame)
+    local jumpToggle = createJumpControls(jumpContent)
+    local speedToggle, sliderLabel, sliderFill, sliderButton, sliderBg = createSpeedControls(speedContent)
+    
+    gui = screenGui
+    
+    -- Rendi draggable
+    makeDraggable(mainFrame, headerBar)
+    
+    -- Tab switching
+    jumpTab.MouseButton1Click:Connect(function()
+        jumpTab.BackgroundColor3 = Color3.fromRGB(0, 123, 255)
+        speedTab.BackgroundColor3 = Color3.fromRGB(108, 117, 125)
+        jumpContent.Visible = true
+        speedContent.Visible = false
+    end)
+    
+    speedTab.MouseButton1Click:Connect(function()
+        speedTab.BackgroundColor3 = Color3.fromRGB(0, 123, 255)
+        jumpTab.BackgroundColor3 = Color3.fromRGB(108, 117, 125)
+        speedContent.Visible = true
+        jumpContent.Visible = false
+    end)
+    
+    -- Jump toggle
+    jumpToggle.MouseButton1Click:Connect(function()
+        isInfiniteJumpEnabled = not isInfiniteJumpEnabled
+        
+        if isInfiniteJumpEnabled then
+            jumpToggle.Text = "ON"
+            jumpToggle.BackgroundColor3 = Color3.fromRGB(40, 167, 69)
+            enableInfiniteJump()
+        else
+            jumpToggle.Text = "OFF"
+            jumpToggle.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+            if jumpConnection then
+                jumpConnection:Disconnect()
+                jumpConnection = nil
+            end
+        end
+    end)
+    
+    -- Speed toggle
+    speedToggle.MouseButton1Click:Connect(function()
+        isSpeedBoostEnabled = not isSpeedBoostEnabled
+        
+        if isSpeedBoostEnabled then
+            speedToggle.Text = "ON"
+            speedToggle.BackgroundColor3 = Color3.fromRGB(40, 167, 69)
+            enableSpeedBoost()
+        else
+            speedToggle.Text = "OFF"
+            speedToggle.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+            if speedConnection then
+                speedConnection:Disconnect()
+                speedConnection = nil
+            end
+            
+            -- Ripristina velocità originale
+            local character = player.Character
+            if character then
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = originalWalkSpeed
+                end
+            end
+        end
+    end)
+    
+    -- Speed slider
+    local draggingSlider = false
+    
+    sliderButton.MouseButton1Down:Connect(function()
+        draggingSlider = true
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingSlider = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local sliderBgAbsolutePos = sliderBg.AbsolutePosition
+            local sliderBgAbsoluteSize = sliderBg.AbsoluteSize
+            local mouseX = input.Position.X
+            
+            local relativeX = mouseX - sliderBgAbsolutePos.X
+            local percentage = math.clamp(relativeX / sliderBgAbsoluteSize.X, 0, 1)
+            
+            -- Calcola velocità (16 - 200)
+            currentSpeedBoost = math.floor(16 + (percentage * 184))
+            
+            -- Aggiorna UI
+            sliderLabel.Text = "Velocità: " .. currentSpeedBoost
+            sliderFill.Size = UDim2.new(percentage, 0, 1, 0)
+            sliderButton.Position = UDim2.new(percentage, -10, 0.5, -10)
+            
+            -- Applica velocità se attivo
+            if isSpeedBoostEnabled then
+                local character = player.Character
+                if character then
+                    local humanoid = character:FindFirstChild("Humanoid")
+                    if humanoid then
+                        humanoid.WalkSpeed = currentSpeedBoost
+                    end
+                end
+            end
+        end
+    end)
+    
+    -- Minimize functionality
+    minimizeBtn.MouseButton1Click:Connect(function()
+        isMinimized = not isMinimized
+        
+        local targetSize = isMinimized and UDim2.new(0, 350, 0, 50) or UDim2.new(0, 350, 0, 450)
+        local targetText = isMinimized and "+" or "−"
+        
+        -- Animazione smooth
+        local tween = TweenService:Create(mainFrame, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), 
+            {Size = targetSize}
+        )
+        tween:Play()
+        
+        minimizeBtn.Text = targetText
+        contentFrame.Visible = not isMinimized
+    end)
+    
+    -- Close functionality
+    closeBtn.MouseButton1Click:Connect(function()
+        -- Disabilita tutto prima di chiudere
+        if jumpConnection then
+            jumpConnection:Disconnect()
+        end
+        if speedConnection then
+            speedConnection:Disconnect()
+        end
+        
+        -- Ripristina velocità
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = originalWalkSpeed
+            end
+        end
+        
+        -- Animazione di chiusura
+        local tween = TweenService:Create(mainFrame, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), 
+            {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)}
+        )
+        tween:Play()
+        
+        tween.Completed:Connect(function()
+            screenGui:Destroy()
+        end)
+    end)
+    
+    -- Gestione respawn del player
+    player.CharacterAdded:Connect(function(character)
+        wait(2) -- Attendi che il character si carichi completamente
+        
+        -- Riapplica infinite jump se era attivo
+        if isInfiniteJumpEnabled then
+            enableInfiniteJump()
+        end
+        
+        -- Riapplica speed boost se era attivo
+        if isSpeedBoostEnabled then
+            enableSpeedBoost()
+        end
+    end)
+end
+
+-- Funzione di sicurezza per verificare se già esiste
+local function checkExistingGUI()
+    local existingGUI = playerGui:FindFirstChild("AdvancedMobileScript")
+    if existingGUI then
+        existingGUI:Destroy()
+        wait(0.1)
+    end
+end
+
+-- Notifica di caricamento
+local function showLoadingNotification()
+    local notification = Instance.new("ScreenGui")
+    notification.Name = "LoadingNotification"
+    notification.Parent = playerGui
+    
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 80)
+    frame.Position = UDim2.new(0.5, -150, 0, -100)
+    frame.BackgroundColor3 = Color3.fromRGB(40, 167, 69)
+    frame.BorderSizePixel = 0
+    frame.Parent = notification
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = frame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -20, 1, -20)
+    label.Position = UDim2.new(0, 10, 0, 10)
+    label.BackgroundTransparency = 1
+    label.Text = "🚀 Advanced Mobile Script Caricato!\nTutte le funzionalità sono attive!"
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.Parent = frame
+    
+    -- Animazione di entrata
+    frame:TweenPosition(UDim2.new(0.5, -150, 0, 20), "Out", "Bounce", 0.5)
+    
+    -- Rimuovi dopo 3 secondi
+    wait(3)
+    frame:TweenPosition(UDim2.new(0.5, -150, 0, -100), "In", "Quart", 0.3)
+    wait(0.3)
+    notification:Destroy()
+end
+
+-- Funzione per gestire errori
+local function safeExecute(func, errorMessage)
+    local success, error = pcall(func)
+    if not success then
+        warn("Advanced Mobile Script Error: " .. errorMessage .. " - " .. tostring(error))
+        
+        -- Notifica di errore
+        local errorGui = Instance.new("ScreenGui")
+        errorGui.Name = "ErrorNotification"
+        errorGui.Parent = playerGui
+        
+        local errorFrame = Instance.new("Frame")
+        errorFrame.Size = UDim2.new(0, 300, 0, 100)
+        errorFrame.Position = UDim2.new(0.5, -150, 0.5, -50)
+        errorFrame.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+        errorFrame.BorderSizePixel = 0
+        errorFrame.Parent = errorGui
+        
+        local errorCorner = Instance.new("UICorner")
+        errorCorner.CornerRadius = UDim.new(0, 12)
+        errorCorner.Parent = errorFrame
+        
+        local errorLabel = Instance.new("TextLabel")
+        errorLabel.Size = UDim2.new(1, -20, 1, -20)
+        errorLabel.Position = UDim2.new(0, 10, 0, 10)
+        errorLabel.BackgroundTransparency = 1
+        errorLabel.Text = "❌ Errore Script!\n" .. errorMessage
+        errorLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        errorLabel.TextScaled = true
+        errorLabel.Font = Enum.Font.GothamBold
+        errorLabel.Parent = errorFrame
+        
+        wait(5)
+        errorGui:Destroy()
+    end
+end
+
+-- ESECUZIONE PRINCIPALE
+print("🚀 Caricamento Advanced Mobile Script...")
+print("📱 Ottimizzato per dispositivi mobili")
+print("🦘 Funzionalità: Infinite Jump + Speed Boost")
+print("🎮 GUI draggable con tabs")
+
+-- Attendi che tutto sia caricato
+if not player.Character then
+    player.CharacterAdded:Wait()
+end
+
+wait(1)
+
+-- Esegui script in modo sicuro
+safeExecute(function()
+    checkExistingGUI()
+    showLoadingNotification()
+    initializeScript()
+end, "Errore durante l'inizializzazione")
+
+print("✅ Advanced Mobile Script caricato con successo!")
+print("📖 Funzionalità disponibili:")
+print("   • Infinite Jump (logica mobile avanzata)")
+print("   • Speed Coil Simulator (velocità automatica)")
+print("   • GUI draggable e minimizzabile")
+print("   • Compatibilità touch e mouse")
+print("   • Rilevamento automatico cambi velocità")
+print("🎯 Script pronto all'uso!"
+
+--[[
+=== ADVANCED MOBILE ROBLOX SCRIPT ===
+
+FUNZIONALITÀ PRINCIPALI:
+🦘 INFINITE JUMP:
+- Logica avanzata ottimizzata per mobile
+- Touch detection avanzata
+- Cooldown intelligente per evitare spam
+- Compatibilità touch + mouse
+- Jump power costante
+
+⚡ SPEED COIL SIMULATOR:
+- Simula perfettamente Speed Coil
+- Velocità regolabile (16-200)
+- Rilevamento automatico cambi
+- Mantiene velocità costante
+- Funziona senza avere l'item
+
+🎮 GUI AVANZATA:
+- Completamente draggable
+- Minimizzabile e chiudibile
+- Sistema tabs funzionale
+- Design moderno con animazioni
+- Ottimizzata per mobile e desktop
+
+🔧 CARATTERISTICHE TECNICHE:
+- Gestione errori avanzata
+- Auto-restart dopo respawn
+- Notifiche di stato
+- Performance ottimizzate
+- Compatibilità universale
+
+ISTRUZIONI:
+1. Esegui lo script
+2. Usa le tabs per navigare
+3. Attiva/disattiva le funzionalità
+4. Regola la velocità con lo slider
+5. Trascina la GUI dove preferisci
+
+COMPATIBILITÀ:
+✅ Mobile (Touch)
+✅ Desktop (Mouse)
+✅ Tutti i giochi Roblox
+✅ Auto-restart su respawn
+✅ Performance ottimizzate
+
+DEVELOPED BY: Advanced Script System
+VERSION: 2.0 Mobile Edition
+--]]
