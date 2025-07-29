@@ -1,5 +1,6 @@
 -- Sigma Hub v11 - Ultimate Mobile Hax
--- Features: Speed Coil ownership check, Anti-Cheat Bypass, Minimizable GUI
+-- Updated: Removed God Mode, Enhanced Speed Coil with Infinite Jump dependency
+-- Advanced Anti-Cheat Bypass Logic 9000
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -17,18 +18,17 @@ local rootPart = character:WaitForChild("HumanoidRootPart")
 
 -- Variabili principali
 local infiniteJumpEnabled = false
-local godModeEnabled = false
 local speedBoostEnabled = false
 local originalWalkSpeed = humanoid.WalkSpeed
 local originalJumpPower = humanoid.JumpPower
 local targetSpeed = 100
 local jumpDebounce = false
 local isMinimized = false
+local speedCoilOwned = false
 
 -- Connessioni
 local jumpConnection
 local speedConnection
-local godModeConnection
 local heartbeatConnection
 
 -- Genera un ID unico per evitare detection
@@ -49,7 +49,7 @@ mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 0
 mainFrame.Position = UDim2.new(0.1, 0, 0.05, 0)
-mainFrame.Size = UDim2.new(0, 500, 0, 220)
+mainFrame.Size = UDim2.new(0, 500, 0, 200)  -- Reduced height
 mainFrame.Active = true
 mainFrame.Draggable = true
 
@@ -206,21 +206,13 @@ local infiniteJumpSwitch, infiniteJumpToggle = createSwitch(
             enableInfiniteJump()
         else
             disableInfiniteJump()
-        end
-    end
-)
-
--- God Mode Switch
-local godModeSwitch, godModeToggle = createSwitch(
-    contentFrame, 
-    "God Mode", 
-    UDim2.new(0.52, 0, 0.05, 0),
-    function(enabled)
-        godModeEnabled = enabled
-        if enabled then
-            enableGodMode()
-        else
-            disableGodMode()
+            -- Disable speed boost if infinite jump is turned off
+            if speedBoostEnabled then
+                speedBoostEnabled = false
+                speedBoostToggle.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+                speedBoostToggle.Text = "OFF"
+                disableSpeedBoost()
+            end
         end
     end
 )
@@ -229,8 +221,23 @@ local godModeSwitch, godModeToggle = createSwitch(
 local speedBoostSwitch, speedBoostToggle = createSwitch(
     contentFrame, 
     "Speed Boost", 
-    UDim2.new(0.02, 0, 0.35, 0),
+    UDim2.new(0.52, 0, 0.05, 0),
     function(enabled)
+        if enabled and not infiniteJumpEnabled then
+            statusLabel.Text = "Enable Infinite Jump first!"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+            -- Reset the toggle
+            wait(2)
+            if speedBoostToggle then
+                speedBoostEnabled = false
+                speedBoostToggle.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+                speedBoostToggle.Text = "OFF"
+                statusLabel.Text = "Status: Ready"
+                statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            end
+            return
+        end
+        
         speedBoostEnabled = enabled
         if enabled then
             enableSpeedBoost()
@@ -280,68 +287,7 @@ local function createStealthThread(func)
     coroutine.wrap(func)()
 end
 
--- Funzioni avanzate
-function enableGodMode()
-    if not humanoid then return end
-    
-    -- Protezione da danni (stealth)
-    createStealthThread(function()
-        while godModeEnabled do
-            if humanoid and humanoid.Health < humanoid.MaxHealth then
-                humanoid.Health = humanoid.MaxHealth
-            end
-            task.wait(0.2)
-        end
-    end)
-    
-    -- Protezione fisica (anti-ragdoll)
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = false
-            part.Massless = true
-        end
-    end
-    
-    statusLabel.Text = "GOD MODE: ACTIVATED"
-    statusLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-end
-
-function disableGodMode()
-    -- Ripristina proprietà fisiche
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = true
-            part.Massless = false
-        end
-    end
-    
-    statusLabel.Text = "God Mode: DISABLED"
-    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-end
-
-function enableInfiniteJump()
-    if jumpConnection then jumpConnection:Disconnect() end
-    
-    jumpConnection = UserInputService.JumpRequest:Connect(function()
-        if infiniteJumpEnabled and humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-    
-    statusLabel.Text = "INFINITE JUMP: ACTIVATED"
-    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
-end
-
-function disableInfiniteJump()
-    if jumpConnection then
-        jumpConnection:Disconnect()
-        jumpConnection = nil
-    end
-    statusLabel.Text = "Infinite Jump: DISABLED"
-    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-end
-
--- Ricerca avanzata Speed Coil
+-- Advanced Speed Coil System
 local function findSpeedCoilProduct()
     local searchTerm = "Speed Coil"
     local results = MarketplaceService:GetProductsAsync(nil, searchTerm, 1)
@@ -378,45 +324,166 @@ local function purchaseSpeedCoil()
     return success
 end
 
--- Sistema Speed Boost con proprietà dell'oggetto
-function enableSpeedBoost()
-    if not humanoid then return end
+-- Add Speed Coil to Backpack
+local function addSpeedCoilToBackpack()
+    local backpack = player:FindFirstChild("Backpack")
+    if not backpack then return end
     
-    -- Verifica se il player possiede lo Speed Coil
-    if playerOwnsSpeedCoil() then
-        statusLabel.Text = "SPEED COIL: OWNED"
-        statusLabel.TextColor3 = Color3.fromRGB(50, 200, 50)
-    else
-        statusLabel.Text = "PURCHASING SPEED COIL..."
-        statusLabel.TextColor3 = Color3.fromRGB(200, 150, 50)
+    -- Create a fake Speed Coil tool
+    local speedCoil = Instance.new("Tool")
+    speedCoil.Name = "Speed Coil"
+    speedCoil.CanBeDropped = false
+    
+    local handle = Instance.new("Part")
+    handle.Name = "Handle"
+    handle.Size = Vector3.new(0.5, 1, 0.5)
+    handle.Parent = speedCoil
+    
+    speedCoil.Parent = backpack
+    return speedCoil
+end
+
+-- Enhanced Speed Boost with Logic 9000
+local function advancedSpeedBoost()
+    -- Anti-Cheat Bypass Technique 1: Velocity Randomization
+    local function applyRandomizedVelocity()
+        if not rootPart or not humanoid then return end
         
-        -- Simula acquisto
-        if purchaseSpeedCoil() then
-            wait(3)
-            statusLabel.Text = "SPEED COIL: PURCHASED"
-        else
-            statusLabel.Text = "SPEED COIL: SIMULATED"
+        local moveDir = humanoid.MoveDirection
+        if moveDir.Magnitude > 0 then
+            -- Randomize speed to avoid pattern detection
+            local randomizedSpeed = targetSpeed * (0.95 + math.random() * 0.1)
+            local velocity = moveDir * randomizedSpeed
+            rootPart.Velocity = Vector3.new(velocity.X, rootPart.Velocity.Y, velocity.Z)
         end
     end
     
-    -- Applica effetto velocità (metodo stealth)
-    originalWalkSpeed = humanoid.WalkSpeed
+    -- Anti-Cheat Bypass Technique 2: Network Ownership
+    local function takeNetworkOwnership()
+        if rootPart and rootPart:GetNetworkOwner() == nil then
+            rootPart:SetNetworkOwner(player)
+        end
+    end
     
-    createStealthThread(function()
-        while speedBoostEnabled do
-            if humanoid then
-                -- Metodo 1: Modifica diretta (low detection)
-                humanoid.WalkSpeed = targetSpeed
-                
-                -- Metodo 2: Movimento fluido avanzato
-                if humanoid.MoveDirection.Magnitude > 0 then
-                    local moveVector = humanoid.MoveDirection * (targetSpeed / 1.5)
-                    rootPart.Velocity = Vector3.new(moveVector.X, rootPart.Velocity.Y, moveVector.Z)
+    -- Anti-Cheat Bypass Technique 3: Physics Jitter
+    local function applyPhysicsJitter()
+        if rootPart then
+            local randomForce = Vector3.new(
+                (math.random() - 0.5) * 5,
+                (math.random() - 0.5) * 2,
+                (math.random() - 0.5) * 5
+            )
+            rootPart:ApplyImpulse(randomForce)
+        end
+    end
+    
+    -- Anti-Cheat Bypass Technique 4: Stealth Mode Switching
+    local function switchStealthModes()
+        local modes = {
+            function()
+                if humanoid then
+                    humanoid.WalkSpeed = originalWalkSpeed + math.random(5, 15)
+                end
+            end,
+            function()
+                if rootPart then
+                    rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 0.1, 0)
+                    task.wait(0.05)
+                    rootPart.CFrame = rootPart.CFrame + Vector3.new(0, -0.1, 0)
+                end
+            end,
+            function()
+                if character then
+                    for _, part in ipairs(character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                            task.wait(0.01)
+                            part.CanCollide = true
+                        end
+                    end
                 end
             end
-            RunService.Heartbeat:Wait()
+        }
+        
+        -- Randomly apply a stealth mode
+        modes[math.random(1, #modes)]()
+    end
+    
+    -- Anti-Cheat Bypass Technique 5: Fake Lag Simulation
+    local function simulateFakeLag()
+        if math.random() < 0.2 then
+            for i = 1, math.random(3, 7) do
+                applyRandomizedVelocity()
+                RunService.Heartbeat:Wait()
+            end
+        end
+    end
+    
+    -- Main bypass loop
+    while speedBoostEnabled and infiniteJumpEnabled do
+        takeNetworkOwnership()
+        applyRandomizedVelocity()
+        
+        if math.random() < 0.3 then
+            applyPhysicsJitter()
+        end
+        
+        if math.random() < 0.15 then
+            switchStealthModes()
+        end
+        
+        simulateFakeLag()
+        RunService.Heartbeat:Wait()
+    end
+end
+
+-- Funzioni principali
+function enableInfiniteJump()
+    if jumpConnection then jumpConnection:Disconnect() end
+    
+    jumpConnection = UserInputService.JumpRequest:Connect(function()
+        if infiniteJumpEnabled and humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
         end
     end)
+    
+    statusLabel.Text = "INFINITE JUMP: ACTIVATED"
+    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+end
+
+function disableInfiniteJump()
+    if jumpConnection then
+        jumpConnection:Disconnect()
+        jumpConnection = nil
+    end
+    statusLabel.Text = "Infinite Jump: DISABLED"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+end
+
+-- Enhanced Speed Boost System
+function enableSpeedBoost()
+    if not humanoid then return end
+    
+    -- Check Speed Coil ownership
+    if playerOwnsSpeedCoil() then
+        speedCoilOwned = true
+        statusLabel.Text = "SPEED COIL: OWNED"
+        statusLabel.TextColor3 = Color3.fromRGB(50, 200, 50)
+        addSpeedCoilToBackpack()
+    else
+        statusLabel.Text = "SIMULATING SPEED COIL..."
+        statusLabel.TextColor3 = Color3.fromRGB(200, 150, 50)
+        speedCoilOwned = false
+    end
+    
+    -- Save original speed
+    originalWalkSpeed = humanoid.WalkSpeed
+    
+    -- Activate advanced speed boost
+    createStealthThread(advancedSpeedBoost)
+    
+    statusLabel.Text = "SPEED BOOST: ACTIVATED"
+    statusLabel.TextColor3 = Color3.fromRGB(50, 200, 200)
 end
 
 function disableSpeedBoost()
@@ -437,7 +504,7 @@ end)
 -- Minimize Button Logic
 minimizeButton.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 500, 0, 50) or UDim2.new(0, 500, 0, 220)
+    local targetSize = isMinimized and UDim2.new(0, 500, 0, 50) or UDim2.new(0, 500, 0, 200)
     local targetPos = isMinimized and UDim2.new(0.1, 0, 0, 0) or UDim2.new(0.1, 0, 0.05, 0)
     
     local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
@@ -463,10 +530,6 @@ player.CharacterAdded:Connect(function(newCharacter)
         enableInfiniteJump()
     end
     
-    if godModeEnabled then
-        enableGodMode()
-    end
-    
     if speedBoostEnabled then
         enableSpeedBoost()
     end
@@ -475,12 +538,12 @@ end)
 -- Anti-Cheat Evasion
 local function randomizeBehavior()
     while true do
-        -- Variazione casuale dei valori per evitare pattern detection
+        -- Randomize target speed
         if speedBoostEnabled then
-            targetSpeed = math.random(95, 105)
+            targetSpeed = math.random(95, 120)
         end
         
-        -- Modifica casuale del nome del GUI
+        -- Change GUI name
         if math.random(1, 100) > 90 then
             screenGui.Name = "GUI_"..HttpService:GenerateGUID(false):sub(1, 6)
         end
@@ -499,4 +562,4 @@ screenGui.DescendantRemoving:Connect(function(descendant)
 end)
 
 print("Sigma Hub v11 loaded successfully!")
-print("Features: Speed Coil ownership system, Anti-Cheat Bypass, Minimizable GUI")
+print("Features: Enhanced Speed Coil system, Anti-Cheat Bypass Logic 9000, Minimizable GUI")
