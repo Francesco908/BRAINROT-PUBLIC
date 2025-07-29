@@ -11,12 +11,13 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 -- Variables for movement systems
 local isStealActive = false
-local isSuperStealActive = false
+local isTestV1Active = false
 local basePosition = nil
 local movementConnection = nil
-local superStealConnection = nil
+local testV1Connection = nil
 local floatPhase = "start"
 local godModeConnection = nil
+local floatHeight = 50
 
 -- Constants
 local FLOAT_HEIGHT = 175
@@ -146,7 +147,7 @@ superStealBtn.Size = UDim2.new(0.48, -5, 0, 35)
 superStealBtn.Position = UDim2.new(0.52, 5, 0, 115)
 superStealBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 60)
 superStealBtn.BackgroundTransparency = 0.2
-superStealBtn.Text = "SUPER STEAL"
+superStealBtn.Text = "TEST V1"
 superStealBtn.TextColor3 = Color3.fromRGB(120, 120, 255)
 superStealBtn.TextScaled = true
 superStealBtn.Font = Enum.Font.Code
@@ -168,7 +169,7 @@ infoLabel.Parent = mainFrame
 infoLabel.Size = UDim2.new(1, -20, 0, 25)
 infoLabel.Position = UDim2.new(0, 10, 0, 160)
 infoLabel.BackgroundTransparency = 1
-infoLabel.Text = "Super Steal: Infinite teleport to base"
+infoLabel.Text = "Test V1: Horizontal float flight to base"
 infoLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
 infoLabel.TextScaled = true
 infoLabel.Font = Enum.Font.Code
@@ -257,8 +258,29 @@ local function enableAdvancedGodMode()
     end
 end
 
--- Advanced Float Movement System
-local function advancedFloatMovement()
+        -- Remove old float movement function since we're not using it anymore
+
+-- Advanced Instant Steal (Direct Teleport and Stay)
+local function directTeleportSteal()
+    local character = player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart or not basePosition then return end
+    
+    -- Direct teleport to base and stay there
+    rootPart.CFrame = CFrame.new(basePosition)
+    rootPart.Anchored = true -- Keep player fixed in position
+    rootPart.Velocity = Vector3.new(0, 0, 0)
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid then
+        humanoid.PlatformStand = true -- Prevent movement
+    end
+end
+
+-- Test V1 System (Horizontal Float Flight)
+local function testV1FloatSystem()
     local character = player.Character
     if not character then return end
     
@@ -270,66 +292,42 @@ local function advancedFloatMovement()
     local currentPos = rootPart.Position
     local targetPos = basePosition
     
-    -- Calculate horizontal distance
-    local horizontalDistance = math.sqrt((targetPos.X - currentPos.X)^2 + (targetPos.Z - currentPos.Z)^2)
+    -- Calculate horizontal distance only
+    local horizontalTarget = Vector3.new(targetPos.X, currentPos.Y, targetPos.Z)
+    local horizontalDistance = (horizontalTarget - currentPos).Magnitude
     
-    if floatPhase == "start" then
-        -- Phase 1: Teleport to float height
-        local highPos = Vector3.new(currentPos.X, currentPos.Y + FLOAT_HEIGHT, currentPos.Z)
-        rootPart.CFrame = CFrame.new(highPos)
-        floatPhase = "floating"
-        humanoid.WalkSpeed = 35
-        statusLabel.Text = "Status: FLOATING TO BASE | Immortal Mode: ON"
+    if horizontalDistance > 2 then
+        -- Float horizontally to base at consistent height
+        local direction = (horizontalTarget - currentPos).Unit
+        local floatSpeed = 1.5
+        local newPos = currentPos + (direction * floatSpeed)
         
-    elseif floatPhase == "floating" then
-        -- Phase 2: Float horizontally maintaining height
-        if horizontalDistance > 3 then
-            local floatTargetPos = Vector3.new(targetPos.X, currentPos.Y, targetPos.Z)
-            local direction = (floatTargetPos - currentPos).Unit
-            local newPos = currentPos + (direction * 2.5)
-            newPos = Vector3.new(newPos.X, currentPos.Y, newPos.Z)
-            rootPart.CFrame = CFrame.new(newPos)
-        else
-            floatPhase = "descending"
-            statusLabel.Text = "Status: DESCENDING | Immortal Mode: ON V1"
+        -- Maintain float height
+        newPos = Vector3.new(newPos.X, currentPos.Y, newPos.Z)
+        
+        -- Direct CFrame movement (no tween)
+        rootPart.CFrame = CFrame.new(newPos)
+        rootPart.Velocity = Vector3.new(0, 0, 0)
+        
+        -- Keep humanoid in flying state
+        humanoid.PlatformStand = true
+    else
+        -- Arrived at base, land
+        local landPos = Vector3.new(targetPos.X, targetPos.Y, targetPos.Z)
+        rootPart.CFrame = CFrame.new(landPos)
+        humanoid.PlatformStand = false
+        
+        -- Stop the test
+        isTestV1Active = false
+        statusLabel.Text = "Status: TEST V1 COMPLETE | Immortal Mode: ON"
+        superStealBtn.Text = "TEST V1"
+        superStealBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 60)
+        
+        if testV1Connection then
+            testV1Connection:Disconnect()
+            testV1Connection = nil
         end
-        
-    elseif floatPhase == "descending" then
-        -- Phase 3: Go underground
-        local undergroundPos = Vector3.new(targetPos.X, targetPos.Y + UNDERGROUND_DEPTH, targetPos.Z)
-        rootPart.CFrame = CFrame.new(undergroundPos)
-        floatPhase = "surfacing"
-        statusLabel.Text = "Status: UNDERGROUND | Immortal Mode: ON"
-        
-    elseif floatPhase == "surfacing" then
-        -- Phase 4: Surface at base
-        wait(0.3)
-        local surfacePos = Vector3.new(targetPos.X, targetPos.Y + 5, targetPos.Z)
-        rootPart.CFrame = CFrame.new(surfacePos)
-        
-        -- Reset and continue cycle
-        floatPhase = "start"
-        wait(0.2) -- Brief pause before next cycle
     end
-end
-
--- Super Steal System (Infinite Teleport)
-local function superStealSystem()
-    local character = player.Character
-    if not character then return end
-    
-    local rootPart = character:FindFirstChild("HumanoidRootPart")
-    if not rootPart or not basePosition then return end
-    
-    -- Optimized teleport with slight randomization to avoid pattern detection
-    local randomOffset = Vector3.new(
-        math.random(-2, 2),
-        math.random(0, 3),
-        math.random(-2, 2)
-    )
-    
-    local teleportPos = basePosition + randomOffset
-    rootPart.CFrame = CFrame.new(teleportPos)
 end
 
 -- Set Base Position Function
@@ -365,7 +363,7 @@ local function setBasePosition()
     tween2:Play()
 end
 
--- Instant Steal Function
+-- Instant Steal Function (Improved)
 local function startInstantSteal()
     if not basePosition then
         statusLabel.Text = "Status: SET BASE FIRST | Immortal Mode: ON"
@@ -384,71 +382,94 @@ local function startInstantSteal()
             movementConnection = nil
         end
         
-        -- Reset player
+        -- Reset player state
         local character = player.Character
         if character then
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
             local humanoid = character:FindFirstChild("Humanoid")
+            
+            if rootPart then
+                rootPart.Anchored = false
+                rootPart.Velocity = Vector3.new(0, 0, 0)
+            end
+            
             if humanoid then
+                humanoid.PlatformStand = false
                 humanoid.WalkSpeed = 16
             end
         end
         
-        floatPhase = "start"
         return
     end
     
     -- Start steal
     isStealActive = true
-    floatPhase = "start"
     
-    statusLabel.Text = "Status: STEALING... | Immortal Mode: ON"
+    statusLabel.Text = "Status: TELEPORTING TO BASE | Immortal Mode: ON"
     stealBtn.Text = "STOP STEAL"
     stealBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
     
-    -- Start movement loop
-    movementConnection = RunService.Heartbeat:Connect(advancedFloatMovement)
+    -- Start infinite teleport and stay
+    movementConnection = RunService.Heartbeat:Connect(directTeleportSteal)
 end
 
--- Super Steal Function
-local function startSuperSteal()
+-- Test V1 Function
+local function startTestV1()
     if not basePosition then
         statusLabel.Text = "Status: SET BASE FIRST | Immortal Mode: ON"
         return
     end
     
-    if isSuperStealActive then
-        -- Stop super steal
-        isSuperStealActive = false
-        statusLabel.Text = "Status: SUPER STEAL STOPPED | Immortal Mode: ON"
-        superStealBtn.Text = "SUPER STEAL"
+    if isTestV1Active then
+        -- Stop test v1
+        isTestV1Active = false
+        statusLabel.Text = "Status: TEST V1 STOPPED | Immortal Mode: ON"
+        superStealBtn.Text = "TEST V1"
         superStealBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 60)
         
-        if superStealConnection then
-            superStealConnection:Disconnect()
-            superStealConnection = nil
+        if testV1Connection then
+            testV1Connection:Disconnect()
+            testV1Connection = nil
         end
+        
+        -- Reset player state
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.PlatformStand = false
+                humanoid.WalkSpeed = 16
+            end
+        end
+        
         return
     end
     
-    -- Start super steal
-    isSuperStealActive = true
-    statusLabel.Text = "Status: SUPER STEALING... | Immortal Mode: ON"
-    superStealBtn.Text = "STOP SUPER"
+    -- Start test v1
+    isTestV1Active = true
+    statusLabel.Text = "Status: TEST V1 FLYING | Immortal Mode: ON"
+    superStealBtn.Text = "STOP TEST"
     superStealBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 90)
     
-    -- Start infinite teleport loop with optimized timing
-    superStealConnection = RunService.Heartbeat:Connect(function()
-        wait(SUPER_STEAL_DELAY)
-        if isSuperStealActive then
-            superStealSystem()
+    -- Set initial float height
+    local character = player.Character
+    if character then
+        local rootPart = character:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            local currentPos = rootPart.Position
+            local floatPos = Vector3.new(currentPos.X, currentPos.Y + floatHeight, currentPos.Z)
+            rootPart.CFrame = CFrame.new(floatPos)
         end
-    end)
+    end
+    
+    -- Start horizontal float movement
+    testV1Connection = RunService.Heartbeat:Connect(testV1FloatSystem)
 end
 
 -- Button connections
 setBaseBtn.MouseButton1Click:Connect(setBasePosition)
 stealBtn.MouseButton1Click:Connect(startInstantSteal)
-superStealBtn.MouseButton1Click:Connect(startSuperSteal)
+superStealBtn.MouseButton1Click:Connect(startTestV1)
 
 -- Initialize Advanced God Mode with respawn protection
 player.CharacterAdded:Connect(function(character)
@@ -478,7 +499,7 @@ end
 Players.PlayerRemoving:Connect(function(leavingPlayer)
     if leavingPlayer == player then
         if movementConnection then movementConnection:Disconnect() end
-        if superStealConnection then superStealConnection:Disconnect() end
+        if testV1Connection then testV1Connection:Disconnect() end
         if godModeConnection then godModeConnection:Disconnect() end
     end
 end)
