@@ -1,5 +1,5 @@
--- Instant Steal GUI Script for Roblox
--- Advanced teleport and movement bypass system
+-- Advanced Instant Steal GUI Script for Roblox
+-- Optimized bypass system with god mode and infinite teleport
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -9,15 +9,23 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
--- Variables for movement system
+-- Variables for movement systems
 local isStealActive = false
+local isSuperStealActive = false
 local basePosition = nil
 local movementConnection = nil
+local superStealConnection = nil
 local floatPhase = "start"
+local godModeConnection = nil
+
+-- Constants
+local FLOAT_HEIGHT = 175
+local UNDERGROUND_DEPTH = -70
+local SUPER_STEAL_DELAY = 0.15 -- Optimized delay to avoid detection
 
 -- Create ScreenGui
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "InstantStealGUI"
+screenGui.Name = "AdvancedStealGUI"
 screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
@@ -25,16 +33,17 @@ screenGui.ResetOnSpawn = false
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Parent = screenGui
-mainFrame.Size = UDim2.new(0, 280, 0, 160)
-mainFrame.Position = UDim2.new(0.5, -140, 0.3, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.Size = UDim2.new(0, 300, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -150, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BackgroundTransparency = 0.15
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
 
--- Frame styling (hacker theme)
+-- Frame styling
 local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 8)
+frameCorner.CornerRadius = UDim.new(0, 12)
 frameCorner.Parent = mainFrame
 
 local frameStroke = Instance.new("UIStroke")
@@ -42,28 +51,28 @@ frameStroke.Color = Color3.fromRGB(0, 255, 150)
 frameStroke.Thickness = 2
 frameStroke.Parent = mainFrame
 
--- Glow effect
+-- Advanced glow effect
 local glowFrame = Instance.new("Frame")
 glowFrame.Name = "GlowFrame"
 glowFrame.Parent = mainFrame
-glowFrame.Size = UDim2.new(1, 6, 1, 6)
-glowFrame.Position = UDim2.new(0, -3, 0, -3)
+glowFrame.Size = UDim2.new(1, 8, 1, 8)
+glowFrame.Position = UDim2.new(0, -4, 0, -4)
 glowFrame.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-glowFrame.BackgroundTransparency = 0.8
+glowFrame.BackgroundTransparency = 0.85
 glowFrame.ZIndex = -1
 
 local glowCorner = Instance.new("UICorner")
-glowCorner.CornerRadius = UDim.new(0, 12)
+glowCorner.CornerRadius = UDim.new(0, 16)
 glowCorner.Parent = glowFrame
 
 -- Title
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Name = "TitleLabel"
 titleLabel.Parent = mainFrame
-titleLabel.Size = UDim2.new(1, 0, 0, 35)
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "INSTANT STEAL"
+titleLabel.Text = "ADVANCED STEAL SYSTEM"
 titleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.Code
@@ -75,9 +84,9 @@ local statusLabel = Instance.new("TextLabel")
 statusLabel.Name = "StatusLabel"
 statusLabel.Parent = mainFrame
 statusLabel.Size = UDim2.new(1, -20, 0, 20)
-statusLabel.Position = UDim2.new(0, 10, 0, 40)
+statusLabel.Position = UDim2.new(0, 10, 0, 45)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Status: READY"
+statusLabel.Text = "Status: READY | God Mode: ON"
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.TextScaled = true
 statusLabel.Font = Enum.Font.Code
@@ -88,8 +97,9 @@ local setBaseBtn = Instance.new("TextButton")
 setBaseBtn.Name = "SetBaseBtn"
 setBaseBtn.Parent = mainFrame
 setBaseBtn.Size = UDim2.new(1, -20, 0, 30)
-setBaseBtn.Position = UDim2.new(0, 10, 0, 70)
-setBaseBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+setBaseBtn.Position = UDim2.new(0, 10, 0, 75)
+setBaseBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+setBaseBtn.BackgroundTransparency = 0.2
 setBaseBtn.Text = "SET BASE POSITION"
 setBaseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 setBaseBtn.TextScaled = true
@@ -97,11 +107,11 @@ setBaseBtn.Font = Enum.Font.Code
 setBaseBtn.BorderSizePixel = 0
 
 local setBaseBtnCorner = Instance.new("UICorner")
-setBaseBtnCorner.CornerRadius = UDim.new(0, 5)
+setBaseBtnCorner.CornerRadius = UDim.new(0, 6)
 setBaseBtnCorner.Parent = setBaseBtn
 
 local setBaseBtnStroke = Instance.new("UIStroke")
-setBaseBtnStroke.Color = Color3.fromRGB(100, 100, 100)
+setBaseBtnStroke.Color = Color3.fromRGB(120, 120, 120)
 setBaseBtnStroke.Thickness = 1
 setBaseBtnStroke.Parent = setBaseBtn
 
@@ -109,46 +119,106 @@ setBaseBtnStroke.Parent = setBaseBtn
 local stealBtn = Instance.new("TextButton")
 stealBtn.Name = "StealBtn"
 stealBtn.Parent = mainFrame
-stealBtn.Size = UDim2.new(1, -20, 0, 35)
-stealBtn.Position = UDim2.new(0, 10, 0, 110)
-stealBtn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+stealBtn.Size = UDim2.new(0.48, -5, 0, 35)
+stealBtn.Position = UDim2.new(0, 10, 0, 115)
+stealBtn.BackgroundColor3 = Color3.fromRGB(60, 25, 25)
+stealBtn.BackgroundTransparency = 0.2
 stealBtn.Text = "INSTANT STEAL"
-stealBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+stealBtn.TextColor3 = Color3.fromRGB(255, 120, 120)
 stealBtn.TextScaled = true
 stealBtn.Font = Enum.Font.Code
 stealBtn.BorderSizePixel = 0
 
 local stealBtnCorner = Instance.new("UICorner")
-stealBtnCorner.CornerRadius = UDim.new(0, 5)
+stealBtnCorner.CornerRadius = UDim.new(0, 6)
 stealBtnCorner.Parent = stealBtn
 
 local stealBtnStroke = Instance.new("UIStroke")
-stealBtnStroke.Color = Color3.fromRGB(255, 100, 100)
+stealBtnStroke.Color = Color3.fromRGB(255, 120, 120)
 stealBtnStroke.Thickness = 2
 stealBtnStroke.Parent = stealBtn
 
--- Button hover effects
-local function createHoverEffect(button, hoverColor, normalColor)
+-- Super Steal Button
+local superStealBtn = Instance.new("TextButton")
+superStealBtn.Name = "SuperStealBtn"
+superStealBtn.Parent = mainFrame
+superStealBtn.Size = UDim2.new(0.48, -5, 0, 35)
+superStealBtn.Position = UDim2.new(0.52, 5, 0, 115)
+superStealBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 60)
+superStealBtn.BackgroundTransparency = 0.2
+superStealBtn.Text = "SUPER STEAL"
+superStealBtn.TextColor3 = Color3.fromRGB(120, 120, 255)
+superStealBtn.TextScaled = true
+superStealBtn.Font = Enum.Font.Code
+superStealBtn.BorderSizePixel = 0
+
+local superStealBtnCorner = Instance.new("UICorner")
+superStealBtnCorner.CornerRadius = UDim.new(0, 6)
+superStealBtnCorner.Parent = superStealBtn
+
+local superStealBtnStroke = Instance.new("UIStroke")
+superStealBtnStroke.Color = Color3.fromRGB(120, 120, 255)
+superStealBtnStroke.Thickness = 2
+superStealBtnStroke.Parent = superStealBtn
+
+-- Info Label
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Name = "InfoLabel"
+infoLabel.Parent = mainFrame
+infoLabel.Size = UDim2.new(1, -20, 0, 25)
+infoLabel.Position = UDim2.new(0, 10, 0, 160)
+infoLabel.BackgroundTransparency = 1
+infoLabel.Text = "Super Steal: Infinite teleport to base"
+infoLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+infoLabel.TextScaled = true
+infoLabel.Font = Enum.Font.Code
+infoLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+-- Advanced hover effects
+local function createAdvancedHoverEffect(button, hoverColor, normalColor, glowColor)
+    local buttonStroke = button:FindFirstChild("UIStroke")
+    
     button.MouseEnter:Connect(function()
-        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor})
-        tween:Play()
+        local tween1 = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor})
+        local tween2 = TweenService:Create(buttonStroke, TweenInfo.new(0.2), {Color = glowColor})
+        tween1:Play()
+        tween2:Play()
     end)
     
     button.MouseLeave:Connect(function()
-        local tween = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = normalColor})
-        tween:Play()
+        local tween1 = TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = normalColor})
+        local tween2 = TweenService:Create(buttonStroke, TweenInfo.new(0.2), {Color = buttonStroke.Color})
+        tween1:Play()
+        tween2:Play()
     end)
 end
 
-createHoverEffect(setBaseBtn, Color3.fromRGB(60, 60, 60), Color3.fromRGB(40, 40, 40))
-createHoverEffect(stealBtn, Color3.fromRGB(80, 30, 30), Color3.fromRGB(50, 20, 20))
+createAdvancedHoverEffect(setBaseBtn, Color3.fromRGB(65, 65, 65), Color3.fromRGB(45, 45, 45), Color3.fromRGB(200, 200, 200))
+createAdvancedHoverEffect(stealBtn, Color3.fromRGB(80, 35, 35), Color3.fromRGB(60, 25, 25), Color3.fromRGB(255, 150, 150))
+createAdvancedHoverEffect(superStealBtn, Color3.fromRGB(35, 35, 80), Color3.fromRGB(25, 25, 60), Color3.fromRGB(150, 150, 255))
 
--- Advanced Float Teleport System
-local floatPhase = "start" -- start, floating, descending, complete
-local floatHeight = 175
-local undergroundDepth = -70
+-- God Mode System
+local function enableGodMode()
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
+    
+    -- Prevent death
+    humanoid.MaxHealth = math.huge
+    humanoid.Health = math.huge
+    
+    -- Continuous god mode
+    godModeConnection = RunService.Heartbeat:Connect(function()
+        if humanoid and humanoid.Parent then
+            humanoid.Health = math.huge
+        end
+    end)
+end
 
-local function advancedBypassMovement()
+-- Advanced Float Movement System
+local function advancedFloatMovement()
     local character = player.Character
     if not character then return end
     
@@ -160,116 +230,121 @@ local function advancedBypassMovement()
     local currentPos = rootPart.Position
     local targetPos = basePosition
     
-    -- Calculate horizontal distance (ignoring Y)
+    -- Calculate horizontal distance
     local horizontalDistance = math.sqrt((targetPos.X - currentPos.X)^2 + (targetPos.Z - currentPos.Z)^2)
     
     if floatPhase == "start" then
-        -- Phase 1: Teleport to 175 height
-        local highPos = Vector3.new(currentPos.X, currentPos.Y + floatHeight, currentPos.Z)
+        -- Phase 1: Teleport to float height
+        local highPos = Vector3.new(currentPos.X, currentPos.Y + FLOAT_HEIGHT, currentPos.Z)
         rootPart.CFrame = CFrame.new(highPos)
         floatPhase = "floating"
-        humanoid.WalkSpeed = 30
-        statusLabel.Text = "Status: FLOATING TO BASE"
+        humanoid.WalkSpeed = 35
+        statusLabel.Text = "Status: FLOATING TO BASE | God Mode: ON"
         
     elseif floatPhase == "floating" then
-        -- Phase 2: Float horizontally towards base maintaining 175 height
-        local floatTargetPos = Vector3.new(targetPos.X, currentPos.Y, targetPos.Z)
-        
-        if horizontalDistance > 5 then
-            -- Continue floating towards base
+        -- Phase 2: Float horizontally maintaining height
+        if horizontalDistance > 3 then
+            local floatTargetPos = Vector3.new(targetPos.X, currentPos.Y, targetPos.Z)
             local direction = (floatTargetPos - currentPos).Unit
-            local newPos = currentPos + (direction * 2)
-            -- Maintain exact height of 175
+            local newPos = currentPos + (direction * 2.5)
             newPos = Vector3.new(newPos.X, currentPos.Y, newPos.Z)
             rootPart.CFrame = CFrame.new(newPos)
         else
-            -- Arrived at base horizontally, start descending
             floatPhase = "descending"
-            statusLabel.Text = "Status: DESCENDING"
+            statusLabel.Text = "Status: DESCENDING | God Mode: ON"
         end
         
     elseif floatPhase == "descending" then
-        -- Phase 3: Teleport underground to -70
-        local undergroundPos = Vector3.new(targetPos.X, undergroundDepth, targetPos.Z)
+        -- Phase 3: Go underground
+        local undergroundPos = Vector3.new(targetPos.X, targetPos.Y + UNDERGROUND_DEPTH, targetPos.Z)
         rootPart.CFrame = CFrame.new(undergroundPos)
-        floatPhase = "returning"
-        statusLabel.Text = "Status: UNDERGROUND"
+        floatPhase = "surfacing"
+        statusLabel.Text = "Status: UNDERGROUND | God Mode: ON"
         
-        -- Wait a moment then return to normal
-        wait(0.5)
-        floatPhase = "complete"
+    elseif floatPhase == "surfacing" then
+        -- Phase 4: Surface at base
+        wait(0.3)
+        local surfacePos = Vector3.new(targetPos.X, targetPos.Y + 5, targetPos.Z)
+        rootPart.CFrame = CFrame.new(surfacePos)
         
-    elseif floatPhase == "returning" then
-        -- Phase 4: Return to normal position
-        local normalPos = Vector3.new(targetPos.X, targetPos.Y, targetPos.Z)
-        rootPart.CFrame = CFrame.new(normalPos)
-        floatPhase = "complete"
-        
-    elseif floatPhase == "complete" then
-        -- Movement complete, stop everything
-        isStealActive = false
-        statusLabel.Text = "Status: STEAL COMPLETE"
-        stealBtn.Text = "INSTANT STEAL"
-        stealBtn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
-        
-        if movementConnection then
-            movementConnection:Disconnect()
-            movementConnection = nil
-        end
-        
-        -- Reset player to normal
-        humanoid.WalkSpeed = 16
+        -- Reset and continue cycle
         floatPhase = "start"
+        wait(0.2) -- Brief pause before next cycle
     end
+end
+
+-- Super Steal System (Infinite Teleport)
+local function superStealSystem()
+    local character = player.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart or not basePosition then return end
+    
+    -- Optimized teleport with slight randomization to avoid pattern detection
+    local randomOffset = Vector3.new(
+        math.random(-2, 2),
+        math.random(0, 3),
+        math.random(-2, 2)
+    )
+    
+    local teleportPos = basePosition + randomOffset
+    rootPart.CFrame = CFrame.new(teleportPos)
 end
 
 -- Set Base Position Function
 local function setBasePosition()
     local character = player.Character
     if not character then 
-        statusLabel.Text = "Status: NO CHARACTER"
+        statusLabel.Text = "Status: NO CHARACTER | God Mode: ON"
         return 
     end
     
     local rootPart = character:FindFirstChild("HumanoidRootPart")
     if not rootPart then 
-        statusLabel.Text = "Status: NO ROOT PART"
+        statusLabel.Text = "Status: NO ROOT PART | God Mode: ON"
         return 
     end
     
     basePosition = rootPart.Position
-    statusLabel.Text = "Status: BASE SET"
+    statusLabel.Text = "Status: BASE SET | God Mode: ON"
     
-    -- Visual feedback
-    local tween = TweenService:Create(setBaseBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(20, 80, 20)})
+    -- Enhanced visual feedback
+    local tween = TweenService:Create(setBaseBtn, TweenInfo.new(0.4), {
+        BackgroundColor3 = Color3.fromRGB(25, 80, 25),
+        BackgroundTransparency = 0.1
+    })
     tween:Play()
     
-    wait(1)
+    wait(1.2)
     
-    local tween2 = TweenService:Create(setBaseBtn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)})
+    local tween2 = TweenService:Create(setBaseBtn, TweenInfo.new(0.4), {
+        BackgroundColor3 = Color3.fromRGB(45, 45, 45),
+        BackgroundTransparency = 0.2
+    })
     tween2:Play()
 end
 
 -- Instant Steal Function
 local function startInstantSteal()
     if not basePosition then
-        statusLabel.Text = "Status: SET BASE FIRST"
+        statusLabel.Text = "Status: SET BASE FIRST | God Mode: ON"
         return
     end
     
     if isStealActive then
         -- Stop steal
         isStealActive = false
-        statusLabel.Text = "Status: STOPPED"
+        statusLabel.Text = "Status: STOPPED | God Mode: ON"
         stealBtn.Text = "INSTANT STEAL"
-        stealBtn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+        stealBtn.BackgroundColor3 = Color3.fromRGB(60, 25, 25)
         
         if movementConnection then
             movementConnection:Disconnect()
             movementConnection = nil
         end
         
-        -- Reset player speed
+        -- Reset player
         local character = player.Character
         if character then
             local humanoid = character:FindFirstChild("Humanoid")
@@ -286,32 +361,82 @@ local function startInstantSteal()
     isStealActive = true
     floatPhase = "start"
     
-    statusLabel.Text = "Status: STEALING..."
+    statusLabel.Text = "Status: STEALING... | God Mode: ON"
     stealBtn.Text = "STOP STEAL"
-    stealBtn.BackgroundColor3 = Color3.fromRGB(80, 30, 30)
+    stealBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
     
     -- Start movement loop
-    movementConnection = RunService.Heartbeat:Connect(advancedBypassMovement)
+    movementConnection = RunService.Heartbeat:Connect(advancedFloatMovement)
+end
+
+-- Super Steal Function
+local function startSuperSteal()
+    if not basePosition then
+        statusLabel.Text = "Status: SET BASE FIRST | God Mode: ON"
+        return
+    end
+    
+    if isSuperStealActive then
+        -- Stop super steal
+        isSuperStealActive = false
+        statusLabel.Text = "Status: SUPER STEAL STOPPED | God Mode: ON"
+        superStealBtn.Text = "SUPER STEAL"
+        superStealBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 60)
+        
+        if superStealConnection then
+            superStealConnection:Disconnect()
+            superStealConnection = nil
+        end
+        return
+    end
+    
+    -- Start super steal
+    isSuperStealActive = true
+    statusLabel.Text = "Status: SUPER STEALING... | God Mode: ON"
+    superStealBtn.Text = "STOP SUPER"
+    superStealBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 90)
+    
+    -- Start infinite teleport loop with optimized timing
+    superStealConnection = RunService.Heartbeat:Connect(function()
+        wait(SUPER_STEAL_DELAY)
+        if isSuperStealActive then
+            superStealSystem()
+        end
+    end)
 end
 
 -- Button connections
 setBaseBtn.MouseButton1Click:Connect(setBasePosition)
 stealBtn.MouseButton1Click:Connect(startInstantSteal)
+superStealBtn.MouseButton1Click:Connect(startSuperSteal)
 
--- Cleanup on player leaving
+-- Initialize God Mode
+player.CharacterAdded:Connect(function()
+    wait(1)
+    enableGodMode()
+end)
+
+if player.Character then
+    enableGodMode()
+end
+
+-- Cleanup
 Players.PlayerRemoving:Connect(function(leavingPlayer)
     if leavingPlayer == player then
-        if movementConnection then
-            movementConnection:Disconnect()
-        end
+        if movementConnection then movementConnection:Disconnect() end
+        if superStealConnection then superStealConnection:Disconnect() end
+        if godModeConnection then godModeConnection:Disconnect() end
     end
 end)
 
--- Glow animation
+-- Enhanced glow animation
 spawn(function()
-    while wait(0.1) do
+    while wait(0.05) do
         if glowFrame and glowFrame.Parent then
-            local tween = TweenService:Create(glowFrame, TweenInfo.new(2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {BackgroundTransparency = 0.95})
+            local tween = TweenService:Create(glowFrame, 
+                TweenInfo.new(3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), 
+                {BackgroundTransparency = 0.95}
+            )
             tween:Play()
         else
             break
@@ -319,4 +444,4 @@ spawn(function()
     end
 end)
 
-print("Instant Steal GUI loaded successfully!")
+print("Advanced Steal System loaded successfully!")
