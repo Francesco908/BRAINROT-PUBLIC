@@ -1,589 +1,468 @@
--- Advanced Mobile Roblox Script v2.1 OPTIMIZED
--- INFINITE JUMP + SPEED BOOST + MOBILE GUI
--- Tutti gli errori risolti e ottimizzazioni avanzate
+-- Script Mobile Roblox - Infinite Jump & Speed Boost Avanzato
+-- Compatibile 100% Mobile con GUI draggable
 
--- Services ottimizzati
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Variables globali sicure
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Configurazione ottimizzata
-local config = {
-    infiniteJump = false,
-    speedBoost = false,
-    originalSpeed = 16,
-    currentSpeed = 50,
-    jumpPower = 50,
-    minSpeed = 16,
-    maxSpeed = 200
+-- Variabili principali
+local infiniteJumpEnabled = false
+local speedBoostEnabled = false
+local originalWalkSpeed = 16
+local originalJumpPower = 50
+local targetSpeed = 100
+local speedCoilEquipped = false
+
+-- Connessioni
+local jumpConnection
+local speedConnection
+local heartbeatConnection
+
+-- GUI Creation
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MobileHackGui"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Main Frame (Draggable)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Parent = screenGui
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.Position = UDim2.new(0.05, 0, 0.3, 0)
+mainFrame.Size = UDim2.new(0, 320, 0, 400)
+mainFrame.Active = true
+mainFrame.Draggable = true
+
+-- Corner per rounded edges
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+-- Gradient per stile
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 45)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 30))
 }
+gradient.Rotation = 45
+gradient.Parent = mainFrame
 
--- Connections sicure
-local connections = {}
-local gui = nil
-local isDragging = false
-local dragStart = nil
-local startPos = nil
+-- Header
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Parent = mainFrame
+header.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+header.BackgroundTransparency = 0.2
+header.BorderSizePixel = 0
+header.Size = UDim2.new(1, 0, 0, 50)
 
--- Funzione per cleanup sicuro
-local function cleanupConnections()
-    for name, connection in pairs(connections) do
-        if connection and connection.Connected then
-            connection:Disconnect()
+local headerCorner = Instance.new("UICorner")
+headerCorner.CornerRadius = UDim.new(0, 12)
+headerCorner.Parent = header
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Parent = header
+title.BackgroundTransparency = 1
+title.Position = UDim2.new(0, 15, 0, 0)
+title.Size = UDim2.new(0.7, 0, 1, 0)
+title.Font = Enum.Font.GothamBold
+title.Text = "Mobile Hack v2.0"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextScaled = true
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Close Button
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Parent = header
+closeButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+closeButton.BorderSizePixel = 0
+closeButton.Position = UDim2.new(1, -45, 0.5, -12.5)
+closeButton.Size = UDim2.new(0, 25, 0, 25)
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextScaled = true
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 6)
+closeCorner.Parent = closeButton
+
+-- Minimize Button
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Name = "MinimizeButton"
+minimizeButton.Parent = header
+minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 150, 50)
+minimizeButton.BorderSizePixel = 0
+minimizeButton.Position = UDim2.new(1, -75, 0.5, -12.5)
+minimizeButton.Size = UDim2.new(0, 25, 0, 25)
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextScaled = true
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 6)
+minimizeCorner.Parent = minimizeButton
+
+-- Content Frame
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Parent = mainFrame
+contentFrame.BackgroundTransparency = 1
+contentFrame.Position = UDim2.new(0, 0, 0, 60)
+contentFrame.Size = UDim2.new(1, 0, 1, -60)
+
+-- Tab System
+local tabFrame = Instance.new("Frame")
+tabFrame.Name = "TabFrame"
+tabFrame.Parent = contentFrame
+tabFrame.BackgroundTransparency = 1
+tabFrame.Size = UDim2.new(1, 0, 0, 40)
+
+local tab1Button = Instance.new("TextButton")
+tab1Button.Name = "MovementTab"
+tab1Button.Parent = tabFrame
+tab1Button.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+tab1Button.BorderSizePixel = 0
+tab1Button.Position = UDim2.new(0, 10, 0, 5)
+tab1Button.Size = UDim2.new(0.45, -15, 0, 30)
+tab1Button.Font = Enum.Font.Gotham
+tab1Button.Text = "Movement"
+tab1Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+tab1Button.TextScaled = true
+
+local tab1Corner = Instance.new("UICorner")
+tab1Corner.CornerRadius = UDim.new(0, 8)
+tab1Corner.Parent = tab1Button
+
+local tab2Button = Instance.new("TextButton")
+tab2Button.Name = "SettingsTab"
+tab2Button.Parent = tabFrame
+tab2Button.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+tab2Button.BorderSizePixel = 0
+tab2Button.Position = UDim2.new(0.5, 5, 0, 5)
+tab2Button.Size = UDim2.new(0.45, -15, 0, 30)
+tab2Button.Font = Enum.Font.Gotham
+tab2Button.Text = "Settings"
+tab2Button.TextColor3 = Color3.fromRGB(200, 200, 200)
+tab2Button.TextScaled = true
+
+local tab2Corner = Instance.new("UICorner")
+tab2Corner.CornerRadius = UDim.new(0, 8)
+tab2Corner.Parent = tab2Button
+
+-- Tab Content Frames
+local movementTab = Instance.new("Frame")
+movementTab.Name = "MovementTab"
+movementTab.Parent = contentFrame
+movementTab.BackgroundTransparency = 1
+movementTab.Position = UDim2.new(0, 0, 0, 50)
+movementTab.Size = UDim2.new(1, 0, 1, -50)
+movementTab.Visible = true
+
+local settingsTab = Instance.new("Frame")
+settingsTab.Name = "SettingsTab"
+settingsTab.Parent = contentFrame
+settingsTab.BackgroundTransparency = 1
+settingsTab.Position = UDim2.new(0, 0, 0, 50)
+settingsTab.Size = UDim2.new(1, 0, 1, -50)
+settingsTab.Visible = false
+
+-- Function to create switches
+local function createSwitch(parent, text, position, callback)
+    local switchFrame = Instance.new("Frame")
+    switchFrame.Name = text .. "Switch"
+    switchFrame.Parent = parent
+    switchFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+    switchFrame.BorderSizePixel = 0
+    switchFrame.Position = position
+    switchFrame.Size = UDim2.new(1, -20, 0, 60)
+    
+    local switchCorner = Instance.new("UICorner")
+    switchCorner.CornerRadius = UDim.new(0, 10)
+    switchCorner.Parent = switchFrame
+    
+    local label = Instance.new("TextLabel")
+    label.Name = "Label"
+    label.Parent = switchFrame
+    label.BackgroundTransparency = 1
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.Font = Enum.Font.GothamMedium
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextScaled = true
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "ToggleButton"
+    toggleButton.Parent = switchFrame
+    toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    toggleButton.BorderSizePixel = 0
+    toggleButton.Position = UDim2.new(1, -60, 0.5, -15)
+    toggleButton.Size = UDim2.new(0, 50, 0, 30)
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.Text = "OFF"
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.TextScaled = true
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 15)
+    toggleCorner.Parent = toggleButton
+    
+    local isEnabled = false
+    
+    toggleButton.MouseButton1Click:Connect(function()
+        isEnabled = not isEnabled
+        if isEnabled then
+            toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+            toggleButton.Text = "ON"
+        else
+            toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            toggleButton.Text = "OFF"
         end
-        connections[name] = nil
-    end
-end
-
--- Funzione per creare GUI ottimizzata
-local function createGUI()
-    -- Rimuovi GUI esistente
-    local existing = playerGui:FindFirstChild("AdvancedMobileGUI")
-    if existing then
-        existing:Destroy()
-        wait(0.1)
-    end
-    
-    -- ScreenGui principale
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AdvancedMobileGUI"
-    screenGui.ResetOnSpawn = false
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    screenGui.Parent = playerGui
-    
-    -- Main Frame
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 320, 0, 400)
-    mainFrame.Position = UDim2.new(0.5, -160, 0.5, -200)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.ClipsDescendants = true
-    mainFrame.Parent = screenGui
-    
-    -- Corner radius
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = mainFrame
-    
-    -- Header per dragging
-    local header = Instance.new("Frame")
-    header.Name = "Header"
-    header.Size = UDim2.new(1, 0, 0, 45)
-    header.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-    header.BorderSizePixel = 0
-    header.Parent = mainFrame
-    
-    local headerCorner = Instance.new("UICorner")
-    headerCorner.CornerRadius = UDim.new(0, 12)
-    headerCorner.Parent = header
-    
-    -- Title
-    local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -80, 1, 0)
-    title.Position = UDim2.new(0, 10, 0, 0)
-    title.BackgroundTransparency = 1
-    title.Text = "🚀 Mobile Script v2.1"
-    title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextScaled = true
-    title.Font = Enum.Font.GothamBold
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Parent = header
-    
-    -- Close button
-    local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 30, 0, 30)
-    closeBtn.Position = UDim2.new(1, -35, 0.5, -15)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
-    closeBtn.BorderSizePixel = 0
-    closeBtn.Text = "✕"
-    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeBtn.TextScaled = true
-    closeBtn.Font = Enum.Font.GothamBold
-    closeBtn.Parent = header
-    
-    local closeBtnCorner = Instance.new("UICorner")
-    closeBtnCorner.CornerRadius = UDim.new(0, 8)
-    closeBtnCorner.Parent = closeBtn
-    
-    -- Content area
-    local content = Instance.new("ScrollingFrame")
-    content.Name = "Content"
-    content.Size = UDim2.new(1, -20, 1, -65)
-    content.Position = UDim2.new(0, 10, 0, 55)
-    content.BackgroundTransparency = 1
-    content.BorderSizePixel = 0
-    content.ScrollBarThickness = 5
-    content.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 120)
-    content.CanvasSize = UDim2.new(0, 0, 0, 600)
-    content.Parent = mainFrame
-    
-    return screenGui, mainFrame, header, content, closeBtn
-end
-
--- Funzione per creare sezione Jump
-local function createJumpSection(parent)
-    local jumpFrame = Instance.new("Frame")
-    jumpFrame.Size = UDim2.new(1, 0, 0, 120)
-    jumpFrame.Position = UDim2.new(0, 0, 0, 0)
-    jumpFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-    jumpFrame.BorderSizePixel = 0
-    jumpFrame.Parent = parent
-    
-    local jumpCorner = Instance.new("UICorner")
-    jumpCorner.CornerRadius = UDim.new(0, 10)
-    jumpCorner.Parent = jumpFrame
-    
-    -- Jump title
-    local jumpTitle = Instance.new("TextLabel")
-    jumpTitle.Size = UDim2.new(1, -70, 0, 30)
-    jumpTitle.Position = UDim2.new(0, 10, 0, 10)
-    jumpTitle.BackgroundTransparency = 1
-    jumpTitle.Text = "🦘 INFINITE JUMP"
-    jumpTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    jumpTitle.TextScaled = true
-    jumpTitle.Font = Enum.Font.GothamBold
-    jumpTitle.TextXAlignment = Enum.TextXAlignment.Left
-    jumpTitle.Parent = jumpFrame
-    
-    -- Jump toggle
-    local jumpToggle = Instance.new("TextButton")
-    jumpToggle.Name = "JumpToggle"
-    jumpToggle.Size = UDim2.new(0, 50, 0, 25)
-    jumpToggle.Position = UDim2.new(1, -60, 0, 12.5)
-    jumpToggle.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
-    jumpToggle.BorderSizePixel = 0
-    jumpToggle.Text = "OFF"
-    jumpToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    jumpToggle.TextScaled = true
-    jumpToggle.Font = Enum.Font.GothamBold
-    jumpToggle.Parent = jumpFrame
-    
-    local jumpToggleCorner = Instance.new("UICorner")
-    jumpToggleCorner.CornerRadius = UDim.new(0, 12)
-    jumpToggleCorner.Parent = jumpToggle
-    
-    -- Jump info
-    local jumpInfo = Instance.new("TextLabel")
-    jumpInfo.Size = UDim2.new(1, -20, 0, 60)
-    jumpInfo.Position = UDim2.new(0, 10, 0, 50)
-    jumpInfo.BackgroundTransparency = 1
-    jumpInfo.Text = "Tocca lo schermo per saltare infinitamente!\nLogica mobile avanzata con cooldown intelligente."
-    jumpInfo.TextColor3 = Color3.fromRGB(180, 180, 200)
-    jumpInfo.TextScaled = true
-    jumpInfo.Font = Enum.Font.Gotham
-    jumpInfo.TextXAlignment = Enum.TextXAlignment.Left
-    jumpInfo.TextYAlignment = Enum.TextYAlignment.Top
-    jumpInfo.Parent = jumpFrame
-    
-    return jumpToggle
-end
-
--- Funzione per creare sezione Speed
-local function createSpeedSection(parent)
-    local speedFrame = Instance.new("Frame")
-    speedFrame.Size = UDim2.new(1, 0, 0, 150)
-    speedFrame.Position = UDim2.new(0, 0, 0, 140)
-    speedFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
-    speedFrame.BorderSizePixel = 0
-    speedFrame.Parent = parent
-    
-    local speedCorner = Instance.new("UICorner")
-    speedCorner.CornerRadius = UDim.new(0, 10)
-    speedCorner.Parent = speedFrame
-    
-    -- Speed title
-    local speedTitle = Instance.new("TextLabel")
-    speedTitle.Size = UDim2.new(1, -70, 0, 30)
-    speedTitle.Position = UDim2.new(0, 10, 0, 10)
-    speedTitle.BackgroundTransparency = 1
-    speedTitle.Text = "⚡ SPEED COIL SIMULATOR"
-    speedTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    speedTitle.TextScaled = true
-    speedTitle.Font = Enum.Font.GothamBold
-    speedTitle.TextXAlignment = Enum.TextXAlignment.Left
-    speedTitle.Parent = speedFrame
-    
-    -- Speed toggle
-    local speedToggle = Instance.new("TextButton")
-    speedToggle.Name = "SpeedToggle"
-    speedToggle.Size = UDim2.new(0, 50, 0, 25)
-    speedToggle.Position = UDim2.new(1, -60, 0, 12.5)
-    speedToggle.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
-    speedToggle.BorderSizePixel = 0
-    speedToggle.Text = "OFF"
-    speedToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    speedToggle.TextScaled = true
-    speedToggle.Font = Enum.Font.GothamBold
-    speedToggle.Parent = speedFrame
-    
-    local speedToggleCorner = Instance.new("UICorner")
-    speedToggleCorner.CornerRadius = UDim.new(0, 12)
-    speedToggleCorner.Parent = speedToggle
-    
-    -- Speed label
-    local speedLabel = Instance.new("TextLabel")
-    speedLabel.Name = "SpeedLabel"
-    speedLabel.Size = UDim2.new(1, -20, 0, 20)
-    speedLabel.Position = UDim2.new(0, 10, 0, 50)
-    speedLabel.BackgroundTransparency = 1
-    speedLabel.Text = "Velocità: " .. config.currentSpeed
-    speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    speedLabel.TextScaled = true
-    speedLabel.Font = Enum.Font.GothamBold
-    speedLabel.TextXAlignment = Enum.TextXAlignment.Left
-    speedLabel.Parent = speedFrame
-    
-    -- Speed slider background
-    local sliderBg = Instance.new("Frame")
-    sliderBg.Size = UDim2.new(1, -40, 0, 8)
-    sliderBg.Position = UDim2.new(0, 20, 0, 80)
-    sliderBg.BackgroundColor3 = Color3.fromRGB(70, 70, 85)
-    sliderBg.BorderSizePixel = 0
-    sliderBg.Parent = speedFrame
-    
-    local sliderBgCorner = Instance.new("UICorner")
-    sliderBgCorner.CornerRadius = UDim.new(0, 4)
-    sliderBgCorner.Parent = sliderBg
-    
-    -- Speed slider fill
-    local sliderFill = Instance.new("Frame")
-    sliderFill.Name = "SliderFill"
-    sliderFill.Size = UDim2.new(0.2, 0, 1, 0)
-    sliderFill.BackgroundColor3 = Color3.fromRGB(0, 123, 255)
-    sliderFill.BorderSizePixel = 0
-    sliderFill.Parent = sliderBg
-    
-    local sliderFillCorner = Instance.new("UICorner")
-    sliderFillCorner.CornerRadius = UDim.new(0, 4)
-    sliderFillCorner.Parent = sliderFill
-    
-    -- Speed slider button
-    local sliderBtn = Instance.new("TextButton")
-    sliderBtn.Name = "SliderButton"
-    sliderBtn.Size = UDim2.new(0, 16, 0, 16)
-    sliderBtn.Position = UDim2.new(0.2, -8, 0.5, -8)
-    sliderBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    sliderBtn.BorderSizePixel = 0
-    sliderBtn.Text = ""
-    sliderBtn.Parent = sliderBg
-    
-    local sliderBtnCorner = Instance.new("UICorner")
-    sliderBtnCorner.CornerRadius = UDim.new(0, 8)
-    sliderBtnCorner.Parent = sliderBtn
-    
-    -- Speed info
-    local speedInfo = Instance.new("TextLabel")
-    speedInfo.Size = UDim2.new(1, -20, 0, 40)
-    speedInfo.Position = UDim2.new(0, 10, 0, 100)
-    speedInfo.BackgroundTransparency = 1
-    speedInfo.Text = "Simula Speed Coil automaticamente!\nVelocità costante con rilevamento cambi."
-    speedInfo.TextColor3 = Color3.fromRGB(180, 180, 200)
-    speedInfo.TextScaled = true
-    speedInfo.Font = Enum.Font.Gotham
-    speedInfo.TextXAlignment = Enum.TextXAlignment.Left
-    speedInfo.TextYAlignment = Enum.TextYAlignment.Top
-    speedInfo.Parent = speedFrame
-    
-    return speedToggle, speedLabel, sliderFill, sliderBtn, sliderBg
-end
-
--- Funzione dragging ottimizzata
-local function setupDragging(frame, dragHandle)
-    local function updateDrag(input)
-        if isDragging and dragStart and startPos then
-            local delta = input.Position - dragStart
-            local newPos = UDim2.new(
-                startPos.X.Scale, 
-                startPos.X.Offset + delta.X, 
-                startPos.Y.Scale, 
-                startPos.Y.Offset + delta.Y
-            )
-            frame.Position = newPos
-        end
-    end
-    
-    dragHandle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isDragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            updateDrag(input)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isDragging = false
-            dragStart = nil
-            startPos = nil
-        end
-    end)
-end
-
--- Infinite Jump ottimizzato
-local function enableInfiniteJump()
-    if connections.jump then
-        connections.jump:Disconnect()
-    end
-    
-    local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-    
-    local lastJump = 0
-    local jumpCooldown = 0.15
-    
-    local function doJump()
-        local now = tick()
-        if now - lastJump > jumpCooldown then
-            lastJump = now
-            humanoid.JumpPower = config.jumpPower
-            humanoid.Jump = true
-        end
-    end
-    
-    -- Touch detection per mobile
-    connections.jump = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if not gameProcessed and config.infiniteJump then
-            if input.UserInputType == Enum.UserInputType.Touch or 
-               input.UserInputType == Enum.UserInputType.MouseButton1 or
-               input.KeyCode == Enum.KeyCode.Space then
-                doJump()
-            end
-        end
-    end)
-end
-
--- Speed Boost ottimizzato
-local function enableSpeedBoost()
-    if connections.speed then
-        connections.speed:Disconnect()
-    end
-    
-    local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-    
-    -- Salva velocità originale
-    if config.originalSpeed == 16 then
-        config.originalSpeed = humanoid.WalkSpeed
-    end
-    
-    -- Applica velocità
-    humanoid.WalkSpeed = config.currentSpeed
-    
-    -- Monitoraggio continuo
-    connections.speed = RunService.Heartbeat:Connect(function()
-        if config.speedBoost and humanoid and humanoid.Parent then
-            if humanoid.WalkSpeed ~= config.currentSpeed then
-                humanoid.WalkSpeed = config.currentSpeed
-            end
-        end
-    end)
-end
-
--- Setup slider ottimizzato
-local function setupSpeedSlider(sliderBg, sliderFill, sliderBtn, speedLabel)
-    local draggingSlider = false
-    
-    sliderBtn.MouseButton1Down:Connect(function()
-        draggingSlider = true
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingSlider = false
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local bgPos = sliderBg.AbsolutePosition
-            local bgSize = sliderBg.AbsoluteSize
-            local mouseX = input.Position.X
-            
-            local relativeX = mouseX - bgPos.X
-            local percentage = math.clamp(relativeX / bgSize.X, 0, 1)
-            
-            -- Calcola nuova velocità
-            config.currentSpeed = math.floor(config.minSpeed + (percentage * (config.maxSpeed - config.minSpeed)))
-            
-            -- Aggiorna UI
-            speedLabel.Text = "Velocità: " .. config.currentSpeed
-            sliderFill.Size = UDim2.new(percentage, 0, 1, 0)
-            sliderBtn.Position = UDim2.new(percentage, -8, 0.5, -8)
-            
-            -- Applica se attivo
-            if config.speedBoost then
-                local character = player.Character
-                if character then
-                    local humanoid = character:FindFirstChildOfClass("Humanoid")
-                    if humanoid then
-                        humanoid.WalkSpeed = config.currentSpeed
-                    end
-                end
-            end
-        end
-    end)
-end
-
--- Character respawn handler
-local function onCharacterAdded(character)
-    wait(2) -- Attendi caricamento
-    
-    if config.infiniteJump then
-        enableInfiniteJump()
-    end
-    
-    if config.speedBoost then
-        enableSpeedBoost()
-    end
-end
-
--- Inizializzazione principale
-local function initialize()
-    print("🚀 Inizializzazione Advanced Mobile Script v2.1...")
-    
-    -- Cleanup esistente
-    cleanupConnections()
-    
-    -- Attendi character
-    if not player.Character then
-        player.CharacterAdded:Wait()
-    end
-    
-    -- Crea GUI
-    local screenGui, mainFrame, header, content, closeBtn = createGUI()
-    local jumpToggle = createJumpSection(content)
-    local speedToggle, speedLabel, sliderFill, sliderBtn, sliderBg = createSpeedSection(content)
-    
-    gui = screenGui
-    
-    -- Setup dragging
-    setupDragging(mainFrame, header)
-    
-    -- Setup slider
-    setupSpeedSlider(sliderBg, sliderFill, sliderBtn, speedLabel)
-    
-    -- Jump toggle
-    jumpToggle.MouseButton1Click:Connect(function()
-        config.infiniteJump = not config.infiniteJump
         
-        if config.infiniteJump then
-            jumpToggle.Text = "ON"
-            jumpToggle.BackgroundColor3 = Color3.fromRGB(40, 167, 69)
+        -- Animazione
+        local tween = TweenService:Create(toggleButton, TweenInfo.new(0.2), {
+            Size = UDim2.new(0, 55, 0, 32)
+        })
+        tween:Play()
+        tween.Completed:Connect(function()
+            local tween2 = TweenService:Create(toggleButton, TweenInfo.new(0.1), {
+                Size = UDim2.new(0, 50, 0, 30)
+            })
+            tween2:Play()
+        end)
+        
+        callback(isEnabled)
+    end)
+    
+    return switchFrame, toggleButton
+end
+
+-- Infinite Jump Switch
+local infiniteJumpSwitch, infiniteJumpToggle = createSwitch(
+    movementTab, 
+    "Infinite Jump", 
+    UDim2.new(0, 10, 0, 10),
+    function(enabled)
+        infiniteJumpEnabled = enabled
+        if enabled then
             enableInfiniteJump()
         else
-            jumpToggle.Text = "OFF"
-            jumpToggle.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
-            if connections.jump then
-                connections.jump:Disconnect()
-                connections.jump = nil
-            end
+            disableInfiniteJump()
         end
-    end)
-    
-    -- Speed toggle
-    speedToggle.MouseButton1Click:Connect(function()
-        config.speedBoost = not config.speedBoost
-        
-        if config.speedBoost then
-            speedToggle.Text = "ON"
-            speedToggle.BackgroundColor3 = Color3.fromRGB(40, 167, 69)
+    end
+)
+
+-- Speed Boost Switch
+local speedBoostSwitch, speedBoostToggle = createSwitch(
+    movementTab, 
+    "Speed Boost (Auto Coil)", 
+    UDim2.new(0, 10, 0, 80),
+    function(enabled)
+        speedBoostEnabled = enabled
+        if enabled then
             enableSpeedBoost()
         else
-            speedToggle.Text = "OFF"
-            speedToggle.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
-            if connections.speed then
-                connections.speed:Disconnect()
-                connections.speed = nil
-            end
-            
-            -- Ripristina velocità
-            local character = player.Character
-            if character then
-                local humanoid = character:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    humanoid.WalkSpeed = config.originalSpeed
-                end
+            disableSpeedBoost()
+        end
+    end
+)
+
+-- Status Display
+local statusFrame = Instance.new("Frame")
+statusFrame.Name = "StatusFrame"
+statusFrame.Parent = movementTab
+statusFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+statusFrame.BorderSizePixel = 0
+statusFrame.Position = UDim2.new(0, 10, 0, 150)
+statusFrame.Size = UDim2.new(1, -20, 0, 80)
+
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(0, 10)
+statusCorner.Parent = statusFrame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Name = "StatusLabel"
+statusLabel.Parent = statusFrame
+statusLabel.BackgroundTransparency = 1
+statusLabel.Size = UDim2.new(1, 0, 1, 0)
+statusLabel.Font = Enum.Font.GothamMedium
+statusLabel.Text = "Status: Ready"
+statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+statusLabel.TextScaled = true
+
+-- Settings Tab Content
+local speedSlider = Instance.new("Frame")
+speedSlider.Name = "SpeedSlider"
+speedSlider.Parent = settingsTab
+speedSlider.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+speedSlider.BorderSizePixel = 0
+speedSlider.Position = UDim2.new(0, 10, 0, 10)
+speedSlider.Size = UDim2.new(1, -20, 0, 60)
+
+local speedSliderCorner = Instance.new("UICorner")
+speedSliderCorner.CornerRadius = UDim.new(0, 10)
+speedSliderCorner.Parent = speedSlider
+
+local speedSliderLabel = Instance.new("TextLabel")
+speedSliderLabel.Name = "Label"
+speedSliderLabel.Parent = speedSlider
+speedSliderLabel.BackgroundTransparency = 1
+speedSliderLabel.Position = UDim2.new(0, 15, 0, 0)
+speedSliderLabel.Size = UDim2.new(1, -30, 0.5, 0)
+speedSliderLabel.Font = Enum.Font.GothamMedium
+speedSliderLabel.Text = "Speed: 100"
+speedSliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedSliderLabel.TextScaled = true
+speedSliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Funzioni principali
+function enableInfiniteJump()
+    if jumpConnection then jumpConnection:Disconnect() end
+    
+    jumpConnection = UserInputService.TouchTapInWorld:Connect(function()
+        if infiniteJumpEnabled and humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+    
+    -- Anche per input da tastiera se disponibile
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode == Enum.KeyCode.Space and infiniteJumpEnabled and humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+    
+    statusLabel.Text = "Infinite Jump: ACTIVE"
+    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+end
+
+function disableInfiniteJump()
+    if jumpConnection then
+        jumpConnection:Disconnect()
+        jumpConnection = nil
+    end
+    statusLabel.Text = "Infinite Jump: DISABLED"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+end
+
+function enableSpeedBoost()
+    if not humanoid then return end
+    
+    -- Simula Speed Coil equipaggiato
+    speedCoilEquipped = true
+    originalWalkSpeed = humanoid.WalkSpeed
+    
+    -- Applica speed boost continuo
+    if speedConnection then speedConnection:Disconnect() end
+    speedConnection = RunService.Heartbeat:Connect(function()
+        if speedBoostEnabled and humanoid and speedCoilEquipped then
+            humanoid.WalkSpeed = targetSpeed
+            -- Impedisce che la velocità venga cambiata da altri script
+            if humanoid.WalkSpeed ~= targetSpeed then
+                humanoid.WalkSpeed = targetSpeed
             end
         end
     end)
     
-    -- Close button
-    closeBtn.MouseButton1Click:Connect(function()
-        cleanupConnections()
-        
-        -- Ripristina velocità
-        local character = player.Character
-        if character then
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.WalkSpeed = config.originalSpeed
-            end
-        end
-        
-        screenGui:Destroy()
-        gui = nil
-    end)
-    
-    -- Character respawn
-    connections.characterAdded = player.CharacterAdded:Connect(onCharacterAdded)
-    
-    print("✅ Script caricato con successo!")
-    print("📱 GUI draggable creata")
-    print("🦘 Infinite Jump pronto")
-    print("⚡ Speed Boost pronto")
+    statusLabel.Text = "Speed Boost: ACTIVE (Speed Coil Simulated)"
+    statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
 end
 
--- Esecuzione sicura
-local success, error = pcall(initialize)
-if not success then
-    warn("❌ Errore nell'inizializzazione: " .. tostring(error))
-else
-    print("🎯 Advanced Mobile Script v2.1 ATTIVO!")
+function disableSpeedBoost()
+    speedCoilEquipped = false
+    if speedConnection then
+        speedConnection:Disconnect()
+        speedConnection = nil
+    end
+    if humanoid then
+        humanoid.WalkSpeed = originalWalkSpeed
+    end
+    statusLabel.Text = "Speed Boost: DISABLED"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 end
 
---[[
-=== ADVANCED MOBILE SCRIPT v2.1 OPTIMIZED ===
+-- GUI Controls
+local isMinimized = false
 
-🚀 CARATTERISTICHE:
-• Infinite Jump con touch detection
-• Speed Coil Simulator avanzato
-• GUI draggable ottimizzata
-• Gestione errori migliorata
-• Performance ottimizzate
-• Compatibilità mobile/desktop
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
+end)
 
-📱 OTTIMIZZAZIONI v2.1:
-• Risolti tutti gli errori nil value
-• Cleanup connections migliorato
-• Gestione character respawn ottimizzata
-• Touch detection più precisa
-• Memory usage ridotto
-• Code structure migliorata
+minimizeButton.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    local targetSize = isMinimized and UDim2.new(0, 320, 0, 50) or UDim2.new(0, 320, 0, 400)
+    
+    local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+        Size = targetSize
+    })
+    tween:Play()
+    
+    contentFrame.Visible = not isMinimized
+    minimizeButton.Text = isMinimized and "+" or "-"
+end)
 
-🎮 COME USARE:
-1. Esegui lo script
-2. Trascina la GUI dove vuoi
-3. Attiva Jump/Speed con i toggle
-4. Regola velocità con lo slider
-5. Tocca schermo per saltare (se Jump attivo)
+-- Tab switching
+tab1Button.MouseButton1Click:Connect(function()
+    movementTab.Visible = true
+    settingsTab.Visible = false
+    tab1Button.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    tab2Button.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    tab1Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tab2Button.TextColor3 = Color3.fromRGB(200, 200, 200)
+end)
 
-✅ TESTATO E FUNZIONANTE
---]]
+tab2Button.MouseButton1Click:Connect(function()
+    movementTab.Visible = false
+    settingsTab.Visible = true
+    tab1Button.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    tab2Button.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    tab1Button.TextColor3 = Color3.fromRGB(200, 200, 200)
+    tab2Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+end)
+
+-- Character respawn handling
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = newCharacter:WaitForChild("Humanoid")
+    rootPart = newCharacter:WaitForChild("HumanoidRootPart")
+    
+    -- Riattiva funzioni se erano abilitate
+    if infiniteJumpEnabled then
+        wait(1)
+        enableInfiniteJump()
+    end
+    if speedBoostEnabled then
+        wait(1)
+        enableSpeedBoost()
+    end
+end)
+
+-- Prevent GUI destruction
+screenGui.DescendantRemoving:Connect(function(descendant)
+    if descendant == screenGui then
+        screenGui.Parent = playerGui
+    end
+end)
+
+print("Mobile Hack Script caricato con successo!")
+print("Features: Infinite Jump, Speed Boost Automatico, GUI Mobile Ottimizzata")
+print("Versione: 2.0 - Completamente mobile-friendly")
