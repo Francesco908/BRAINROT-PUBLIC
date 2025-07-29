@@ -13,8 +13,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local isStealActive = false
 local basePosition = nil
 local movementConnection = nil
-local cycleTime = 0
-local isInCycle = false
+local floatPhase = "start"
 
 -- Create ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -144,7 +143,11 @@ end
 createHoverEffect(setBaseBtn, Color3.fromRGB(60, 60, 60), Color3.fromRGB(40, 40, 40))
 createHoverEffect(stealBtn, Color3.fromRGB(80, 30, 30), Color3.fromRGB(50, 20, 20))
 
--- Advanced Teleport and Movement System
+-- Advanced Float Teleport System
+local floatPhase = "start" -- start, floating, descending, complete
+local floatHeight = 175
+local undergroundDepth = -70
+
 local function advancedBypassMovement()
     local character = player.Character
     if not character then return end
@@ -154,56 +157,69 @@ local function advancedBypassMovement()
     
     if not humanoid or not rootPart or not basePosition then return end
     
-    -- Get current position and calculate direction to base
     local currentPos = rootPart.Position
     local targetPos = basePosition
-    local direction = (targetPos - currentPos).Unit
     
-    -- Check if we're close to the target
-    local distance = (targetPos - currentPos).Magnitude
+    -- Calculate horizontal distance (ignoring Y)
+    local horizontalDistance = math.sqrt((targetPos.X - currentPos.X)^2 + (targetPos.Z - currentPos.Z)^2)
     
-    if distance < 8 then
-        -- We've reached the base, stop the movement
+    if floatPhase == "start" then
+        -- Phase 1: Teleport to 175 height
+        local highPos = Vector3.new(currentPos.X, currentPos.Y + floatHeight, currentPos.Z)
+        rootPart.CFrame = CFrame.new(highPos)
+        floatPhase = "floating"
+        humanoid.WalkSpeed = 30
+        statusLabel.Text = "Status: FLOATING TO BASE"
+        
+    elseif floatPhase == "floating" then
+        -- Phase 2: Float horizontally towards base maintaining 175 height
+        local floatTargetPos = Vector3.new(targetPos.X, currentPos.Y, targetPos.Z)
+        
+        if horizontalDistance > 5 then
+            -- Continue floating towards base
+            local direction = (floatTargetPos - currentPos).Unit
+            local newPos = currentPos + (direction * 2)
+            -- Maintain exact height of 175
+            newPos = Vector3.new(newPos.X, currentPos.Y, newPos.Z)
+            rootPart.CFrame = CFrame.new(newPos)
+        else
+            -- Arrived at base horizontally, start descending
+            floatPhase = "descending"
+            statusLabel.Text = "Status: DESCENDING"
+        end
+        
+    elseif floatPhase == "descending" then
+        -- Phase 3: Teleport underground to -70
+        local undergroundPos = Vector3.new(targetPos.X, undergroundDepth, targetPos.Z)
+        rootPart.CFrame = CFrame.new(undergroundPos)
+        floatPhase = "returning"
+        statusLabel.Text = "Status: UNDERGROUND"
+        
+        -- Wait a moment then return to normal
+        wait(0.5)
+        floatPhase = "complete"
+        
+    elseif floatPhase == "returning" then
+        -- Phase 4: Return to normal position
+        local normalPos = Vector3.new(targetPos.X, targetPos.Y, targetPos.Z)
+        rootPart.CFrame = CFrame.new(normalPos)
+        floatPhase = "complete"
+        
+    elseif floatPhase == "complete" then
+        -- Movement complete, stop everything
         isStealActive = false
         statusLabel.Text = "Status: STEAL COMPLETE"
         stealBtn.Text = "INSTANT STEAL"
         stealBtn.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
+        
         if movementConnection then
             movementConnection:Disconnect()
             movementConnection = nil
         end
+        
+        -- Reset player to normal
         humanoid.WalkSpeed = 16
-        return
-    end
-    
-    cycleTime = cycleTime + RunService.Heartbeat:Wait()
-    
-    if not isInCycle then
-        -- Start new cycle
-        isInCycle = true
-        
-        -- Phase 1: Instant teleport 50 studs up
-        local teleportPos = Vector3.new(currentPos.X, currentPos.Y + 50, currentPos.Z)
-        rootPart.CFrame = CFrame.new(teleportPos)
-        
-        -- Phase 2: Teleport back down to original Y position
-        wait(0.1)
-        rootPart.CFrame = CFrame.new(currentPos.X, currentPos.Y, currentPos.Z)
-        
-        -- Phase 3: Start fast walking towards base
-        humanoid.WalkSpeed = 25 -- Increased speed for bypass
-        cycleTime = 0
-    end
-    
-    -- Walking phase (2 seconds)
-    if cycleTime < 2 then
-        -- Move towards base with bypass speed
-        local moveDirection = direction * 3 -- More aggressive movement
-        humanoid:MoveTo(currentPos + moveDirection)
-    else
-        -- Reset cycle
-        isInCycle = false
-        cycleTime = 0
+        floatPhase = "start"
     end
 end
 
@@ -262,15 +278,13 @@ local function startInstantSteal()
             end
         end
         
-        isInCycle = false
-        cycleTime = 0
+        floatPhase = "start"
         return
     end
     
     -- Start steal
     isStealActive = true
-    cycleTime = 0
-    isInCycle = false
+    floatPhase = "start"
     
     statusLabel.Text = "Status: STEALING..."
     stealBtn.Text = "STOP STEAL"
