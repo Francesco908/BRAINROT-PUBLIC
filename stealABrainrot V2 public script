@@ -73,7 +73,7 @@ titleLabel.Parent = mainFrame
 titleLabel.Size = UDim2.new(1, 0, 0, 40)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "ZnfPro Script"
+titleLabel.Text = "ADVANCED STEAL SYSTEM"
 titleLabel.TextColor3 = Color3.fromRGB(0, 255, 150)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.Code
@@ -260,23 +260,83 @@ end
 
         -- Remove old float movement function since we're not using it anymore
 
--- Advanced Instant Steal (Direct Teleport and Stay)
-local function directTeleportSteal()
+-- Advanced Instant Steal (Persistent Teleport System)
+local function advancedPersistentTeleport()
     local character = player.Character
     if not character then return end
     
+    local humanoid = character:FindFirstChild("Humanoid")
     local rootPart = character:FindFirstChild("HumanoidRootPart")
+    
     if not rootPart or not basePosition then return end
     
-    -- Direct teleport to base and stay there
-    rootPart.CFrame = CFrame.new(basePosition)
-    rootPart.Anchored = true -- Keep player fixed in position
-    rootPart.Velocity = Vector3.new(0, 0, 0)
+    -- Calculate distance from base
+    local currentPos = rootPart.Position
+    local distance = (basePosition - currentPos).Magnitude
     
-    local humanoid = character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.PlatformStand = true -- Prevent movement
+    -- Multi-method teleport approach for advanced anti-cheat bypass
+    if distance > 5 then
+        -- Method 1: Direct CFrame teleport
+        rootPart.CFrame = CFrame.new(basePosition)
+        
+        -- Method 2: Velocity reset
+        rootPart.Velocity = Vector3.new(0, 0, 0)
+        rootPart.RotVelocity = Vector3.new(0, 0, 0)
+        
+        -- Method 3: Force position through multiple properties
+        rootPart.Position = basePosition
+        
+        -- Method 4: Humanoid state manipulation
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+            wait(0.01)
+            humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        end
+        
+        -- Method 5: AssemblyLinearVelocity (newer Roblox property)
+        pcall(function()
+            rootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            rootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end)
+        
+        -- Method 6: Network ownership bypass attempt
+        pcall(function()
+            rootPart:SetNetworkOwner(player)
+        end)
+        
+        statusLabel.Text = "Status: FORCING TELEPORT | Distance: " .. math.floor(distance) .. " | Immortal Mode: ON"
+    else
+        -- Successfully at base, maintain position
+        rootPart.CFrame = CFrame.new(basePosition)
+        rootPart.Anchored = true
+        
+        if humanoid then
+            humanoid.PlatformStand = true
+        end
+        
+        statusLabel.Text = "Status: LOCKED AT BASE | Immortal Mode: ON"
     end
+    
+    -- Additional anti-teleport-back protection
+    pcall(function()
+        -- Override any external position changes
+        local bodyPosition = rootPart:FindFirstChild("BodyPosition")
+        if not bodyPosition then
+            bodyPosition = Instance.new("BodyPosition")
+            bodyPosition.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bodyPosition.Parent = rootPart
+        end
+        bodyPosition.Position = basePosition
+        bodyPosition.D = 5000
+        bodyPosition.P = 10000
+    end)
+    
+    -- Backup teleport method using character:MoveTo
+    pcall(function()
+        if character and distance > 3 then
+            character:MoveTo(basePosition)
+        end
+    end)
 end
 
 -- Test V1 System (Horizontal Float Flight)
@@ -382,7 +442,7 @@ local function startInstantSteal()
             movementConnection = nil
         end
         
-        -- Reset player state
+        -- Advanced reset for persistent teleport
         local character = player.Character
         if character then
             local rootPart = character:FindFirstChild("HumanoidRootPart")
@@ -391,11 +451,18 @@ local function startInstantSteal()
             if rootPart then
                 rootPart.Anchored = false
                 rootPart.Velocity = Vector3.new(0, 0, 0)
+                
+                -- Remove BodyPosition if exists
+                local bodyPosition = rootPart:FindFirstChild("BodyPosition")
+                if bodyPosition then
+                    bodyPosition:Destroy()
+                end
             end
             
             if humanoid then
                 humanoid.PlatformStand = false
                 humanoid.WalkSpeed = 16
+                humanoid:ChangeState(Enum.HumanoidStateType.Running)
             end
         end
         
@@ -409,8 +476,8 @@ local function startInstantSteal()
     stealBtn.Text = "STOP STEAL"
     stealBtn.BackgroundColor3 = Color3.fromRGB(90, 40, 40)
     
-    -- Start infinite teleport and stay
-    movementConnection = RunService.Heartbeat:Connect(directTeleportSteal)
+    -- Start infinite persistent teleport
+    movementConnection = RunService.Heartbeat:Connect(advancedPersistentTeleport)
 end
 
 -- Test V1 Function
