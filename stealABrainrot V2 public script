@@ -1,270 +1,412 @@
--- LocalScript da inserire in StarterPlayerScripts
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local player = Players.LocalPlayer
+-- SISTEMA DI VOLO AVANZATO PER ROBLOX
+-- Inserisci questo script in ServerScriptService
 
--- Configurazione
-local FLY_CONFIG = {
-    SPEED = 50,
-    ACCELERATION = 10,
-    MAX_HEIGHT = 200,
-    TOGGLE_KEY = Enum.KeyCode.F,
-    ANIMATION_ID = "rbxassetid://27789359", -- Animazione di volo
-    EFFECTS_ENABLED = true
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Configurazione del sistema di volo
+local FLIGHT_CONFIG = {
+    MAX_SPEED = 200,           -- Velocità massima
+    ACCELERATION = 50,         -- Accelerazione
+    TURN_SPEED = 8,           -- Velocità di rotazione
+    BOOST_MULTIPLIER = 2.5,   -- Moltiplicatore boost
+    DRAG = 0.85,              -- Resistenza dell'aria
+    LIFT_FORCE = 16.2,        -- Forza di sollevamento base
 }
 
--- Stato del volo
-local isFlying = false
-local flyVelocity = Vector3.new(0, 0, 0)
-local bodyVelocity = nil
-local animationTrack = nil
-local connection = nil
-
--- Funzione per creare effetti visivi
-local function createEffects()
-    if not FLY_CONFIG.EFFECTS_ENABLED then return end
+-- Sistema di effetti
+local function createFlightEffects(character)
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
     
+    -- Container per gli effetti
+    local effectsFolder = Instance.new("Folder")
+    effectsFolder.Name = "FlightEffects"
+    effectsFolder.Parent = character
+    
+    -- EFFETTO AURA ENERGETICA PRINCIPALE
+    local auraAttachment = Instance.new("Attachment")
+    auraAttachment.Name = "AuraAttachment"
+    auraAttachment.Parent = humanoidRootPart
+    
+    local energyAura = Instance.new("ParticleEmitter")
+    energyAura.Name = "EnergyAura"
+    energyAura.Parent = auraAttachment
+    energyAura.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+    energyAura.Lifetime = NumberRange.new(0.8, 1.5)
+    energyAura.Rate = 150
+    energyAura.SpreadAngle = Vector2.new(360, 360)
+    energyAura.Speed = NumberRange.new(10, 25)
+    energyAura.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 150, 255))
+    }
+    energyAura.Size = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(0.5, 2),
+        NumberSequenceKeypoint.new(1, 0)
+    }
+    energyAura.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.3),
+        NumberSequenceKeypoint.new(1, 1)
+    }
+    
+    -- SCIA DI ENERGIA
+    local trailAttachment1 = Instance.new("Attachment")
+    trailAttachment1.Name = "TrailStart"
+    trailAttachment1.Position = Vector3.new(-1, 0, 0)
+    trailAttachment1.Parent = humanoidRootPart
+    
+    local trailAttachment2 = Instance.new("Attachment")
+    trailAttachment2.Name = "TrailEnd"
+    trailAttachment2.Position = Vector3.new(1, 0, 0)
+    trailAttachment2.Parent = humanoidRootPart
+    
+    local energyTrail = Instance.new("Trail")
+    energyTrail.Name = "EnergyTrail"
+    energyTrail.Parent = humanoidRootPart
+    energyTrail.Attachment0 = trailAttachment1
+    energyTrail.Attachment1 = trailAttachment2
+    energyTrail.Lifetime = 2
+    energyTrail.MinLength = 0
+    energyTrail.FaceCamera = true
+    energyTrail.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 100, 255))
+    }
+    energyTrail.Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.2),
+        NumberSequenceKeypoint.new(1, 1)
+    }
+    energyTrail.WidthScale = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0),
+        NumberSequenceKeypoint.new(0.5, 1),
+        NumberSequenceKeypoint.new(1, 0)
+    }
+    
+    -- EFFETTO BOOST JETS
+    for i = 1, 4 do
+        local jetAttachment = Instance.new("Attachment")
+        jetAttachment.Name = "JetAttachment" .. i
+        jetAttachment.Parent = humanoidRootPart
+        
+        -- Posiziona i jet agli angoli
+        local angle = (i - 1) * (math.pi / 2)
+        jetAttachment.Position = Vector3.new(
+            math.cos(angle) * 1.5,
+            -0.5,
+            math.sin(angle) * 1.5
+        )
+        
+        local jetEmitter = Instance.new("ParticleEmitter")
+        jetEmitter.Name = "JetFlame" .. i
+        jetEmitter.Parent = jetAttachment
+        jetEmitter.Texture = "rbxasset://textures/particles/fire_main.dds"
+        jetEmitter.Lifetime = NumberRange.new(0.3, 0.8)
+        jetEmitter.Rate = 200
+        jetEmitter.SpreadAngle = Vector2.new(15, 15)
+        jetEmitter.Speed = NumberRange.new(30, 50)
+        jetEmitter.Acceleration = Vector3.new(0, -20, 0)
+        jetEmitter.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(0.3, Color3.fromRGB(0, 255, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 255))
+        }
+        jetEmitter.Size = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, 0.5),
+            NumberSequenceKeypoint.new(0.5, 1.5),
+            NumberSequenceKeypoint.new(1, 0)
+        }
+        jetEmitter.Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, 0.5),
+            NumberSequenceKeypoint.new(1, 1)
+        }
+        jetEmitter.Enabled = false  -- Attivato solo durante il boost
+    end
+    
+    -- LUCE DINAMICA
+    local pointLight = Instance.new("PointLight")
+    pointLight.Name = "FlightLight"
+    pointLight.Parent = humanoidRootPart
+    pointLight.Color = Color3.fromRGB(0, 255, 255)
+    pointLight.Brightness = 2
+    pointLight.Range = 20
+    
+    return effectsFolder
+end
+
+-- Sistema di fisica avanzata
+local function setupAdvancedPhysics(character)
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    -- Disabilita la gravità predefinita
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Name = "FlightVelocity"
+    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = humanoidRootPart
+    
+    local bodyAngularVelocity = Instance.new("BodyAngularVelocity")
+    bodyAngularVelocity.Name = "FlightRotation"
+    bodyAngularVelocity.MaxTorque = Vector3.new(4000, 4000, 4000)
+    bodyAngularVelocity.AngularVelocity = Vector3.new(0, 0, 0)
+    bodyAngularVelocity.Parent = humanoidRootPart
+    
+    -- Stati del volo
+    local flightData = {
+        isFlying = false,
+        currentVelocity = Vector3.new(0, 0, 0),
+        targetVelocity = Vector3.new(0, 0, 0),
+        isBoosting = false,
+        energy = 100,
+        maxEnergy = 100
+    }
+    
+    return flightData, bodyVelocity, bodyAngularVelocity
+end
+
+-- Gestore input e controlli
+local function handleFlightControls(player, flightData, bodyVelocity, bodyAngularVelocity, effectsFolder)
     local character = player.Character
     if not character then return end
     
-    -- Creiamo un effetto scintillante semplice
-    local attachment = Instance.new("Attachment", character.PrimaryPart)
-    attachment.Position = Vector3.new(0, -2, 0)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
     
-    local particles = Instance.new("ParticleEmitter")
-    particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-    particles.Color = ColorSequence.new(Color3.new(0.5, 0.8, 1))
-    particles.Size = NumberSequence.new(0.3)
-    particles.Lifetime = NumberRange.new(1)
-    particles.Rate = 20
-    particles.Speed = NumberRange.new(0, 1)
-    particles.Parent = attachment
+    local camera = workspace.CurrentCamera
     
-    return attachment
-end
-
--- Funzione per caricare l'animazione
-local function loadAnimation()
-    local character = player.Character
-    if not character then return nil end
+    -- Input tracking
+    local keys = {
+        W = false, A = false, S = false, D = false,
+        Space = false, LeftShift = false,
+        LeftControl = false, Q = false, E = false
+    }
     
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return nil end
+    -- Connetti gli input
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        local keyName = input.KeyCode.Name
+        if keys[keyName] ~= nil then
+            keys[keyName] = true
+        end
+        
+        -- Attiva/disattiva volo con F
+        if input.KeyCode == Enum.KeyCode.F then
+            flightData.isFlying = not flightData.isFlying
+            
+            -- Effetti di attivazione
+            if flightData.isFlying then
+                local aura = effectsFolder:FindFirstChild("AuraAttachment")
+                if aura and aura:FindFirstChild("EnergyAura") then
+                    aura.EnergyAura.Enabled = true
+                end
+                
+                local trail = humanoidRootPart:FindFirstChild("EnergyTrail")
+                if trail then
+                    trail.Enabled = true
+                end
+                
+                -- Animazione di attivazione
+                local activationTween = TweenService:Create(
+                    humanoidRootPart,
+                    TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                    {Position = humanoidRootPart.Position + Vector3.new(0, 10, 0)}
+                )
+                activationTween:Play()
+            else
+                -- Disattiva effetti
+                for _, effect in pairs(effectsFolder:GetChildren()) do
+                    if effect:IsA("Attachment") then
+                        for _, emitter in pairs(effect:GetChildren()) do
+                            if emitter:IsA("ParticleEmitter") then
+                                emitter.Enabled = false
+                            end
+                        end
+                    end
+                end
+                
+                local trail = humanoidRootPart:FindFirstChild("EnergyTrail")
+                if trail then
+                    trail.Enabled = false
+                end
+            end
+        end
+    end)
     
-    local animator = humanoid:FindFirstChildOfClass("Animator")
-    if not animator then return nil end
+    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        local keyName = input.KeyCode.Name
+        if keys[keyName] ~= nil then
+            keys[keyName] = false
+        end
+    end)
     
-    local animation = Instance.new("Animation")
-    animation.AnimationId = FLY_CONFIG.ANIMATION_ID
-    
-    return animator:LoadAnimation(animation)
-end
-
--- Funzione per iniziare il volo
-local function startFly()
-    if isFlying then return end
-    
-    local character = player.Character
-    if not character or not character.PrimaryPart then return end
-    
-    isFlying = true
-    
-    -- Crea e configura il BodyVelocity
-    bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bodyVelocity.P = 1000
-    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    bodyVelocity.Parent = character.PrimaryPart
-    
-    -- Carica e riproduci l'animazione
-    animationTrack = loadAnimation()
-    if animationTrack then
-        animationTrack:Play()
-        animationTrack.Priority = Enum.AnimationPriority.Action
-    end
-    
-    -- Crea effetti
-    local effects = createEffects()
-    
-    -- Notifica visiva
-    local notification = Instance.new("TextLabel")
-    notification.Size = UDim2.new(0, 200, 0, 50)
-    notification.Position = UDim2.new(0.5, -100, 0.3, 0)
-    notification.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
-    notification.Text = "MODO VOLO ATTIVATO"
-    notification.TextColor3 = Color3.new(1, 1, 1)
-    notification.Font = Enum.Font.GothamBold
-    notification.TextSize = 18
-    notification.Parent = player.PlayerGui
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = notification
-    
-    TweenService:Create(notification, TweenInfo.new(0.5), {BackgroundTransparency = 0.3}):Play()
-    game:GetService("Debris"):AddItem(notification, 2)
-    
-    -- Aggiorna la gravità per un volo più stabile
-    character.PrimaryPart.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
-    
-    -- Loop di aggiornamento del volo
+    -- Loop principale del volo
+    local connection
     connection = RunService.Heartbeat:Connect(function(deltaTime)
-        if not isFlying or not character or not character.PrimaryPart then
-            stopFly()
+        if not flightData.isFlying or not character.Parent then
+            connection:Disconnect()
             return
         end
         
-        -- Calcola la direzione del movimento
-        local moveDirection = Vector3.new(0, 0, 0)
-        local camera = workspace.CurrentCamera
+        -- Calcola direzione basata sulla camera
+        local cameraCFrame = camera.CFrame
+        local forward = cameraCFrame.LookVector
+        local right = cameraCFrame.RightVector
+        local up = cameraCFrame.UpVector
         
-        -- Movimento orizzontale
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-            moveDirection = moveDirection + camera.CFrame.LookVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-            moveDirection = moveDirection - camera.CFrame.LookVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-            moveDirection = moveDirection - camera.CFrame.RightVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-            moveDirection = moveDirection + camera.CFrame.RightVector
-        end
+        -- Input processing
+        local moveVector = Vector3.new(0, 0, 0)
         
-        -- Movimento verticale
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            moveDirection = moveDirection + Vector3.new(0, 1, 0)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-            moveDirection = moveDirection - Vector3.new(0, 1, 0)
-        end
+        if keys.W then moveVector = moveVector + forward end
+        if keys.S then moveVector = moveVector - forward end
+        if keys.D then moveVector = moveVector + right end
+        if keys.A then moveVector = moveVector - right end
+        if keys.Space then moveVector = moveVector + up end
+        if keys.LeftShift or keys.LeftControl then moveVector = moveVector - up end
         
-        -- Normalizza e applica la velocità
-        if moveDirection.Magnitude > 0 then
-            moveDirection = moveDirection.Unit * FLY_CONFIG.SPEED
-            flyVelocity = flyVelocity:Lerp(moveDirection, deltaTime * FLY_CONFIG.ACCELERATION)
+        -- Boost logic
+        flightData.isBoosting = keys.Q and flightData.energy > 0
+        
+        if flightData.isBoosting then
+            flightData.energy = math.max(0, flightData.energy - deltaTime * 50)
+            
+            -- Attiva jet boosters
+            for i = 1, 4 do
+                local jetAttachment = humanoidRootPart:FindFirstChild("JetAttachment" .. i)
+                if jetAttachment then
+                    local jetEmitter = jetAttachment:FindFirstChild("JetFlame" .. i)
+                    if jetEmitter then
+                        jetEmitter.Enabled = true
+                    end
+                end
+            end
         else
-            flyVelocity = flyVelocity:Lerp(Vector3.new(0, 0, 0), deltaTime * 5)
+            flightData.energy = math.min(flightData.maxEnergy, flightData.energy + deltaTime * 25)
+            
+            -- Disattiva jet boosters
+            for i = 1, 4 do
+                local jetAttachment = humanoidRootPart:FindFirstChild("JetAttachment" .. i)
+                if jetAttachment then
+                    local jetEmitter = jetAttachment:FindFirstChild("JetFlame" .. i)
+                    if jetEmitter then
+                        jetEmitter.Enabled = false
+                    end
+                end
+            end
         end
         
-        -- Applica la velocità
-        bodyVelocity.Velocity = flyVelocity
-        
-        -- Limita l'altezza massima
-        if character.PrimaryPart.Position.Y > FLY_CONFIG.MAX_HEIGHT then
-            local pos = character.PrimaryPart.Position
-            character.PrimaryPart.Position = Vector3.new(pos.X, FLY_CONFIG.MAX_HEIGHT, pos.Z)
-            flyVelocity = Vector3.new(flyVelocity.X, 0, flyVelocity.Z)
+        -- Calcola velocità target
+        local currentSpeed = FLIGHT_CONFIG.MAX_SPEED
+        if flightData.isBoosting then
+            currentSpeed = currentSpeed * FLIGHT_CONFIG.BOOST_MULTIPLIER
         end
         
-        -- Orienta il personaggio nella direzione del movimento
-        if flyVelocity.Magnitude > 0.1 then
-            character.PrimaryPart.CFrame = CFrame.new(
-                character.PrimaryPart.Position,
-                character.PrimaryPart.Position + flyVelocity.Unit
-            )
+        if moveVector.Magnitude > 0 then
+            moveVector = moveVector.Unit
+            flightData.targetVelocity = moveVector * currentSpeed
+        else
+            flightData.targetVelocity = Vector3.new(0, 0, 0)
+        end
+        
+        -- Smooth velocity interpolation
+        flightData.currentVelocity = flightData.currentVelocity:Lerp(
+            flightData.targetVelocity,
+            deltaTime * FLIGHT_CONFIG.ACCELERATION
+        )
+        
+        -- Applica drag
+        flightData.currentVelocity = flightData.currentVelocity * FLIGHT_CONFIG.DRAG
+        
+        -- Applica anti-gravità
+        local antiGravity = Vector3.new(0, FLIGHT_CONFIG.LIFT_FORCE, 0)
+        
+        -- Imposta la velocità finale
+        bodyVelocity.Velocity = flightData.currentVelocity + antiGravity
+        
+        -- Rotazione basata sul movimento
+        if flightData.currentVelocity.Magnitude > 5 then
+            local targetRotation = CFrame.lookAt(Vector3.new(), flightData.currentVelocity)
+            local currentRotation = humanoidRootPart.CFrame - humanoidRootPart.Position
+            local newRotation = currentRotation:Lerp(targetRotation, deltaTime * FLIGHT_CONFIG.TURN_SPEED)
+            
+            bodyAngularVelocity.AngularVelocity = Vector3.new(0, 0, 0)
+            humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position) * newRotation
+        end
+        
+        -- Aggiorna intensità effetti basata sulla velocità
+        local speedRatio = flightData.currentVelocity.Magnitude / FLIGHT_CONFIG.MAX_SPEED
+        
+        local auraAttachment = effectsFolder:FindFirstChild("AuraAttachment")
+        if auraAttachment then
+            local energyAura = auraAttachment:FindFirstChild("EnergyAura")
+            if energyAura then
+                energyAura.Rate = 150 + (speedRatio * 300)
+            end
+        end
+        
+        local light = humanoidRootPart:FindFirstChild("FlightLight")
+        if light then
+            light.Brightness = 1 + (speedRatio * 3)
         end
     end)
 end
 
--- Funzione per fermare il volo
-local function stopFly()
-    if not isFlying then return end
+-- Sistema principale
+local function initializeFlightSystem(player)
+    local character = player.Character or player.CharacterAdded:Wait()
     
-    isFlying = false
+    -- Aspetta che il personaggio sia completamente caricato
+    character:WaitForChild("HumanoidRootPart")
+    character:WaitForChild("Humanoid")
     
-    -- Rimuovi il BodyVelocity
-    if bodyVelocity then
-        bodyVelocity:Destroy()
-        bodyVelocity = nil
-    end
+    wait(1) -- Piccola pausa per assicurarsi che tutto sia inizializzato
     
-    -- Ferma l'animazione
-    if animationTrack then
-        animationTrack:Stop()
-        animationTrack = nil
-    end
+    -- Setup effetti
+    local effectsFolder = createFlightEffects(character)
     
-    -- Rimuovi gli effetti
-    local character = player.Character
-    if character and character.PrimaryPart then
-        for _, obj in pairs(character.PrimaryPart:GetChildren()) do
-            if obj:IsA("Attachment") and obj:FindFirstChild("ParticleEmitter") then
-                obj:Destroy()
-            end
-        end
-        
-        -- Ripristina le proprietà fisiche
-        character.PrimaryPart.CustomPhysicalProperties = nil
-    end
+    -- Setup fisica
+    local flightData, bodyVelocity, bodyAngularVelocity = setupAdvancedPhysics(character)
     
-    -- Disconnetti il loop
-    if connection then
-        connection:Disconnect()
-        connection = nil
-    end
-    
-    -- Notifica visiva
-    local notification = Instance.new("TextLabel")
-    notification.Size = UDim2.new(0, 200, 0, 50)
-    notification.Position = UDim2.new(0.5, -100, 0.3, 0)
-    notification.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    notification.Text = "MODO VOLO DISATTIVATO"
-    notification.TextColor3 = Color3.new(1, 1, 1)
-    notification.Font = Enum.Font.GothamBold
-    notification.TextSize = 18
-    notification.Parent = player.PlayerGui
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 10)
-    corner.Parent = notification
-    
-    TweenService:Create(notification, TweenInfo.new(0.5), {BackgroundTransparency = 0.3}):Play()
-    game:GetService("Debris"):AddItem(notification, 2)
-end
-
--- Funzione per gestire l'input
-local function onInputBegan(input, gameProcessed)
-    if gameProcessed then return end
-    
-    if input.KeyCode == FLY_CONFIG.TOGGLE_KEY then
-        if isFlying then
-            stopFly()
-        else
-            startFly()
-        end
+    -- Setup controlli
+    if player == Players.LocalPlayer then
+        handleFlightControls(player, flightData, bodyVelocity, bodyAngularVelocity, effectsFolder)
     end
 end
 
--- Collega la funzione di input
-UserInputService.InputBegan:Connect(onInputBegan)
-
--- Notifica iniziale
-player.CharacterAdded:Connect(function()
-    local notification = Instance.new("TextLabel")
-    notification.Size = UDim2.new(0, 300, 0, 60)
-    notification.Position = UDim2.new(0.5, -150, 0.4, 0)
-    notification.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
-    notification.Text = "SISTEMA DI VOLO PRONTO\nPremi F per attivare"
-    notification.TextColor3 = Color3.new(1, 1, 1)
-    notification.Font = Enum.Font.GothamBold
-    notification.TextSize = 18
-    notification.TextScaled = true
-    notification.Parent = player.PlayerGui
+-- Inizializza per tutti i giocatori
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        initializeFlightSystem(player)
+    end)
     
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 15)
-    corner.Parent = notification
-    
-    local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 2
-    stroke.Color = Color3.fromRGB(100, 150, 255)
-    stroke.Transparency = 0.3
-    stroke.Parent = notification
-    
-    TweenService:Create(notification, TweenInfo.new(0.5), {BackgroundTransparency = 0.3}):Play()
-    game:GetService("Debris"):AddItem(notification, 4)
+    if player.Character then
+        initializeFlightSystem(player)
+    end
 end)
+
+-- Inizializza per giocatori già presenti
+for _, player in pairs(Players:GetPlayers()) do
+    if player.Character then
+        initializeFlightSystem(player)
+    end
+    
+    player.CharacterAdded:Connect(function()
+        initializeFlightSystem(player)
+    end)
+end
+
+print("🚀 Sistema di Volo Avanzato Caricato!")
+print("Controlli:")
+print("F = Attiva/Disattiva Volo")
+print("WASD = Movimento Orizzontale")
+print("SPAZIO = Su")
+print("SHIFT/CTRL = Giù")
+print("Q = Boost (consuma energia)")
