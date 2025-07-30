@@ -3,273 +3,535 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 
--- Configurazione base
-local BASE_POSITION = Vector3.new(0, 50, 0) -- Posizione della base
-local FLY_SPEED = 100 -- Velocità di volo
-local MAX_HEIGHT = 200 -- Altezza massima di volo
-local COOLDOWN_TIME = 10 -- Cooldown in secondi
+-- Configurazione avanzata
+local FLY_CONFIG = {
+    SPEED = 80,
+    ACCELERATION = 15,
+    MAX_HEIGHT = 300,
+    ENERGY_MAX = 100,
+    ENERGY_DRAIN = 8,
+    ENERGY_RECHARGE = 15,
+    BASE_POSITION = Vector3.new(0, 50, 0),
+    GOD_MODE_ENABLED = true,
+    VISUAL_EFFECTS = true
+}
 
 -- Stato del volo
 local isFlying = false
+local flyEnergy = FLY_CONFIG.ENERGY_MAX
 local flyVelocity = Vector3.new(0, 0, 0)
-local lastStealTime = 0
+local camera = Workspace.CurrentCamera
+local lastEnergyUpdate = tick()
+local effects = {}
 
--- Creazione GUI
+-- Creazione GUI avanzata
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AdvancedFlyGUI"
+screenGui.Name = "SuperAdvancedFlyGUI"
 screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
 screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Pannello principale
+local mainPanel = Instance.new("Frame")
+mainPanel.Name = "MainPanel"
+mainPanel.Size = UDim2.new(0, 300, 0, 150)
+mainPanel.Position = UDim2.new(0, 20, 0.5, -75)
+mainPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+mainPanel.BorderSizePixel = 0
+mainPanel.Parent = screenGui
+
+local panelCorner = Instance.new("UICorner")
+panelCorner.CornerRadius = UDim.new(0, 15)
+panelCorner.Parent = mainPanel
+
+local panelStroke = Instance.new("UIStroke")
+panelStroke.Thickness = 2
+panelStroke.Color = Color3.fromRGB(100, 150, 255)
+panelStroke.Transparency = 0.3
+panelStroke.Parent = mainPanel
 
 -- Pulsante Instant Steal
 local stealButton = Instance.new("TextButton")
 stealButton.Name = "InstantStealButton"
-stealButton.Size = UDim2.new(0, 200, 0, 60)
-stealButton.Position = UDim2.new(0.5, -100, 0.9, -30)
-stealButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-stealButton.Text = "INSTANT STEAL"
+stealButton.Size = UDim2.new(0, 260, 0, 50)
+stealButton.Position = UDim2.new(0, 20, 0, 20)
+stealButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+stealButton.Text = "ACTIVATE SUPER FLY"
 stealButton.TextColor3 = Color3.new(1, 1, 1)
 stealButton.TextScaled = true
 stealButton.Font = Enum.Font.GothamBold
-stealButton.Parent = screenGui
+stealButton.Parent = mainPanel
 
--- Decorazioni pulsante
-local buttonStroke = Instance.new("UIStroke")
-buttonStroke.Thickness = 3
-buttonStroke.Color = Color3.new(1, 1, 1)
-buttonStroke.Transparency = 0.3
-buttonStroke.Parent = stealButton
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 10)
+buttonCorner.Parent = stealButton
 
-local buttonShadow = Instance.new("Frame")
-buttonShadow.Name = "Shadow"
-buttonShadow.Size = UDim2.new(1, 10, 1, 10)
-buttonShadow.Position = UDim2.new(0, 5, 0, 5)
-buttonShadow.BackgroundColor3 = Color3.new(0, 0, 0)
-buttonShadow.BackgroundTransparency = 0.5
-buttonShadow.BorderSizePixel = 0
-buttonShadow.ZIndex = stealButton.ZIndex - 1
-buttonShadow.Parent = stealButton
+local buttonGlow = Instance.new("Frame")
+buttonGlow.Name = "Glow"
+buttonGlow.Size = UDim2.new(1, 10, 1, 10)
+buttonGlow.Position = UDim2.new(0, -5, 0, -5)
+buttonGlow.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+buttonGlow.BackgroundTransparency = 0.7
+buttonGlow.BorderSizePixel = 0
+buttonGlow.ZIndex = stealButton.ZIndex - 1
+buttonGlow.Parent = stealButton
 
--- Indicatore cooldown
-local cooldownIndicator = Instance.new("Frame")
-cooldownIndicator.Name = "CooldownIndicator"
-cooldownIndicator.Size = UDim2.new(1, 0, 1, 0)
-cooldownIndicator.Position = UDim2.new(0, 0, 0, 0)
-cooldownIndicator.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-cooldownIndicator.BorderSizePixel = 0
-cooldownIndicator.Parent = stealButton
-cooldownIndicator.Visible = false
+-- Barra energia
+local energyBar = Instance.new("Frame")
+energyBar.Name = "EnergyBar"
+energyBar.Size = UDim2.new(0, 260, 0, 20)
+energyBar.Position = UDim2.new(0, 20, 0, 80)
+energyBar.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+energyBar.BorderSizePixel = 0
+energyBar.Parent = mainPanel
 
--- Funzione per creare effetti di volo
-local function createFlyEffects(character)
-    -- Trail effect
-    local trail = Instance.new("Trail")
-    trail.Attachment0 = Instance.new("Attachment", character.PrimaryPart)
-    trail.Attachment1 = Instance.new("Attachment", character.PrimaryPart)
-    trail.Attachment0.Position = Vector3.new(0, -1, 0)
-    trail.Attachment1.Position = Vector3.new(0, 1, 0)
-    trail.Color = ColorSequence.new(Color3.new(1, 0.5, 0))
-    trail.Lifetime = 0.5
-    trail.Transparency = NumberSequence.new(0, 1)
-    trail.Parent = character.PrimaryPart
+local energyBarCorner = Instance.new("UICorner")
+energyBarCorner.CornerRadius = UDim.new(0, 5)
+energyBarCorner.Parent = energyBar
+
+local energyFill = Instance.new("Frame")
+energyFill.Name = "EnergyFill"
+energyFill.Size = UDim2.new(1, 0, 1, 0)
+energyFill.Position = UDim2.new(0, 0, 0, 0)
+energyFill.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+energyFill.BorderSizePixel = 0
+energyFill.Parent = energyBar
+
+local energyFillCorner = Instance.new("UICorner")
+energyFillCorner.CornerRadius = UDim.new(0, 5)
+energyFillCorner.Parent = energyFill
+
+local energyText = Instance.new("TextLabel")
+energyText.Name = "EnergyText"
+energyText.Size = UDim2.new(1, 0, 1, 0)
+energyText.BackgroundTransparency = 1
+energyText.Text = "ENERGY: 100%"
+energyText.TextColor3 = Color3.new(1, 1, 1)
+energyText.TextScaled = true
+energyText.Font = Enum.Font.GothamBold
+energyText.Parent = energyBar
+
+-- Indicatore stato volo
+local statusIndicator = Instance.new("TextLabel")
+statusIndicator.Name = "StatusIndicator"
+statusIndicator.Size = UDim2.new(0, 260, 0, 20)
+statusIndicator.Position = UDim2.new(0, 20, 0, 110)
+statusIndicator.BackgroundTransparency = 1
+statusIndicator.Text = "STATUS: GROUNDED"
+statusIndicator.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusIndicator.TextScaled = true
+statusIndicator.Font = Enum.Font.Gotham
+statusIndicator.Parent = mainPanel
+
+-- Funzione per creare effetti visivi avanzati
+local function createAdvancedEffects(character)
+    if not FLY_CONFIG.VISUAL_EFFECTS then return end
     
-    -- Particle effect
-    local particles = Instance.new("ParticleEmitter")
-    particles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-    particles.Color = ColorSequence.new(Color3.new(1, 0.8, 0), Color3.new(1, 0.2, 0))
-    particles.Size = NumberSequence.new(0.5, 0)
-    particles.Lifetime = NumberRange.new(1, 2)
-    particles.Rate = 50
-    particles.Speed = NumberRange.new(1, 3)
-    particles.Parent = character.PrimaryPart
+    -- Trail principale
+    local mainTrail = Instance.new("Trail")
+    mainTrail.Attachment0 = Instance.new("Attachment", character.PrimaryPart)
+    mainTrail.Attachment1 = Instance.new("Attachment", character.PrimaryPart)
+    mainTrail.Attachment0.Position = Vector3.new(0, -1, 0)
+    mainTrail.Attachment1.Position = Vector3.new(0, 1, 0)
+    mainTrail.Color = ColorSequence.new(Color3.new(0.2, 0.6, 1), Color3.new(0.8, 0.2, 1))
+    mainTrail.Lifetime = 0.5
+    mainTrail.Transparency = NumberSequence.new(0, 1)
+    mainTrail.Parent = character.PrimaryPart
     
-    -- Sound effect
+    -- Particelle energetiche
+    local energyParticles = Instance.new("ParticleEmitter")
+    energyParticles.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+    energyParticles.Color = ColorSequence.new(
+        Color3.new(0.2, 0.8, 1), 
+        Color3.new(0.8, 0.2, 1)
+    )
+    energyParticles.Size = NumberSequence.new(0.8, 0.2)
+    energyParticles.Lifetime = NumberRange.new(1, 2)
+    energyParticles.Rate = 80
+    energyParticles.Speed = NumberRange.new(2, 5)
+    energyParticles.SpreadAngle = Vector2.new(30, 30)
+    energyParticles.Parent = character.PrimaryPart
+    
+    -- Anello energetico
+    local ring = Instance.new("Part")
+    ring.Size = Vector3.new(8, 0.5, 8)
+    ring.Material = Enum.Material.Neon
+    ring.Color = Color3.fromRGB(0, 200, 255)
+    ring.CanCollide = false
+    ring.Anchored = false
+    ring.Parent = character
+    
+    local ringWeld = Instance.new("WeldConstraint")
+    ringWeld.Part0 = character.PrimaryPart
+    ringWeld.Part1 = ring
+    ringWeld.Parent = ring
+    
+    -- Suoni
     local flySound = Instance.new("Sound")
-    flySound.SoundId = "rbxassetid://131961237" -- Suono di volo
+    flySound.SoundId = "rbxassetid://131961237"
     flySound.Looped = true
+    flySound.Volume = 0.7
     flySound.Parent = character.PrimaryPart
     flySound:Play()
     
-    return trail, particles, flySound
+    local energySound = Instance.new("Sound")
+    energySound.SoundId = "rbxassetid://138097849"
+    energySound.Looped = true
+    energySound.Volume = 0.5
+    energySound.Parent = character.PrimaryPart
+    energySound:Play()
+    
+    -- Memorizza effetti per rimozione
+    effects = {
+        trail = mainTrail,
+        particles = energyParticles,
+        ring = ring,
+        flySound = flySound,
+        energySound = energySound
+    }
+    
+    -- Animazione anello
+    spawn(function()
+        while isFlying and ring and ring.Parent do
+            ring.CFrame = character.PrimaryPart.CFrame * CFrame.Angles(0, math.rad(tick() * 100 % 360), 0)
+            RunService.Heartbeat:Wait()
+        end
+    end)
 end
 
--- Funzione per iniziare il volo
-local function startFly()
-    if isFlying then return end
-    if os.time() - lastStealTime < COOLDOWN_TIME then return end
+-- Funzione per rimuovere effetti
+local function removeEffects()
+    for _, effect in pairs(effects) do
+        if effect then
+            if effect:IsA("Sound") then
+                effect:Stop()
+            end
+            effect:Destroy()
+        end
+    end
+    effects = {}
+end
+
+-- Funzione per attivare God Mode
+local function enableGodMode()
+    if not FLY_CONFIG.GOD_MODE_ENABLED then return end
+    
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid then
+        -- Salva valori originali
+        humanoid:SetAttribute("OriginalWalkSpeed", humanoid.WalkSpeed)
+        humanoid:SetAttribute("OriginalJumpPower", humanoid.JumpPower)
+        humanoid:SetAttribute("OriginalMaxHealth", humanoid.MaxHealth)
+        
+        -- Imposta God Mode
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
+        humanoid.MaxHealth = math.huge
+        humanoid.Health = math.huge
+        humanoid.AutoRotate = false
+        
+        -- Rendi invincibile
+        humanoid.BreakJointsOnDeath = false
+    end
+    
+    -- Disabilita collisioni con altri giocatori
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = false
+        end
+    end
+end
+
+-- Funzione per disattivare God Mode
+local function disableGodMode()
+    if not FLY_CONFIG.GOD_MODE_ENABLED then return end
+    
+    local character = player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    if humanoid then
+        -- Ripristina valori originali
+        humanoid.WalkSpeed = humanoid:GetAttribute("OriginalWalkSpeed") or 16
+        humanoid.JumpPower = humanoid:GetAttribute("OriginalJumpPower") or 50
+        humanoid.MaxHealth = humanoid:GetAttribute("OriginalMaxHealth") or 100
+        humanoid.Health = humanoid.MaxHealth
+        humanoid.AutoRotate = true
+        humanoid.BreakJointsOnDeath = true
+    end
+    
+    -- Ripristina collisioni
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide = true
+        end
+    end
+end
+
+-- Funzione per aggiornare l'energia
+local function updateEnergy(deltaTime)
+    if isFlying then
+        flyEnergy = math.max(0, flyEnergy - FLY_CONFIG.ENERGY_DRAIN * deltaTime)
+        if flyEnergy <= 0 then
+            stopFly()
+        end
+    else
+        flyEnergy = math.min(FLY_CONFIG.ENERGY_MAX, flyEnergy + FLY_CONFIG.ENERGY_RECHARGE * deltaTime)
+    end
+    
+    -- Aggiorna GUI
+    energyFill.Size = UDim2.new(flyEnergy / FLY_CONFIG.ENERGY_MAX, 0, 1, 0)
+    energyText.Text = "ENERGY: " .. math.floor(flyEnergy) .. "%"
+    
+    -- Cambia colore in base all'energia
+    if flyEnergy > 60 then
+        energyFill.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+    elseif flyEnergy > 30 then
+        energyFill.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+    else
+        energyFill.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    end
+end
+
+-- Funzione per il volo avanzato
+local function updateFly(deltaTime)
+    if not isFlying then return end
     
     local character = player.Character
     if not character or not character.PrimaryPart then return end
     
-    lastStealTime = os.time()
-    isFlying = true
-    
-    -- Disabilita controlli normali
-    local humanoid = character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = 0
-        humanoid.JumpPower = 0
-        humanoid.AutoRotate = false
+    -- God Mode continuo
+    if FLY_CONFIG.GOD_MODE_ENABLED then
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid and humanoid.Health < humanoid.MaxHealth then
+            humanoid.Health = humanoid.MaxHealth
+        end
     end
     
+    -- Calcola direzione movimento
+    local moveDirection = Vector3.new(0, 0, 0)
+    
+    -- Movimento basato su WASD
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+        moveDirection = moveDirection + camera.CFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+        moveDirection = moveDirection - camera.CFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+        moveDirection = moveDirection - camera.CFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+        moveDirection = moveDirection + camera.CFrame.RightVector
+    end
+    
+    -- Movimento verticale
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        moveDirection = moveDirection + Vector3.new(0, 1, 0)
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+        moveDirection = moveDirection - Vector3.new(0, 1, 0)
+    end
+    
+    -- Normalizza e applica accelerazione
+    if moveDirection.Magnitude > 0 then
+        moveDirection = moveDirection.Unit
+        flyVelocity = flyVelocity:Lerp(moveDirection * FLY_CONFIG.SPEED, deltaTime * FLY_CONFIG.ACCELERATION)
+    else
+        flyVelocity = flyVelocity:Lerp(Vector3.new(0, 0, 0), deltaTime * 5)
+    end
+    
+    -- Applica movimento
+    character.PrimaryPart.Velocity = flyVelocity
+    
+    -- Limita altezza massima
+    if character.PrimaryPart.Position.Y > FLY_CONFIG.MAX_HEIGHT then
+        local newPos = character.PrimaryPart.Position
+        newPos = Vector3.new(newPos.X, FLY_CONFIG.MAX_HEIGHT, newPos.Z)
+        character.PrimaryPart.Position = newPos
+        flyVelocity = Vector3.new(flyVelocity.X, 0, flyVelocity.Z)
+    end
+    
+    -- Orientamento del personaggio
+    if flyVelocity.Magnitude > 0.1 then
+        character.PrimaryPart.CFrame = CFrame.new(
+            character.PrimaryPart.Position, 
+            character.PrimaryPart.Position + flyVelocity.Unit
+        )
+    end
+end
+
+-- Funzione per iniziare il volo
+local function startFly()
+    if isFlying or flyEnergy <= 0 then return end
+    
+    isFlying = true
+    local character = player.Character
+    if not character or not character.PrimaryPart then return end
+    
+    -- Attiva God Mode
+    enableGodMode()
+    
     -- Crea effetti
-    local trail, particles, flySound = createFlyEffects(character)
+    createAdvancedEffects(character)
     
-    -- Mostra cooldown
-    cooldownIndicator.Visible = true
-    cooldownIndicator.Size = UDim2.new(1, 0, 1, 0)
-    
-    -- Animazione cooldown
-    local cooldownTween = TweenService:Create(
-        cooldownIndicator,
-        TweenInfo.new(COOLDOWN_TIME, Enum.EasingStyle.Linear),
-        {Size = UDim2.new(0, 0, 1, 0)}
-    )
-    cooldownTween:Play()
-    cooldownTween.Completed:Connect(function()
-        cooldownIndicator.Visible = false
-    end)
-    
-    -- Calcola direzione verso la base
-    local direction = (BASE_POSITION - character.PrimaryPart.Position).Unit
-    local targetCFrame = CFrame.new(BASE_POSITION, BASE_POSITION + direction)
+    -- Aggiorna GUI
+    stealButton.Text = "DEACTIVATE FLY"
+    statusIndicator.Text = "STATUS: FLYING"
+    statusIndicator.TextColor3 = Color3.fromRGB(0, 255, 150)
     
     -- Effetto visivo iniziale
     local flash = Instance.new("Frame")
     flash.Size = UDim2.new(1, 0, 1, 0)
-    flash.BackgroundColor3 = Color3.new(1, 1, 1)
-    flash.BackgroundTransparency = 1
+    flash.BackgroundColor3 = Color3.new(0.2, 0.8, 1)
+    flash.BackgroundTransparency = 0.8
     flash.ZIndex = 10
     flash.Parent = screenGui
     
-    TweenService:Create(flash, TweenInfo.new(0.3), {BackgroundTransparency = 0}):Play()
+    TweenService:Create(flash, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
     game:GetService("Debris"):AddItem(flash, 0.6)
     
-    -- Inizia volo
-    local flyConnection
-    flyConnection = RunService.Heartbeat:Connect(function(deltaTime)
-        if not character or not character.PrimaryPart then
-            flyConnection:Disconnect()
-            return
-        end
-        
-        -- Calcola nuova posizione
-        local currentPos = character.PrimaryPart.Position
-        local distance = (BASE_POSITION - currentPos).Magnitude
-        
-        if distance > 5 then
-            -- Aggiorna velocità
-            local moveDirection = (BASE_POSITION - currentPos).Unit
-            flyVelocity = moveDirection * FLY_SPEED
-            
-            -- Applica movimento
-            character.PrimaryPart.CFrame = CFrame.new(currentPos + flyVelocity * deltaTime, currentPos + moveDirection * 10)
-            
-            -- Limita altezza
-            if currentPos.Y > MAX_HEIGHT then
-                character.PrimaryPart.CFrame = CFrame.new(
-                    Vector3.new(currentPos.X, MAX_HEIGHT, currentPos.Z),
-                    character.PrimaryPart.CFrame.Position + moveDirection * 10
-                )
-            end
-        else
-            -- Atterraggio
-            flyConnection:Disconnect()
-            character.PrimaryPart.CFrame = targetCFrame
-            
-            -- Ripristina stato
-            isFlying = false
-            if humanoid then
-                humanoid.WalkSpeed = 16
-                humanoid.JumpPower = 50
-                humanoid.AutoRotate = true
-            end
-            
-            -- Rimuovi effetti
-            trail:Destroy()
-            particles:Destroy()
-            flySound:Stop()
-            flySound:Destroy()
-            
-            -- Effetto atterraggio
-            local landFlash = Instance.new("Frame")
-            landFlash.Size = UDim2.new(1, 0, 1, 0)
-            landFlash.BackgroundColor3 = Color3.new(1, 0.8, 0)
-            landFlash.BackgroundTransparency = 0.8
-            landFlash.ZIndex = 10
-            landFlash.Parent = screenGui
-            
-            TweenService:Create(landFlash, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-            game:GetService("Debris"):AddItem(landFlash, 0.6)
-        end
-    end)
-end
-
--- Controlli di volo aggiuntivi
-local function setupFlyControls()
-    UserInputService.InputBegan:Connect(function(input)
-        if isFlying and input.KeyCode == Enum.KeyCode.Space then
-            -- Salto durante il volo
-            local character = player.Character
-            if character and character.PrimaryPart then
-                character.PrimaryPart.CFrame = character.PrimaryPart.CFrame * CFrame.new(0, 10, 0)
-            end
-        end
-    end)
+    -- Notifica
+    local notification = Instance.new("TextLabel")
+    notification.Size = UDim2.new(0, 300, 0, 50)
+    notification.Position = UDim2.new(0.5, -150, 0.3, 0)
+    notification.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+    notification.Text = "SUPER FLY ACTIVATED!"
+    notification.TextColor3 = Color3.new(1, 1, 1)
+    notification.Font = Enum.Font.GothamBold
+    notification.TextSize = 20
+    notification.Parent = screenGui
     
-    UserInputService.InputChanged:Connect(function(input)
-        if isFlying and input.UserInputType == Enum.UserInputType.MouseMovement then
-            -- Rotazione durante il volo
-            local character = player.Character
-            if character and character.PrimaryPart then
-                local delta = input.Delta
-                character.PrimaryPart.CFrame = character.PrimaryPart.CFrame * CFrame.Angles(0, -delta.X * 0.01, 0)
-            end
-        end
-    end)
+    local notificationCorner = Instance.new("UICorner")
+    notificationCorner.CornerRadius = UDim.new(0, 10)
+    notificationCorner.Parent = notification
+    
+    TweenService:Create(notification, TweenInfo.new(0.5), {BackgroundTransparency = 0.3}):Play()
+    game:GetService("Debris"):AddItem(notification, 2)
 end
 
--- Collega funzioni al pulsante
-stealButton.MouseButton1Click:Connect(startFly)
+-- Funzione per fermare il volo
+local function stopFly()
+    if not isFlying then return end
+    
+    isFlying = false
+    local character = player.Character
+    if not character or not character.PrimaryPart then return end
+    
+    -- Disattiva God Mode
+    disableGodMode()
+    
+    -- Rimuovi effetti
+    removeEffects()
+    
+    -- Ferma movimento
+    character.PrimaryPart.Velocity = Vector3.new(0, 0, 0)
+    flyVelocity = Vector3.new(0, 0, 0)
+    
+    -- Aggiorna GUI
+    stealButton.Text = "ACTIVATE SUPER FLY"
+    statusIndicator.Text = "STATUS: GROUNDED"
+    statusIndicator.TextColor3 = Color3.fromRGB(200, 200, 200)
+    
+    -- Effetto visivo finale
+    local flash = Instance.new("Frame")
+    flash.Size = UDim2.new(1, 0, 1, 0)
+    flash.BackgroundColor3 = Color3.new(1, 0.2, 0.5)
+    flash.BackgroundTransparency = 0.8
+    flash.ZIndex = 10
+    flash.Parent = screenGui
+    
+    TweenService:Create(flash, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+    game:GetService("Debris"):AddItem(flash, 0.6)
+    
+    -- Notifica
+    local notification = Instance.new("TextLabel")
+    notification.Size = UDim2.new(0, 300, 0, 50)
+    notification.Position = UDim2.new(0.5, -150, 0.3, 0)
+    notification.BackgroundColor3 = Color3.fromRGB(200, 0, 100)
+    notification.Text = "SUPER FLY DEACTIVATED"
+    notification.TextColor3 = Color3.new(1, 1, 1)
+    notification.Font = Enum.Font.GothamBold
+    notification.TextSize = 20
+    notification.Parent = screenGui
+    
+    local notificationCorner = Instance.new("UICorner")
+    notificationCorner.CornerRadius = UDim.new(0, 10)
+    notificationCorner.Parent = notification
+    
+    TweenService:Create(notification, TweenInfo.new(0.5), {BackgroundTransparency = 0.3}):Play()
+    game:GetService("Debris"):AddItem(notification, 2)
+end
+
+-- Collega pulsante
+stealButton.MouseButton1Click:Connect(function()
+    if isFlying then
+        stopFly()
+    else
+        startFly()
+    end
+end)
+
+-- Effetti hover pulsante
 stealButton.MouseEnter:Connect(function()
     TweenService:Create(stealButton, TweenInfo.new(0.2), {
-        BackgroundColor3 = Color3.fromRGB(255, 100, 100),
-        Size = UDim2.new(0, 210, 0, 65)
+        BackgroundColor3 = Color3.fromRGB(255, 80, 80),
+        Size = UDim2.new(0, 270, 0, 55)
+    }):Play()
+    
+    TweenService:Create(buttonGlow, TweenInfo.new(0.2), {
+        BackgroundTransparency = 0.5,
+        Size = UDim2.new(1, 15, 1, 15)
     }):Play()
 end)
 
 stealButton.MouseLeave:Connect(function()
     TweenService:Create(stealButton, TweenInfo.new(0.2), {
-        BackgroundColor3 = Color3.fromRGB(255, 50, 50),
-        Size = UDim2.new(0, 200, 0, 60)
+        BackgroundColor3 = Color3.fromRGB(220, 50, 50),
+        Size = UDim2.new(0, 260, 0, 50)
+    }):Play()
+    
+    TweenService:Create(buttonGlow, TweenInfo.new(0.2), {
+        BackgroundTransparency = 0.7,
+        Size = UDim2.new(1, 10, 1, 10)
     }):Play()
 end)
 
--- Inizializza controlli di volo
-setupFlyControls()
+-- Loop principale
+RunService.Heartbeat:Connect(function(deltaTime)
+    updateEnergy(deltaTime)
+    updateFly(deltaTime)
+end)
 
--- Notifica quando il giocatore entra nel gioco
-player.CharacterAdded:Connect(function(character)
-    -- Attendi che il personaggio sia completamente caricato
-    character:WaitForChild("HumanoidRootPart")
+-- Notifica iniziale
+player.CharacterAdded:Connect(function()
+    local welcomeNotification = Instance.new("TextLabel")
+    welcomeNotification.Size = UDim2.new(0, 400, 0, 60)
+    welcomeNotification.Position = UDim2.new(0.5, -200, 0.4, 0)
+    welcomeNotification.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+    welcomeNotification.Text = "SUPER FLY SYSTEM READY\nPress ACTIVATE SUPER FLY to start!"
+    welcomeNotification.TextColor3 = Color3.new(1, 1, 1)
+    welcomeNotification.Font = Enum.Font.GothamBold
+    welcomeNotification.TextSize = 18
+    welcomeNotification.TextScaled = true
+    welcomeNotification.Parent = screenGui
     
-    -- Mostra notifica
-    local notification = Instance.new("TextLabel")
-    notification.Size = UDim2.new(0, 300, 0, 50)
-    notification.Position = UDim2.new(0.5, -150, 0.3, 0)
-    notification.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    notification.Text = "Sistema di volo avanzato attivato!"
-    notification.TextColor3 = Color3.new(1, 1, 1)
-    notification.Font = Enum.Font.GothamBold
-    notification.TextSize = 18
-    notification.Parent = screenGui
+    local welcomeCorner = Instance.new("UICorner")
+    welcomeCorner.CornerRadius = UDim.new(0, 15)
+    welcomeCorner.Parent = welcomeNotification
     
-    local notificationStroke = Instance.new("UIStroke")
-    notificationStroke.Thickness = 2
-    notificationStroke.Color = Color3.fromRGB(255, 150, 0)
-    notificationStroke.Parent = notification
+    local welcomeStroke = Instance.new("UIStroke")
+    welcomeStroke.Thickness = 2
+    welcomeStroke.Color = Color3.fromRGB(100, 150, 255)
+    welcomeStroke.Transparency = 0.3
+    welcomeStroke.Parent = welcomeNotification
     
-    TweenService:Create(notification, TweenInfo.new(0.5), {BackgroundTransparency = 0.3}):Play()
-    game:GetService("Debris"):AddItem(notification, 3)
+    TweenService:Create(welcomeNotification, TweenInfo.new(0.5), {BackgroundTransparency = 0.3}):Play()
+    game:GetService("Debris"):AddItem(welcomeNotification, 4)
 end)
