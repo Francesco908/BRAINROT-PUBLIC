@@ -24,7 +24,7 @@ frame.BorderSizePixel = 0
 frame.Active = true
 frame.Parent = screenGui
 
--- Title label
+-- Title label (acts as drag handle)
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 24)
 title.BackgroundTransparency = 1
@@ -33,6 +33,33 @@ title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 18
 title.Parent = frame
+
+title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        frame.Dragging = true
+        frame.DragStart = input.Position
+        frame.StartPos = frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                frame.Dragging = false
+            end
+        end)
+    end
+end)
+
+-- Handle dragging for mouse and touch
+local function updateDrag(input)
+    if frame.Dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - frame.DragStart
+        frame.Position = UDim2.new(
+            frame.StartPos.X.Scale,
+            frame.StartPos.X.Offset + delta.X,
+            frame.StartPos.Y.Scale,
+            frame.StartPos.Y.Offset + delta.Y
+        )
+    end
+end
+UserInputService.InputChanged:Connect(updateDrag)
 
 -- Buttons
 local function createButton(name, text, posY)
@@ -61,32 +88,8 @@ RunService.RenderStepped:Connect(function(dt)
     baseBtn.BackgroundColor3 = Color3.new(0,0,0):Lerp(rainbow, 0.5)
 end)
 
--- Draggable frame
-local dragging, dragInput, dragStart, startPos
-local function updatePos(input)
-    local delta = input.Position - dragStart
-    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
-                                startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input == dragInput then updatePos(input) end
-end)
-
 -- Advanced flight function with BodyPosition, BodyGyro and Humanoid physics state
-define local function flyToBase()
+local function flyToBase()
     local baseAttr = player:GetAttribute("BasePosition")
     if not baseAttr then warn("Base position not set.") return end
     local coords = {}
@@ -95,10 +98,8 @@ define local function flyToBase()
     local basePos = Vector3.new(coords[1], coords[2], coords[3])
     local peak = basePos + Vector3.new(0, 30, 0)
 
-    -- Prepare physics state
     humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 
-    -- Create BodyPosition for smooth ascent and travel
     local bp = Instance.new("BodyPosition")
     bp.MaxForce = Vector3.new(1e6, 1e6, 1e6)
     bp.P = 5000
@@ -106,7 +107,6 @@ define local function flyToBase()
     bp.Position = peak
     bp.Parent = hrp
 
-    -- Create BodyGyro for continuous rotation
     local bg = Instance.new("BodyGyro")
     bg.MaxTorque = Vector3.new(1e7, 1e7, 1e7)
     bg.P = 10000
@@ -115,29 +115,22 @@ define local function flyToBase()
     bg.Parent = hrp
 
     local startTime = tick()
-    local function onStep()
-        local now = tick()
-        local elapsed = now - startTime
-        -- After reaching peak, move towards base
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        local elapsed = tick() - startTime
         local target = (elapsed < 1 and peak) or basePos
         bp.Position = target
 
-        -- Spin around Y axis: full rotation in 2 seconds
         local angle = (elapsed * math.pi) % (2*math.pi)
-        local cf = CFrame.new(hrp.Position) * CFrame.Angles(0, angle, 0)
-        bg.CFrame = cf
+        bg.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, angle, 0)
 
-        -- End condition when near base
         if (hrp.Position - basePos).Magnitude < 2 then
             bp:Destroy()
             bg:Destroy()
-            RunService.Heartbeat:Disconnect(onStep)
+            conn:Disconnect()
             humanoid:ChangeState(Enum.HumanoidStateType.Running)
         end
-    end
-
-    -- Connect stepping
-    RunService.Heartbeat:Connect(onStep)
+    end)
 end
 
 flyBtn.MouseButton1Click:Connect(flyToBase)
@@ -146,4 +139,4 @@ baseBtn.MouseButton1Click:Connect(function()
     print("Base position saved:", hrp.Position)
 end)
 
-print("Admin Tools GUI loaded with advanced flight.")
+print("Admin Tools GUI loaded with mobile drag support, advanced flight.")
