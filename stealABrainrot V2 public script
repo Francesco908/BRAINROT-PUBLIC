@@ -8,16 +8,16 @@ local PhysicsService = game:GetService("PhysicsService")
 
 -- CONFIGURATION
 local Config = {
-    GuiSize = UDim2.new(0, 220, 0, 120),
+    GuiSize = UDim2.new(0, 220, 0, 140),
     FlyHeight = 30,
-    FlyDuration = 1,
-    SpinDuration = 2,
-    BypassJitter = 0.5,
+    ForwardSpeed = 100,
+    FlightDuration = 5,
+    SpinTime = 2,
     CollisionGroup = "NoClip",
-    OpenSoundId = "rbxassetid://601964720" -- example sound
+    OpenSoundId = "rbxassetid://601964720"
 }
 
--- Setup custom collision group
+-- Setup custom collision group to ignore collisions
 if not pcall(function() PhysicsService:GetCollisionGroupId(Config.CollisionGroup) end) then
     PhysicsService:CreateCollisionGroup(Config.CollisionGroup)
     PhysicsService:CollisionGroupSetCollidable(Config.CollisionGroup, Config.CollisionGroup, false)
@@ -27,15 +27,21 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
-PhysicsService:SetPartCollisionGroup(hrp, Config.CollisionGroup)
 
--- Create ScreenGui
+-- Assign collision group to all parts
+for _, part in ipairs(character:GetDescendants()) do
+    if part:IsA("BasePart") then
+        PhysicsService:SetPartCollisionGroup(part, Config.CollisionGroup)
+    end
+end
+
+-- Create GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SigmaHubGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Play open sound
+-- Play opening sound
 local sound = Instance.new("Sound")
 sound.SoundId = Config.OpenSoundId
 sound.Volume = 1
@@ -52,87 +58,91 @@ frame.BorderSizePixel = 0
 frame.Active = true
 frame.Parent = screenGui
 
--- Make entire frame draggable
+-- Draggable
 frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         frame.Dragging = true
-        frame.DragStart = input.Position
-        frame.StartPos = frame.Position
+        frame.StartPos = input.Position
+        frame.BasePos = frame.Position
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                frame.Dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then frame.Dragging = false end
         end)
     end
 end)
 UserInputService.InputChanged:Connect(function(input)
     if frame.Dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - frame.DragStart
+        local delta = input.Position - frame.StartPos
         frame.Position = UDim2.new(
-            frame.StartPos.X.Scale, frame.StartPos.X.Offset + delta.X,
-            frame.StartPos.Y.Scale, frame.StartPos.Y.Offset + delta.Y
+            frame.BasePos.X.Scale, frame.BasePos.X.Offset + delta.X,
+            frame.BasePos.Y.Scale, frame.BasePos.Y.Offset + delta.Y
         )
     end
 end)
 
 -- Button Factory
-local function createButton(text, posY)
+local function newBtn(text, y)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1, -20, 0, 30)
-    btn.Position = UDim2.new(0, 10, 0, posY)
+    btn.Position = UDim2.new(0, 10, 0, y)
     btn.Text = text
-    btn.Font = Enum.Font.Gotham
+    btn.Font = Enum.Font.GothamBold
     btn.TextSize = 14
-    btn.TextColor3 = Color3.new(0,0,0)
     btn.BackgroundTransparency = 0.2
     btn.BorderSizePixel = 0
     btn.Parent = frame
     return btn
 end
 
-local flyBtn = createButton("Bypass Fly to Base", 40)
-local saveBtn = createButton("Save Base Position", 80)
+local flyBtn = newBtn("Float & Forward Fly", 40)
+local saveBtn = newBtn("Save Base", 80)
 
--- Rainbow Animation
-local hue = 0
-RunService.RenderStepped:Connect(function(dt)
-    hue = (hue + dt * 0.4) % 1
-    local c1 = Color3.fromHSV(hue, 1, 1)
-    local c2 = Color3.fromHSV((hue + 0.5) % 1, 1, 1)
-    flyBtn.BackgroundColor3 = c1
-    saveBtn.BackgroundColor3 = c2
+-- Button colors rainbow
+RunService.RenderStepped:Connect(function()
+    local hue = tick() % 1
+    flyBtn.BackgroundColor3 = Color3.fromHSV(hue, 1, 1)
+    saveBtn.BackgroundColor3 = Color3.fromHSV((hue + 0.5) % 1, 1, 1)
 end)
 
--- Advanced Bypass Fly Logic
-local function bypassFly()
-    local baseAttr = player:GetAttribute("BasePosition")
-    if not baseAttr then return warn("Base not set.") end
+-- Float & Forward Fly Logic
+local function floatForwardFly()
+    local bp = player:GetAttribute("BasePosition")
+    if not bp then warn("Base not set."); return end
     local nums = {}
-    for n in baseAttr:gmatch("[-%d%.]+") do table.insert(nums, tonumber(n)) end
+    for n in bp:gmatch("[-%d%.]+") do table.insert(nums, tonumber(n)) end
     local basePos = Vector3.new(nums[1], nums[2], nums[3])
-    local peakPos = basePos + Vector3.new(0, Config.FlyHeight, 0)
+    local floatPos = basePos + Vector3.new(0, Config.FlyHeight, 0)
 
+    -- Set network ownership and physics blow
     hrp:SetNetworkOwner(player)
     humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 
-    -- Tween ascent
-    local tweenUp = TweenService:Create(hrp, TweenInfo.new(Config.FlyDuration, Enum.EasingStyle.Quad), {CFrame = CFrame.new(peakPos)})
-    tweenUp:Play(); tweenUp.Completed:Wait()
-    -- Jitter
-    for i=1,5 do hrp.CFrame = hrp.CFrame + Vector3.new(math.random()-0.5, math.random()-0.5, math.random()-0.5)*Config.BypassJitter; RunService.Heartbeat:Wait() end
-    -- Tween descent
-    local tweenDown = TweenService:Create(hrp, TweenInfo.new(Config.FlyDuration, Enum.EasingStyle.Quad), {CFrame = CFrame.new(basePos)})
-    tweenDown:Play(); tweenDown.Completed:Wait()
-    -- Spin flair
-    TweenService:Create(hrp, TweenInfo.new(Config.SpinDuration, Enum.EasingStyle.Linear), {CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(360), 0)}):Play():Completed:Wait()
+    -- teleport instantly to floatPos
+    hrp.CFrame = CFrame.new(floatPos)
 
-    humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    -- Apply continuous forward movement
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+    bv.Velocity = hrp.CFrame.LookVector * Config.ForwardSpeed
+    bv.Parent = hrp
+
+    -- Apply orientation lock
+    local bg = Instance.new("BodyGyro")
+    bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+    bg.CFrame = hrp.CFrame
+    bg.Parent = hrp
+
+    -- Duration control
+    delay(Config.FlightDuration, function()
+        bv:Destroy()
+        bg:Destroy()
+        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    end)
 end
 
-flyBtn.MouseButton1Click:Connect(bypassFly)
+flyBtn.MouseButton1Click:Connect(floatForwardFly)
 saveBtn.MouseButton1Click:Connect(function()
     player:SetAttribute("BasePosition", tostring(hrp.Position))
-    print("Base saved:", hrp.Position)
+    print("Base pos saved:", hrp.Position)
 end)
 
-print("Sigma Hub v9000+ loaded with sound and full drag.")
+print("Sigma Hub Float v1 loaded.")
