@@ -6,6 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
 
 -- Create ScreenGui
@@ -33,51 +34,40 @@ title.Font = Enum.Font.SourceSansBold
 title.TextSize = 18
 title.Parent = frame
 
--- Instant Steal Button
-local stealBtn = Instance.new("TextButton")
-stealBtn.Name = "InstantSteal"
-stealBtn.Size = UDim2.new(1, -10, 0, 32)
-stealBtn.Position = UDim2.new(0, 5, 0, 30)
-stealBtn.Text = "Fly to Base"
-stealBtn.Font = Enum.Font.SourceSansBold
-stealBtn.TextSize = 16
-stealBtn.TextColor3 = Color3.new(0,0,0)
-stealBtn.BorderSizePixel = 0
-stealBtn.Parent = frame
+-- Buttons
+local function createButton(name, text, posY)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(1, -10, 0, 32)
+    btn.Position = UDim2.new(0, 5, 0, posY)
+    btn.Text = text
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 16
+    btn.TextColor3 = Color3.new(0,0,0)
+    btn.BorderSizePixel = 0
+    btn.Parent = frame
+    return btn
+end
 
--- Set Base Position Button
-local baseBtn = Instance.new("TextButton")
-baseBtn.Name = "SetBasePos"
-baseBtn.Size = UDim2.new(1, -10, 0, 32)
-baseBtn.Position = UDim2.new(0, 5, 0, 70)
-baseBtn.Text = "Set Base Position"
-baseBtn.Font = Enum.Font.SourceSansBold
-baseBtn.TextSize = 16
-baseBtn.TextColor3 = Color3.new(0,0,0)
-baseBtn.BorderSizePixel = 0
-baseBtn.Parent = frame
+local flyBtn = createButton("FlyToBase", "Fly to Base", 30)
+local baseBtn = createButton("SetBasePos", "Set Base Position", 70)
 
 -- Rainbow effect
 local hue = 0
 RunService.RenderStepped:Connect(function(dt)
-    hue = (hue + dt * 0.2) % 1
+    hue = (hue + dt * 0.3) % 1
     local rainbow = Color3.fromHSV(hue, 1, 1)
-    stealBtn.BackgroundColor3 = rainbow
+    flyBtn.BackgroundColor3 = rainbow
     baseBtn.BackgroundColor3 = Color3.new(0,0,0):Lerp(rainbow, 0.5)
 end)
 
 -- Draggable frame
 local dragging, dragInput, dragStart, startPos
-local function updatePosition(input)
+local function updatePos(input)
     local delta = input.Position - dragStart
-    frame.Position = UDim2.new(
-        startPos.X.Scale,
-        startPos.X.Offset + delta.X,
-        startPos.Y.Scale,
-        startPos.Y.Offset + delta.Y
-    )
+    frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X,
+                                startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
-
 frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
@@ -88,63 +78,72 @@ frame.InputBegan:Connect(function(input)
         end)
     end
 end)
-
 frame.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
 end)
-
 UserInputService.InputChanged:Connect(function(input)
-    if dragging and input == dragInput then updatePosition(input) end
+    if dragging and input == dragInput then updatePos(input) end
 end)
 
--- Advanced flight to base
-local function flyToBase()
+-- Advanced flight function with BodyPosition, BodyGyro and Humanoid physics state
+define local function flyToBase()
     local baseAttr = player:GetAttribute("BasePosition")
-    if not baseAttr then
-        warn("Base position not set.")
-        return
-    end
-    -- parse stored Vector3 from string
+    if not baseAttr then warn("Base position not set.") return end
     local coords = {}
-    for num in baseAttr:gmatch("[-%d%.]+") do
-        table.insert(coords, tonumber(num))
-    end
+    for num in baseAttr:gmatch("[-%d%.]+") do coords[#coords+1] = tonumber(num) end
     if #coords < 3 then return end
-    local target = Vector3.new(coords[1], coords[2] + 30, coords[3])
+    local basePos = Vector3.new(coords[1], coords[2], coords[3])
+    local peak = basePos + Vector3.new(0, 30, 0)
 
-    -- Create BodyVelocity and BodyGyro for smooth flight and rotation
-    local bv = Instance.new("BodyVelocity")
-    bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-    bv.Parent = hrp
+    -- Prepare physics state
+    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 
+    -- Create BodyPosition for smooth ascent and travel
+    local bp = Instance.new("BodyPosition")
+    bp.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+    bp.P = 5000
+    bp.D = 500
+    bp.Position = peak
+    bp.Parent = hrp
+
+    -- Create BodyGyro for continuous rotation
     local bg = Instance.new("BodyGyro")
-    bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-    bg.P = 3000
-    bg.D = 100
+    bg.MaxTorque = Vector3.new(1e7, 1e7, 1e7)
+    bg.P = 10000
+    bg.D = 1000
+    bg.CFrame = hrp.CFrame
     bg.Parent = hrp
 
-    -- Fly until close to target
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        local direction = (target - hrp.Position)
-        bv.Velocity = direction.Unit * 100
-        -- Set rotation to face movement
-        bg.CFrame = CFrame.new(hrp.Position, target)
-        if direction.Magnitude < 2 then
-            -- Cleanup
-            bv:Destroy()
+    local startTime = tick()
+    local function onStep()
+        local now = tick()
+        local elapsed = now - startTime
+        -- After reaching peak, move towards base
+        local target = (elapsed < 1 and peak) or basePos
+        bp.Position = target
+
+        -- Spin around Y axis: full rotation in 2 seconds
+        local angle = (elapsed * math.pi) % (2*math.pi)
+        local cf = CFrame.new(hrp.Position) * CFrame.Angles(0, angle, 0)
+        bg.CFrame = cf
+
+        -- End condition when near base
+        if (hrp.Position - basePos).Magnitude < 2 then
+            bp:Destroy()
             bg:Destroy()
-            connection:Disconnect()
+            RunService.Heartbeat:Disconnect(onStep)
+            humanoid:ChangeState(Enum.HumanoidStateType.Running)
         end
-    end)
+    end
+
+    -- Connect stepping
+    RunService.Heartbeat:Connect(onStep)
 end
 
--- Connect buttons
-stealBtn.MouseButton1Click:Connect(flyToBase)
+flyBtn.MouseButton1Click:Connect(flyToBase)
 baseBtn.MouseButton1Click:Connect(function()
-    -- Save current position
     player:SetAttribute("BasePosition", tostring(hrp.Position))
     print("Base position saved:", hrp.Position)
 end)
 
-print("Admin Tools GUI loaded.")
+print("Admin Tools GUI loaded with advanced flight.")
