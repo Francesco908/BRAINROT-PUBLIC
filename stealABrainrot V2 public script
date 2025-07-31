@@ -1,320 +1,447 @@
--- SISTEMA DI VOLO AVANZATO PER ROBLOX (MOBILE COMPATIBLE)
--- Inserisci questo script in ServerScriptService
+-- Sigma Hub GUI Mobile - Instant Steal System
+-- Script da mettere in StarterPlayerScripts
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Configurazione del sistema di volo
-local FLIGHT_CONFIG = {
-    MAX_SPEED = 200,
-    ACCELERATION = 50,
-    TURN_SPEED = 8,
-    BOOST_MULTIPLIER = 2.5,
-    DRAG = 0.85,
-    LIFT_FORCE = 16.2,
-    MOBILE_JOYSTICK_RADIUS = 100,
-    MOBILE_BUTTON_SIZE = 80
-}
+-- Variabili globali
+local basePosition = Vector3.new(0, 100, 0)
+local isStealActive = false
+local gui
+local dragToggle = nil
+local dragSpeed = 0.25
+local dragStart = nil
+local startPos = nil
+local isMobile = UserInputService.TouchEnabled
 
--- Sistema di interfaccia mobile
-local function createMobileControls(player)
-    local playerGui = player:WaitForChild("PlayerGui")
-    local touchGui = Instance.new("ScreenGui")
-    touchGui.Name = "FlightMobileControls"
-    touchGui.ResetOnSpawn = false
-    touchGui.Parent = playerGui
-
-    -- Joystick mobile
-    local joystickFrame = Instance.new("Frame")
-    joystickFrame.Name = "JoystickFrame"
-    joystickFrame.Size = UDim2.new(0, FLIGHT_CONFIG.MOBILE_JOYSTICK_RADIUS * 2, 0, FLIGHT_CONFIG.MOBILE_JOYSTICK_RADIUS * 2)
-    joystickFrame.Position = UDim2.new(0.1, 0, 0.7, 0)
-    joystickFrame.BackgroundTransparency = 0.8
-    joystickFrame.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-    joystickFrame.BorderSizePixel = 0
-    joystickFrame.ClipsDescendants = true
-    joystickFrame.Parent = touchGui
-
-    local joystick = Instance.new("ImageButton")
-    joystick.Name = "Joystick"
-    joystick.Size = UDim2.new(0, FLIGHT_CONFIG.MOBILE_JOYSTICK_RADIUS, 0, FLIGHT_CONFIG.MOBILE_JOYSTICK_RADIUS)
-    joystick.Position = UDim2.new(0.5, 0, 0.5, 0)
-    joystick.AnchorPoint = Vector2.new(0.5, 0.5)
-    joystick.BackgroundColor3 = Color3.new(1, 1, 1)
-    joystick.BackgroundTransparency = 0.5
-    joystick.Image = "rbxassetid://3570695787"
-    joystick.ScaleType = Enum.ScaleType.Slice
-    joystick.SliceCenter = Rect.new(100, 100, 100, 100)
-    joystick.Parent = joystickFrame
-
-    -- Pulsante Boost
-    local boostButton = Instance.new("ImageButton")
-    boostButton.Name = "BoostButton"
-    boostButton.Size = UDim2.new(0, FLIGHT_CONFIG.MOBILE_BUTTON_SIZE, 0, FLIGHT_CONFIG.MOBILE_BUTTON_SIZE)
-    boostButton.Position = UDim2.new(0.85, 0, 0.7, 0)
-    boostButton.BackgroundTransparency = 1
-    boostButton.Image = "rbxassetid://3926305904"
-    boostButton.ImageRectOffset = Vector2.new(884, 4)
-    boostButton.ImageRectSize = Vector2.new(36, 36)
-    boostButton.Parent = touchGui
-
-    -- Pulsante Volo
-    local flightButton = Instance.new("ImageButton")
-    flightButton.Name = "FlightButton"
-    flightButton.Size = UDim2.new(0, FLIGHT_CONFIG.MOBILE_BUTTON_SIZE * 1.5, 0, FLIGHT_CONFIG.MOBILE_BUTTON_SIZE * 1.5)
-    flightButton.Position = UDim2.new(0.5, 0, 0.85, 0)
-    flightButton.AnchorPoint = Vector2.new(0.5, 0.5)
-    flightButton.BackgroundTransparency = 1
-    flightButton.Image = "rbxassetid://3926307971"
-    flightButton.ImageRectOffset = Vector2.new(884, 4)
-    flightButton.ImageRectSize = Vector2.new(36, 36)
-    flightButton.Parent = touchGui
-
-    -- Pulsanti Verticali
-    local upButton = Instance.new("ImageButton")
-    upButton.Name = "UpButton"
-    upButton.Size = UDim2.new(0, FLIGHT_CONFIG.MOBILE_BUTTON_SIZE, 0, FLIGHT_CONFIG.MOBILE_BUTTON_SIZE)
-    upButton.Position = UDim2.new(0.85, 0, 0.5, -FLIGHT_CONFIG.MOBILE_BUTTON_SIZE * 0.6)
-    upButton.BackgroundTransparency = 1
-    upButton.Image = "rbxassetid://3926305904"
-    upButton.ImageRectOffset = Vector2.new(324, 124)
-    upButton.ImageRectSize = Vector2.new(36, 36)
-    upButton.Parent = touchGui
-
-    local downButton = Instance.new("ImageButton")
-    downButton.Name = "DownButton"
-    downButton.Size = UDim2.new(0, FLIGHT_CONFIG.MOBILE_BUTTON_SIZE, 0, FLIGHT_CONFIG.MOBILE_BUTTON_SIZE)
-    downButton.Position = UDim2.new(0.85, 0, 0.5, FLIGHT_CONFIG.MOBILE_BUTTON_SIZE * 0.6)
-    downButton.BackgroundTransparency = 1
-    downButton.Image = "rbxassetid://3926305904"
-    downButton.ImageRectOffset = Vector2.new(44, 364)
-    downButton.ImageRectSize = Vector2.new(36, 36)
-    downButton.Parent = touchGui
-
-    return touchGui
+-- Funzione per creare effetti particellari
+local function createStealEffect(character)
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    local attachment = Instance.new("Attachment")
+    attachment.Parent = rootPart
+    
+    local particles = Instance.new("ParticleEmitter")
+    particles.Parent = attachment
+    particles.Texture = "rbxasset://textures/particles/smoke_main.dds"
+    particles.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 255))
+    }
+    particles.Size = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.5),
+        NumberSequenceKeypoint.new(1, 2)
+    }
+    particles.Lifetime = NumberRange.new(0.5, 1.5)
+    particles.Rate = 100
+    particles.SpreadAngle = Vector2.new(45, 45)
+    particles.Speed = NumberRange.new(5, 15)
+    
+    game:GetService("Debris"):AddItem(attachment, 3)
 end
 
--- Resto dello script rimane invariato fino alla funzione handleFlightControls...
-
--- Gestore input e controlli (versione mobile compatibile)
-local function handleFlightControls(player, flightData, bodyVelocity, bodyAngularVelocity, effectsFolder)
-    local character = player.Character
-    if not character then return end
+-- Funzione per il movimento fluttuante buggato
+local function floatToBase(character, targetPos)
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
     
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
+    if not humanoid or not rootPart then return end
     
-    local camera = workspace.CurrentCamera
+    createStealEffect(character)
     
-    -- Input tracking
-    local keys = {
-        W = false, A = false, S = false, D = false,
-        Space = false, LeftShift = false,
-        LeftControl = false, Q = false, E = false
-    }
+    local originalCFrame = rootPart.CFrame
+    local startPos = rootPart.Position
     
-    -- Mobile input tracking
-    local mobileInput = {
-        JoystickPosition = Vector2.new(0, 0),
-        BoostActive = false,
-        UpActive = false,
-        DownActive = false
-    }
+    local bodyPos = Instance.new("BodyPosition")
+    bodyPos.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyPos.Position = rootPart.Position
+    bodyPos.Parent = rootPart
     
-    -- Configurazione controlli mobile
-    if UserInputService.TouchEnabled then
-        local mobileGui = createMobileControls(player)
-        
-        -- Gestione joystick
-        local joystickFrame = mobileGui:FindFirstChild("JoystickFrame")
-        if joystickFrame then
-            local joystick = joystickFrame:FindFirstChild("Joystick")
-            local joystickPosition = Vector2.new(0, 0)
-            local joystickActive = false
-            
-            local function updateJoystick(input)
-                local touchPos = input.Position
-                local center = joystickFrame.AbsolutePosition + joystickFrame.AbsoluteSize / 2
-                local relative = (touchPos - center) / (FLIGHT_CONFIG.MOBILE_JOYSTICK_RADIUS)
-                
-                if relative.Magnitude > 1 then
-                    relative = relative.Unit
-                end
-                
-                joystickPosition = relative
-                joystick.Position = UDim2.new(
-                    0.5, relative.X * FLIGHT_CONFIG.MOBILE_JOYSTICK_RADIUS,
-                    0.5, relative.Y * FLIGHT_CONFIG.MOBILE_JOYSTICK_RADIUS
-                )
-                
-                mobileInput.JoystickPosition = Vector2.new(
-                    -relative.Y,  -- Inverti Y per movimento naturale
-                    relative.X
-                )
-            end
-            
-            joystickFrame.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch then
-                    joystickActive = true
-                    updateJoystick(input)
-                end
-            end)
-            
-            joystickFrame.InputChanged:Connect(function(input)
-                if joystickActive and input.UserInputType == Enum.UserInputType.Touch then
-                    updateJoystick(input)
-                end
-            end)
-            
-            joystickFrame.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch then
-                    joystickActive = false
-                    joystickPosition = Vector2.new(0, 0)
-                    joystick.Position = UDim2.new(0.5, 0, 0.5, 0)
-                    mobileInput.JoystickPosition = Vector2.new(0, 0)
-                end
-            end)
-        end
-        
-        -- Gestione pulsanti
-        local boostButton = mobileGui:FindFirstChild("BoostButton")
-        if boostButton then
-            boostButton.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch then
-                    mobileInput.BoostActive = true
-                    boostButton.ImageTransparency = 0.3
-                end
-            end)
-            
-            boostButton.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch then
-                    mobileInput.BoostActive = false
-                    boostButton.ImageTransparency = 0
-                end
-            end)
-        end
-        
-        local upButton = mobileGui:FindFirstChild("UpButton")
-        if upButton then
-            upButton.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch then
-                    mobileInput.UpActive = true
-                    upButton.ImageTransparency = 0.3
-                end
-            end)
-            
-            upButton.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch then
-                    mobileInput.UpActive = false
-                    upButton.ImageTransparency = 0
-                end
-            end)
-        end
-        
-        local downButton = mobileGui:FindFirstChild("DownButton")
-        if downButton then
-            downButton.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch then
-                    mobileInput.DownActive = true
-                    downButton.ImageTransparency = 0.3
-                end
-            end)
-            
-            downButton.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch then
-                    mobileInput.DownActive = false
-                    downButton.ImageTransparency = 0
-                end
-            end)
-        end
-        
-        -- Pulsante attivazione volo
-        local flightButton = mobileGui:FindFirstChild("FlightButton")
-        if flightButton then
-            flightButton.Activated:Connect(function()
-                flightData.isFlying = not flightData.isFlying
-                
-                -- Effetti di attivazione
-                if flightData.isFlying then
-                    flightButton.ImageColor3 = Color3.fromRGB(0, 255, 255)
-                    -- ... (attivazione effetti come nello script originale)
-                else
-                    flightButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
-                    -- ... (disattivazione effetti)
-                end
-            end)
-        end
-    else
-        -- Controlli desktop (rimangono invariati)
-        UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            -- ... (stesso codice originale per desktop)
-        end)
-        
-        UserInputService.InputEnded:Connect(function(input, gameProcessed)
-            -- ... (stesso codice originale per desktop)
-        end)
-    end
+    local bodyVel = Instance.new("BodyVelocity")
+    bodyVel.MaxForce = Vector3.new(400, 400, 400)
+    bodyVel.Velocity = Vector3.new(0, 0, 0)
+    bodyVel.Parent = rootPart
     
-    -- Loop principale del volo (ottimizzato per mobile)
     local connection
-    connection = RunService.Heartbeat:Connect(function(deltaTime)
-        if not flightData.isFlying or not character.Parent then
-            connection:Disconnect()
-            return
-        end
+    local time = 0
+    local phase = 1
+    
+    connection = RunService.Heartbeat:Connect(function(dt)
+        time = time + dt
         
-        -- Calcola direzione basata sulla camera
-        local cameraCFrame = camera.CFrame
-        local forward = cameraCFrame.LookVector
-        local right = cameraCFrame.RightVector
-        local up = cameraCFrame.UpVector
-        
-        -- Input processing (mobile + desktop)
-        local moveVector = Vector3.new(0, 0, 0)
-        
-        -- Gestione input mobile
-        if UserInputService.TouchEnabled then
-            -- Joystick movement
-            moveVector = moveVector + (forward * mobileInput.JoystickPosition.X)
-            moveVector = moveVector + (right * mobileInput.JoystickPosition.Y)
+        if phase == 1 then -- Fase di salita buggata
+            local progress = math.min(time / 1.5, 1)
+            local wobble = math.sin(time * 10) * 2
+            local height = startPos.Y + (50 * progress) + wobble
             
-            -- Vertical movement
-            if mobileInput.UpActive then
-                moveVector = moveVector + up
-            end
-            if mobileInput.DownActive then
-                moveVector = moveVector - up
+            bodyPos.Position = Vector3.new(
+                startPos.X + math.sin(time * 3) * 3,
+                height,
+                startPos.Z + math.cos(time * 3) * 3
+            )
+            
+            if math.random() < 0.3 then
+                bodyVel.Velocity = Vector3.new(
+                    math.random(-20, 20),
+                    math.random(-10, 10),
+                    math.random(-20, 20)
+                )
+            else
+                bodyVel.Velocity = Vector3.new(0, 0, 0)
             end
             
-            -- Boost
-            flightData.isBoosting = mobileInput.BoostActive and flightData.energy > 0
-        else
-            -- Desktop movement (stesso codice originale)
-            if keys.W then moveVector = moveVector + forward end
-            if keys.S then moveVector = moveVector - forward end
-            if keys.D then moveVector = moveVector + right end
-            if keys.A then moveVector = moveVector - right end
-            if keys.Space then moveVector = moveVector + up end
-            if keys.LeftShift or keys.LeftControl then moveVector = moveVector - up end
+            if progress >= 1 then
+                phase = 2
+                time = 0
+            end
             
-            flightData.isBoosting = keys.Q and flightData.energy > 0
+        elseif phase == 2 then -- Movimento verso la base
+            local progress = math.min(time / 2, 1)
+            local currentPos = bodyPos.Position
+            local targetDirection = (targetPos - currentPos).Unit
+            
+            local glitchOffset = Vector3.new(
+                math.sin(time * 15) * 5,
+                math.sin(time * 8) * 3,
+                math.cos(time * 15) * 5
+            )
+            
+            bodyPos.Position = currentPos:Lerp(targetPos + glitchOffset, progress * 0.1)
+            
+            if math.random() < 0.4 then
+                bodyVel.Velocity = Vector3.new(
+                    math.random(-30, 30),
+                    math.random(-15, 15),
+                    math.random(-30, 30)
+                )
+            end
+            
+            if (bodyPos.Position - targetPos).Magnitude < 10 then
+                phase = 3
+                time = 0
+            end
+            
+        elseif phase == 3 then -- Atterraggio
+            local progress = math.min(time / 1, 1)
+            local currentY = bodyPos.Position.Y
+            local targetY = targetPos.Y
+            
+            bodyPos.Position = Vector3.new(
+                targetPos.X + math.sin(time * 5) * (2 * (1 - progress)),
+                currentY + (targetY - currentY) * progress,
+                targetPos.Z + math.cos(time * 5) * (2 * (1 - progress))
+            )
+            
+            bodyVel.Velocity = Vector3.new(0, -20 * progress, 0)
+            
+            if progress >= 1 then
+                bodyPos:Destroy()
+                bodyVel:Destroy()
+                connection:Disconnect()
+                isStealActive = false
+                createStealEffect(character)
+            end
         end
-        
-        -- ... (resto del codice di volo invariato)
-        
     end)
 end
 
--- Il resto dello script rimane invariato...
+-- Funzione per impostare la base
+local function setBase()
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        basePosition = player.Character.HumanoidRootPart.Position
+        
+        local gui = playerGui:FindFirstChild("SigmaHubGui")
+        if gui and gui:FindFirstChild("MainFrame") then
+            local baseButton = gui.MainFrame:FindFirstChild("SetBaseButton")
+            if baseButton then
+                local originalText = baseButton.Text
+                baseButton.Text = "✓ BASE IMPOSTATA!"
+                baseButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                
+                -- Vibrazione mobile
+                if isMobile then
+                    game:GetService("HapticService"):SetMotor(Enum.UserInputType.Gamepad1, Enum.VibrationMotor.Small, 0.5)
+                    wait(0.1)
+                    game:GetService("HapticService"):SetMotor(Enum.UserInputType.Gamepad1, Enum.VibrationMotor.Small, 0)
+                end
+                
+                wait(1.5)
+                
+                if baseButton and baseButton.Parent then
+                    baseButton.Text = originalText
+                    baseButton.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+                end
+            end
+        end
+        
+        -- Notifica mobile
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "🏠 Base Impostata!";
+            Text = "Posizione salvata con successo";
+            Duration = 2;
+        })
+    end
+end
 
-print("🚀 Sistema di Volo Avanzato Mobile Pronto!")
-print("Controlli Mobile:")
-print("- Joystick: Movimento Orizzontale")
-print("- Pulsante SU/GIÙ: Movimento Verticale")
-print("- Pulsante BOOST: Attiva boost")
-print("- Pulsante CENTRALE: Attiva/Disattiva Volo")
+-- Funzione per instant steal
+local function instantSteal()
+    if isStealActive then return end
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    isStealActive = true
+    
+    -- Vibrazione per mobile
+    if isMobile then
+        game:GetService("HapticService"):SetMotor(Enum.UserInputType.Gamepad1, Enum.VibrationMotor.Large, 1)
+        wait(0.2)
+        game:GetService("HapticService"):SetMotor(Enum.UserInputType.Gamepad1, Enum.VibrationMotor.Large, 0)
+    end
+    
+    floatToBase(player.Character, basePosition)
+end
+
+-- Creazione della GUI ottimizzata per mobile
+local function createGui()
+    if playerGui:FindFirstChild("SigmaHubGui") then
+        playerGui:FindFirstChild("SigmaHubGui"):Destroy()
+    end
+    
+    gui = Instance.new("ScreenGui")
+    gui.Name = "SigmaHubGui"
+    gui.ResetOnSpawn = false
+    gui.Parent = playerGui
+    
+    -- Dimensioni adattive per mobile
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    local isSmallScreen = screenSize.X < 500 or screenSize.Y < 400
+    
+    local frameSize = isSmallScreen and UDim2.new(0, 280, 0, 160) or UDim2.new(0, 320, 0, 180)
+    local buttonHeight = isSmallScreen and 45 or 50
+    
+    -- Frame principale
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "MainFrame"
+    mainFrame.Size = frameSize
+    mainFrame.Position = UDim2.new(0, 20, 0, 100)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Active = true
+    mainFrame.Parent = gui
+    
+    -- Gradient
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 50)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 25))
+    }
+    gradient.Rotation = 45
+    gradient.Parent = mainFrame
+    
+    -- Corner e stroke
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 15)
+    corner.Parent = mainFrame
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(0, 255, 255)
+    stroke.Thickness = 2
+    stroke.Transparency = 0.3
+    stroke.Parent = mainFrame
+    
+    -- Header ottimizzato per touch
+    local header = Instance.new("Frame")
+    header.Size = UDim2.new(1, 0, 0, isSmallScreen and 35 or 40)
+    header.Position = UDim2.new(0, 0, 0, 0)
+    header.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+    header.BorderSizePixel = 0
+    header.Parent = mainFrame
+    
+    local headerCorner = Instance.new("UICorner")
+    headerCorner.CornerRadius = UDim.new(0, 15)
+    headerCorner.Parent = header
+    
+    -- Titolo responsive
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -45, 1, 0)
+    title.Position = UDim2.new(0, 10, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = isSmallScreen and "SIGMA HUB" or "SIGMA HUB | Admin vs Admin"
+    title.TextColor3 = Color3.fromRGB(0, 255, 255)
+    title.TextScaled = true
+    title.Font = Enum.Font.GothamBold
+    title.Parent = header
+    
+    -- Bottone close più grande per touch
+    local closeButton = Instance.new("TextButton")
+    closeButton.Size = UDim2.new(0, isSmallScreen and 25 or 30, 0, isSmallScreen and 25 or 30)
+    closeButton.Position = UDim2.new(1, isSmallScreen and -30 or -35, 0, 5)
+    closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    closeButton.Text = "✕"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.TextScaled = true
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.BorderSizePixel = 0
+    closeButton.Parent = header
+    
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 8)
+    closeCorner.Parent = closeButton
+    
+    -- Bottone Instant Steal più grande
+    local stealButton = Instance.new("TextButton")
+    stealButton.Size = UDim2.new(1, -20, 0, buttonHeight)
+    stealButton.Position = UDim2.new(0, 10, 0, isSmallScreen and 40 or 45)
+    stealButton.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    stealButton.Text = "🚀 INSTANT STEAL TO BASE"
+    stealButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    stealButton.TextScaled = true
+    stealButton.Font = Enum.Font.GothamBold
+    stealButton.BorderSizePixel = 0
+    stealButton.Parent = mainFrame
+    
+    local stealCorner = Instance.new("UICorner")
+    stealCorner.CornerRadius = UDim.new(0, 10)
+    stealCorner.Parent = stealButton
+    
+    -- Bottone Set Base
+    local baseButton = Instance.new("TextButton")
+    baseButton.Name = "SetBaseButton"
+    baseButton.Size = UDim2.new(1, -20, 0, buttonHeight - 5)
+    baseButton.Position = UDim2.new(0, 10, 0, isSmallScreen and 90 or 105)
+    baseButton.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    baseButton.Text = "📍 IMPOSTA BASE QUI"
+    baseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    baseButton.TextScaled = true
+    baseButton.Font = Enum.Font.Gotham
+    baseButton.BorderSizePixel = 0
+    baseButton.Parent = mainFrame
+    
+    local baseCorner = Instance.new("UICorner")
+    baseCorner.CornerRadius = UDim.new(0, 10)
+    baseCorner.Parent = baseButton
+    
+    -- Toggle button per nascondere/mostrare
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Size = UDim2.new(0, 50, 0, 30)
+    toggleButton.Position = UDim2.new(1, -60, 1, 10)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 255)
+    toggleButton.Text = "SIGMA"
+    toggleButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+    toggleButton.TextScaled = true
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.BorderSizePixel = 0
+    toggleButton.Parent = gui
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 15)
+    toggleCorner.Parent = toggleButton
+    
+    -- Sistema di drag per mobile (touch)
+    local function updateInputMobile(input)
+        if not dragStart or not startPos then return end
+        local delta = input.Position - dragStart
+        local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        mainFrame.Position = position
+    end
+    
+    header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragToggle = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+        end
+    end)
+    
+    header.InputChanged:Connect(function(input)
+        if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateInputMobile(input)
+        end
+    end)
+    
+    header.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragToggle = false
+            dragStart = nil
+            startPos = nil
+        end
+    end)
+    
+    -- Eventi bottoni
+    stealButton.MouseButton1Click:Connect(instantSteal)
+    baseButton.MouseButton1Click:Connect(setBase)
+    closeButton.MouseButton1Click:Connect(function()
+        TweenService:Create(mainFrame, TweenInfo.new(0.3), {Position = UDim2.new(0, 20, 0, -200)}):Play()
+        wait(0.3)
+        gui:Destroy()
+    end)
+    
+    -- Toggle visibility
+    local isVisible = true
+    toggleButton.MouseButton1Click:Connect(function()
+        isVisible = not isVisible
+        local targetPos = isVisible and UDim2.new(0, 20, 0, 100) or UDim2.new(0, -350, 0, 100)
+        TweenService:Create(mainFrame, TweenInfo.new(0.4), {Position = targetPos}):Play()
+        toggleButton.Text = isVisible and "SIGMA" or "SHOW"
+    end)
+    
+    -- Effetti touch ottimizzati
+    local function addTouchEffect(button, hoverColor, normalColor)
+        button.MouseButton1Down:Connect(function()
+            TweenService:Create(button, TweenInfo.new(0.1), {
+                BackgroundColor3 = hoverColor,
+                Size = UDim2.new(button.Size.X.Scale * 0.95, button.Size.X.Offset * 0.95, button.Size.Y.Scale * 0.95, button.Size.Y.Offset * 0.95)
+            }):Play()
+        end)
+        button.MouseButton1Up:Connect(function()
+            TweenService:Create(button, TweenInfo.new(0.1), {
+                BackgroundColor3 = normalColor,
+                Size = UDim2.new(button.Size.X.Scale / 0.95, button.Size.X.Offset / 0.95, button.Size.Y.Scale / 0.95, button.Size.Y.Offset / 0.95)
+            }):Play()
+        end)
+    end
+    
+    addTouchEffect(stealButton, Color3.fromRGB(60, 60, 70), Color3.fromRGB(45, 45, 55))
+    addTouchEffect(baseButton, Color3.fromRGB(60, 60, 70), Color3.fromRGB(45, 45, 55))
+    addTouchEffect(closeButton, Color3.fromRGB(255, 70, 70), Color3.fromRGB(255, 50, 50))
+    
+    -- Animazione di ingresso
+    mainFrame.Position = UDim2.new(0, 20, 0, -200)
+    TweenService:Create(mainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back), {Position = UDim2.new(0, 20, 0, 100)}):Play()
+    
+    -- Auto-hide dopo inattività (utile per mobile)
+    local lastActivity = tick()
+    local function resetActivity()
+        lastActivity = tick()
+    end
+    
+    stealButton.MouseButton1Click:Connect(resetActivity)
+    baseButton.MouseButton1Click:Connect(resetActivity)
+    
+    spawn(function()
+        while gui and gui.Parent do
+            wait(30) -- Controlla ogni 30 secondi
+            if tick() - lastActivity > 120 and isVisible then -- Nascondi dopo 2 minuti di inattività
+                isVisible = false
+                TweenService:Create(mainFrame, TweenInfo.new(0.4), {Position = UDim2.new(0, -350, 0, 100)}):Play()
+                toggleButton.Text = "SHOW"
+            end
+        end
+    end)
+end
+
+-- Auto-creazione GUI all'avvio
+wait(2)
+createGui()
+
+-- Notifica mobile
+game.StarterGui:SetCore("SendNotification", {
+    Title = "🔥 Sigma Hub Mobile Loaded!";
+    Text = "Tocca SIGMA per nascondere/mostrare";
+    Duration = 4;
+})
