@@ -16,11 +16,30 @@ local UserInputService = game:GetService("UserInputService")
 local basePosition = nil
 local isMovingToBase = false
 local gui = nil
+local speedBoostEnabled = false
+local jumpBoostEnabled = false
 
 -- Attendi il personaggio
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Speed e Jump Boost permanenti
+local function enablePermanentBoosts()
+    speedBoostEnabled = true
+    jumpBoostEnabled = true
+    
+    -- Loop permanente per mantenere speed e jump
+    spawn(function()
+        while true do
+            if humanoid and humanoid.Parent then
+                humanoid.WalkSpeed = 150  -- Velocità molto alta permanente
+                humanoid.JumpPower = 120  -- Salto molto alto permanente
+            end
+            wait(0.1)
+        end
+    end)
+end
 
 -- Creazione GUI semplice
 local function createGUI()
@@ -106,10 +125,14 @@ local function createGUI()
     button.MouseButton1Click:Connect(function()
         if button.Text == "Set Base" then
             basePosition = rootPart.CFrame
-            button.Text = "Steal Rainbow"
-            print("Base position saved!")
-        elseif button.Text == "Steal Rainbow" then
-            stealRainbow()
+            button.Text = "Go to Base"  -- Cambiato da "Steal Rainbow" a "Go to Base"
+            
+            -- Abilita speed e jump boost permanenti dopo aver settato la base
+            enablePermanentBoosts()
+            
+            print("Base position saved! Speed & Jump Boost activated!")
+        elseif button.Text == "Go to Base" then
+            goToBase()  -- Rinominata la funzione
         end
     end)
 end
@@ -127,8 +150,8 @@ local function enableGodMode()
     end)
 end
 
--- Funzione Steal Rainbow
-function stealRainbow()
+-- Funzione Go to Base (ex Steal Rainbow)
+function goToBase()
     if not basePosition or isMovingToBase then return end
     
     isMovingToBase = true
@@ -141,7 +164,7 @@ function stealRainbow()
     sound.Parent = workspace
     sound:Play()
     
-    -- Movimento verso la base
+    -- Movimento verso la base con salti alti
     spawn(function()
         while isMovingToBase do
             local distance = (basePosition.Position - rootPart.Position).Magnitude
@@ -157,23 +180,37 @@ function stealRainbow()
             -- Calcola direzione
             local direction = (basePosition.Position - rootPart.Position).Unit
             
-            -- Movimento veloce
-            humanoid.WalkSpeed = 100
+            -- Movimento veloce (già settato a 150 permanentemente)
             humanoid:MoveTo(basePosition.Position)
             
-            -- Salto automatico
+            -- Salto automatico molto alto
             if humanoid.FloorMaterial ~= Enum.Material.Air then
                 humanoid.Jump = true
-                wait(0.5)
+                -- Aggiungi velocità extra verso l'alto per salti più alti
+                rootPart.Velocity = Vector3.new(rootPart.Velocity.X, 150, rootPart.Velocity.Z)
+                wait(0.3)  -- Ridotto il delay per salti più frequenti
             end
             
             wait(0.1)
         end
-        
-        -- Reset velocità
-        humanoid.WalkSpeed = 16
     end)
 end
+
+-- Anti-reset per mantenere speed e jump
+spawn(function()
+    while true do
+        if humanoid and speedBoostEnabled then
+            -- Forza i valori anche se qualcosa prova a cambiarli
+            if humanoid.WalkSpeed < 150 then
+                humanoid.WalkSpeed = 150
+            end
+            if humanoid.JumpPower < 120 then
+                humanoid.JumpPower = 120
+            end
+        end
+        wait(0.05)
+    end
+end)
 
 -- Gestione respawn
 player.CharacterAdded:Connect(function(newChar)
@@ -182,6 +219,11 @@ player.CharacterAdded:Connect(function(newChar)
     rootPart = newChar:WaitForChild("HumanoidRootPart")
     wait(1)
     createGUI()
+    
+    -- Riattiva boost se erano già attivi
+    if speedBoostEnabled then
+        enablePermanentBoosts()
+    end
 end)
 
 -- Avvia GUI
