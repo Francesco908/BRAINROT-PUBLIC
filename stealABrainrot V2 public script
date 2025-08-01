@@ -1,231 +1,229 @@
--- Sigma Hub Universal Script
+-- Sigma Hub Advanced Bypass
 -- Made by Znfpro
 
--- Protezione base
-if not game:IsLoaded() then
-    game.Loaded:Wait()
+-- Bypass Anti-Cheat
+local mt = getrawmetatable(game)
+local old = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    -- Blocca kick e ban
+    if method == "Kick" or method == "kick" then
+        return nil
+    end
+    
+    -- Blocca rilevamento velocità
+    if tostring(self) == "Humanoid" and (method == "GetPropertyChangedSignal" or method == "Changed") then
+        return nil
+    end
+    
+    return old(self, ...)
+end)
+
+-- Bypass __index per proprietà
+local oldIndex = mt.__index
+mt.__index = newcclosure(function(self, key)
+    -- Nascondi velocità reale
+    if tostring(self) == "Humanoid" then
+        if key == "WalkSpeed" then
+            return 16
+        elseif key == "JumpPower" then
+            return 50
+        end
+    end
+    return oldIndex(self, key)
+end)
+
+setreadonly(mt, true)
+
+-- Disabilita connessioni anti-cheat
+for _, v in pairs(getconnections(game:GetService("Players").LocalPlayer.Character.Humanoid:GetPropertyChangedSignal("WalkSpeed"))) do
+    v:Disable()
 end
 
+for _, v in pairs(getconnections(game:GetService("Players").LocalPlayer.Character.Humanoid:GetPropertyChangedSignal("JumpPower"))) do
+    v:Disable()
+end
+
+-- Script principale
+pcall(function()
+    
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+local mouse = player:GetMouse()
 
--- Variabili globali
+-- Variabili
 local basePosition = nil
 local isMovingToBase = false
-local gui = nil
-local speedBoostEnabled = false
-local jumpBoostEnabled = false
 
--- Attendi il personaggio
-local character = player.Character or player.CharacterAdded:Wait()
+-- Attendi personaggio
+repeat wait() until player.Character
+local character = player.Character
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Speed e Jump Boost permanenti
-local function enablePermanentBoosts()
-    speedBoostEnabled = true
-    jumpBoostEnabled = true
-    
-    -- Loop permanente per mantenere speed e jump
-    spawn(function()
-        while true do
-            if humanoid and humanoid.Parent then
-                humanoid.WalkSpeed = 150  -- Velocità molto alta permanente
-                humanoid.JumpPower = 120  -- Salto molto alto permanente
-            end
-            wait(0.1)
-        end
-    end)
+-- GUI sicura
+local gui = Instance.new("ScreenGui")
+gui.Name = math.random(100000, 999999)
+gui.ResetOnSpawn = false
+
+-- Protezione GUI
+if syn and syn.protect_gui then
+    syn.protect_gui(gui)
+    gui.Parent = game:GetService("CoreGui")
+else
+    gui.Parent = player.PlayerGui
 end
 
--- Creazione GUI semplice
-local function createGUI()
-    -- Crea ScreenGui
-    gui = Instance.new("ScreenGui")
-    gui.Name = "SigmaHub"
-    gui.Parent = player:WaitForChild("PlayerGui")
-    
-    -- Logo iniziale
-    local logo = Instance.new("TextLabel")
-    logo.Size = UDim2.new(0.4, 0, 0.1, 0)
-    logo.Position = UDim2.new(0.3, 0, 0.3, 0)
-    logo.BackgroundTransparency = 1
-    logo.Text = "Made by Znfpro"
-    logo.TextColor3 = Color3.new(1, 1, 1)
-    logo.TextScaled = true
-    logo.Font = Enum.Font.SourceSansBold
-    logo.Parent = gui
-    
-    -- Fade in/out del logo
-    for i = 1, 0, -0.1 do
+-- Logo
+local logo = Instance.new("TextLabel")
+logo.Size = UDim2.new(0.3, 0, 0.08, 0)
+logo.Position = UDim2.new(0.35, 0, 0.3, 0)
+logo.BackgroundTransparency = 1
+logo.Text = "Made by Znfpro"
+logo.TextColor3 = Color3.new(1, 1, 1)
+logo.TextScaled = true
+logo.Font = Enum.Font.Gotham
+logo.Parent = gui
+
+-- Animazione logo
+task.spawn(function()
+    for i = 1, 0, -0.05 do
         logo.TextTransparency = i
-        wait(0.05)
+        task.wait(0.03)
     end
-    
-    wait(2)
-    
-    for i = 0, 1, 0.1 do
+    task.wait(2)
+    for i = 0, 1, 0.05 do
         logo.TextTransparency = i
-        wait(0.05)
+        task.wait(0.03)
     end
-    
     logo:Destroy()
-    
-    -- Crea pulsante principale
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0.15, 0, 0.08, 0)
-    button.Position = UDim2.new(0.425, 0, 0.1, 0)
-    button.BackgroundColor3 = Color3.new(0, 0, 0)
-    button.Text = "Set Base"
-    button.TextColor3 = Color3.new(1, 1, 1)
-    button.TextScaled = true
-    button.Font = Enum.Font.SourceSans
-    button.Parent = gui
-    
-    -- Angoli arrotondati
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0.3, 0)
-    corner.Parent = button
-    
-    -- Drag functionality
-    local dragging = false
-    local dragStart = nil
-    local startPos = nil
-    
-    button.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = button.Position
-        end
+end)
+
+-- Pulsante principale
+task.wait(3)
+
+local button = Instance.new("TextButton")
+button.Name = tostring(math.random())
+button.Size = UDim2.new(0.12, 0, 0.06, 0)
+button.Position = UDim2.new(0.44, 0, 0.1, 0)
+button.BackgroundColor3 = Color3.new(0, 0, 0)
+button.Text = "Set Base"
+button.TextColor3 = Color3.new(1, 1, 1)
+button.TextScaled = true
+button.Font = Enum.Font.SourceSans
+button.Active = true
+button.Draggable = true
+button.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0.3, 0)
+corner.Parent = button
+
+-- Funzioni boost con bypass
+local function applySpeedJump()
+    -- Metodo 1: Direct property
+    pcall(function()
+        humanoid.WalkSpeed = 150
+        humanoid.JumpPower = 120
     end)
     
-    game:GetService("UserInputService").InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            button.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-    
-    game:GetService("UserInputService").InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    
-    -- Click functionality
-    button.MouseButton1Click:Connect(function()
-        if button.Text == "Set Base" then
-            basePosition = rootPart.CFrame
-            button.Text = "Go to Base"  -- Cambiato da "Steal Rainbow" a "Go to Base"
-            
-            -- Abilita speed e jump boost permanenti dopo aver settato la base
-            enablePermanentBoosts()
-            
-            print("Base position saved! Speed & Jump Boost activated!")
-        elseif button.Text == "Go to Base" then
-            goToBase()  -- Rinominata la funzione
+    -- Metodo 2: Velocity hack
+    game:GetService("RunService").Heartbeat:Connect(function()
+        if humanoid.MoveDirection.Magnitude > 0 then
+            rootPart.Velocity = humanoid.MoveDirection * 150
         end
     end)
 end
 
--- God Mode semplice
-local function enableGodMode()
-    spawn(function()
-        while isMovingToBase do
-            if humanoid then
-                humanoid.MaxHealth = math.huge
+-- Click handler
+button.MouseButton1Click:Connect(function()
+    if button.Text == "Set Base" then
+        basePosition = rootPart.CFrame
+        button.Text = "Go to Base"
+        
+        -- Attiva boost
+        applySpeedJump()
+        
+        -- Notifica sicura
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Sigma Hub",
+            Text = "Base saved! Boost ON",
+            Duration = 3
+        })
+        
+    elseif button.Text == "Go to Base" then
+        if not basePosition then return end
+        
+        isMovingToBase = true
+        
+        -- God mode
+        task.spawn(function()
+            while isMovingToBase do
                 humanoid.Health = humanoid.MaxHealth
+                task.wait()
             end
-            wait(0.1)
-        end
-    end)
-end
+        end)
+        
+        -- Suono
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://76714680193450"
+        sound.Volume = 0.3
+        sound.Parent = workspace
+        sound:Play()
+        
+        -- Movimento con teleport graduale
+        task.spawn(function()
+            while isMovingToBase do
+                local dist = (basePosition.Position - rootPart.Position).Magnitude
+                
+                if dist < 5 then
+                    isMovingToBase = false
+                    rootPart.CFrame = basePosition
+                    sound:Destroy()
+                    break
+                end
+                
+                -- Movimento veloce con micro-teleport
+                local dir = (basePosition.Position - rootPart.Position).Unit
+                rootPart.CFrame = rootPart.CFrame + (dir * 5)
+                
+                -- Super jump
+                if humanoid.FloorMaterial ~= Enum.Material.Air then
+                    rootPart.Velocity = Vector3.new(rootPart.Velocity.X, 200, rootPart.Velocity.Z)
+                end
+                
+                task.wait()
+            end
+        end)
+    end
+end)
 
--- Funzione Go to Base (ex Steal Rainbow)
-function goToBase()
-    if not basePosition or isMovingToBase then return end
-    
-    isMovingToBase = true
-    enableGodMode()
-    
-    -- Suono
-    local sound = Instance.new("Sound")
-    sound.SoundId = "rbxassetid://76714680193450"
-    sound.Volume = 0.5
-    sound.Parent = workspace
-    sound:Play()
-    
-    -- Movimento verso la base con salti alti
-    spawn(function()
-        while isMovingToBase do
-            local distance = (basePosition.Position - rootPart.Position).Magnitude
-            
-            if distance < 5 then
-                isMovingToBase = false
-                rootPart.CFrame = basePosition
-                print("Arrivato alla base!")
-                sound:Destroy()
-                break
-            end
-            
-            -- Calcola direzione
-            local direction = (basePosition.Position - rootPart.Position).Unit
-            
-            -- Movimento veloce (già settato a 150 permanentemente)
-            humanoid:MoveTo(basePosition.Position)
-            
-            -- Salto automatico molto alto
-            if humanoid.FloorMaterial ~= Enum.Material.Air then
-                humanoid.Jump = true
-                -- Aggiungi velocità extra verso l'alto per salti più alti
-                rootPart.Velocity = Vector3.new(rootPart.Velocity.X, 150, rootPart.Velocity.Z)
-                wait(0.3)  -- Ridotto il delay per salti più frequenti
-            end
-            
-            wait(0.1)
-        end
-    end)
-end
-
--- Anti-reset per mantenere speed e jump
-spawn(function()
-    while true do
-        if humanoid and speedBoostEnabled then
-            -- Forza i valori anche se qualcosa prova a cambiarli
-            if humanoid.WalkSpeed < 150 then
+-- Mantieni boost attivi
+task.spawn(function()
+    while task.wait(0.1) do
+        if humanoid then
+            pcall(function()
                 humanoid.WalkSpeed = 150
-            end
-            if humanoid.JumpPower < 120 then
                 humanoid.JumpPower = 120
-            end
+            end)
         end
-        wait(0.05)
     end
 end)
 
 -- Gestione respawn
-player.CharacterAdded:Connect(function(newChar)
-    character = newChar
-    humanoid = newChar:WaitForChild("Humanoid")
-    rootPart = newChar:WaitForChild("HumanoidRootPart")
-    wait(1)
-    createGUI()
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = char:WaitForChild("Humanoid")
+    rootPart = char:WaitForChild("HumanoidRootPart")
     
-    -- Riattiva boost se erano già attivi
-    if speedBoostEnabled then
-        enablePermanentBoosts()
-    end
+    task.wait(1)
+    applySpeedJump()
 end)
 
--- Avvia GUI
-createGUI()
-print("Sigma Hub loaded successfully!")
+end) -- fine pcall
+
+print("Sigma Hub Loaded!")
