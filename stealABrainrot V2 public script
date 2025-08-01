@@ -1,186 +1,420 @@
--- Sigma Hub Advanced - Universal Roblox Script
--- Made by Znfpro | Advanced Version with God Mode, Flight, Universal Bypass
+-- Sigma Hub Advanced - Universal Script
+-- Made by Znfpro
 
+-- Servizi ottimizzati
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
 
+-- Anti-kick & Anti-AFK
+game:GetService("Players").LocalPlayer.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+    wait(1)
+    VirtualUser:Button2Up(Vector2.new(0,0),workspace.CurrentCamera.CFrame)
+end)
+
+-- Variabili principali
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
+local mouse = player:GetMouse()
+local camera = workspace.CurrentCamera
 
--- Variabili
+-- Protezione carattere
+local function getCharacter()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function getRootPart()
+    local char = getCharacter()
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+end
+
+local function getHumanoid()
+    local char = getCharacter()
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+-- Variabili di stato
 local basePosition = nil
 local isMovingToBase = false
-local gui = nil
-local button = nil
 local godMode = false
-local flightEnabled = false
+local flying = false
+local flySpeed = 100
 
--- Universal Bypass (Anti-Detect & Anti-Lag)
-local function bypassAntiCheat()
-    if getrawmetatable then
-        local oldNamecall = getrawmetatable(game).__namecall
-        setrawmetatable(game, {
-            __namecall = function(self, ...)
-                local args = {...}
-                local method = table.remove(args)
-                if method == "Kick" or method == "Ban" or method == "FindFirstChild" and args[1] == "AntiCheat" then
-                    return nil
-                end
-                return oldNamecall(self, ...)
-            end
-        })
-    end
-    humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-    humanoid.Health = math.huge
-    godMode = true
-end
+-- Bypass protezioni
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+local oldIndex = mt.__index
+local oldNewIndex = mt.__newindex
 
--- Creazione GUI
-local function createGUI()
-    gui = Instance.new("ScreenGui")
-    gui.Name = "SigmaHub"
-    gui.IgnoreGuiInset = true
-    gui.ResetOnSpawn = false
-    gui.Parent = player:WaitForChild("PlayerGui")
+setreadonly(mt, false)
+
+-- Bypass anti-cheat
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
     
+    if method == "Kick" or method == "kick" then
+        return nil
+    elseif method == "FireServer" then
+        if tostring(self) == "Remote" or tostring(self):find("Kick") or tostring(self):find("Ban") then
+            return nil
+        end
+    end
+    
+    return oldNamecall(self, ...)
+end)
+
+-- Protezione velocità e proprietà
+mt.__index = newcclosure(function(self, key)
+    if tostring(self) == "Humanoid" and (key == "WalkSpeed" or key == "JumpPower") then
+        return 16
+    end
+    return oldIndex(self, key)
+end)
+
+mt.__newindex = newcclosure(function(self, key, value)
+    if tostring(self) == "Humanoid" and (key == "WalkSpeed" or key == "JumpPower") and value < 16 then
+        return
+    end
+    return oldNewIndex(self, key, value)
+end)
+
+setreadonly(mt, true)
+
+-- GUI Avanzata
+local function createAdvancedGUI()
+    -- Rimuovi GUI esistenti
+    if player.PlayerGui:FindFirstChild("SigmaHubAdvanced") then
+        player.PlayerGui.SigmaHubAdvanced:Destroy()
+    end
+    
+    -- Screen GUI principale
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "SigmaHubAdvanced"
+    gui.ResetOnSpawn = false
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.DisplayOrder = 999999
+    
+    -- Protezione GUI
+    syn.protect_gui(gui)
+    gui.Parent = game:GetService("CoreGui")
+    
+    -- Logo iniziale
     local logo = Instance.new("TextLabel")
-    logo.Size = UDim2.new(0, 300, 0, 50)
-    logo.Position = UDim2.new(0.5, -150, 0.3, -25)
+    logo.Size = UDim2.new(0, 400, 0, 80)
+    logo.Position = UDim2.new(0.5, -200, 0.3, -40)
     logo.BackgroundTransparency = 1
     logo.Text = "Made by Znfpro"
-    logo.TextColor3 = Color3.new(1,1,1)
+    logo.TextColor3 = Color3.fromRGB(255, 255, 255)
     logo.TextScaled = true
-    logo.Font = Enum.Font.SourceSansBold
+    logo.Font = Enum.Font.Gotham
+    logo.TextStrokeTransparency = 0
+    logo.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
     logo.Parent = gui
     
-    TweenService:Create(logo, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
-    wait(2)
-    TweenService:Create(logo, TweenInfo.new(0.5), {TextTransparency = 1}):Play():Wait()
-    logo:Destroy()
+    -- Animazione logo
+    logo.TextTransparency = 1
+    local fadeIn = TweenService:Create(logo, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
+        TextTransparency = 0,
+        TextStrokeTransparency = 0.5
+    })
+    fadeIn:Play()
     
-    button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 150, 0, 50)
-    button.Position = UDim2.new(0.5, -75, 0.5, -25)
-    button.BackgroundColor3 = Color3.new(0,0,0)
-    button.Text = "Set Base"
-    button.TextColor3 = Color3.new(1,1,1)
-    button.TextScaled = true
-    button.Font = Enum.Font.SourceSans
-    button.Parent = gui
+    task.wait(2)
     
+    local fadeOut = TweenService:Create(logo, TweenInfo.new(0.5), {
+        TextTransparency = 1,
+        TextStrokeTransparency = 1
+    })
+    fadeOut:Play()
+    fadeOut.Completed:Connect(function()
+        logo:Destroy()
+    end)
+    
+    -- Pulsante principale avanzato
+    task.wait(0.5)
+    
+    local mainButton = Instance.new("TextButton")
+    mainButton.Size = UDim2.new(0, 180, 0, 60)
+    mainButton.Position = UDim2.new(0.5, -90, 0.1, 0)
+    mainButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    mainButton.BorderSizePixel = 0
+    mainButton.Text = "Set Base"
+    mainButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    mainButton.TextScaled = true
+    mainButton.Font = Enum.Font.Gotham
+    mainButton.AutoButtonColor = false
+    mainButton.Parent = gui
+    
+    -- Effetti visivi
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 20)
-    corner.Parent = button
+    corner.CornerRadius = UDim.new(0, 25)
+    corner.Parent = mainButton
     
-    -- Drag & Drop
-    local dragging, dragStart, startPos
-    button.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; dragStart = input.Position; startPos = button.Position
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+    }
+    gradient.Rotation = 90
+    gradient.Parent = mainButton
+    
+    -- Drag system avanzato
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+    
+    local function updateDrag(input)
+        local delta = input.Position - dragStart
+        mainButton.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+    
+    mainButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainButton.Position
+            
+            mainButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
         end
     end)
+    
+    mainButton.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            mainButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        end
+    end)
+    
     UserInputService.InputChanged:Connect(function(input)
-        if dragging then
-            local delta = input.Position - dragStart
-            button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or 
+                        input.UserInputType == Enum.UserInputType.Touch) then
+            updateDrag(input)
         end
     end)
-    UserInputService.InputEnded:Connect(function(input) dragging = false end)
     
-    -- Button Click
-    button.MouseButton1Click:Connect(function()
-        if button.Text == "Set Base" then
-            basePosition = rootPart.CFrame
-            button.Text = "Steal Rainbow"
-            game.StarterGui:SetCore("SendNotification", {Title = "Sigma Hub", Text = "Base Set!", Duration = 2})
-        elseif button.Text == "Steal Rainbow" then
-            stealRainbow()
+    -- Click functionality
+    mainButton.MouseButton1Click:Connect(function()
+        if mainButton.Text == "Set Base" then
+            local root = getRootPart()
+            if root then
+                basePosition = root.CFrame
+                mainButton.Text = "Steal Rainbow"
+                
+                -- Notifica avanzata
+                game.StarterGui:SetCore("SendNotification", {
+                    Title = "Sigma Hub",
+                    Text = "Base position saved successfully!",
+                    Icon = "rbxassetid://7733960981",
+                    Duration = 3
+                })
+            end
+        elseif mainButton.Text == "Steal Rainbow" then
+            activateStealRainbow()
         end
     end)
 end
 
--- Play Sound (Bypass Volume Limits)
-local function playSound()
-    local sound = Instance.new("Sound")
-    sound.SoundId = "rbxassetid://76714680193450"
-    sound.Volume = 1
-    sound.Parent = SoundService
-    sound:Play()
-end
-
--- Advanced Flight with God Mode
-local function enableFlight()
-    flightEnabled = true
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.Velocity = Vector3.new(0,0,0)
-    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bodyVelocity.Parent = rootPart
-    humanoid.PlatformStand = true
-end
-
-local function disableFlight()
-    flightEnabled = false
-    if rootPart:FindFirstChild("BodyVelocity") then rootPart.BodyVelocity:Destroy() end
-    humanoid.PlatformStand = false
-end
-
--- Steal Rainbow Routine (Advanced: Flight + God Mode + Auto Jumps)
-local function stealRainbow()
-    if not basePosition or isMovingToBase then return end
-    isMovingToBase = true
-    bypassAntiCheat()  -- Enable God Mode
-    enableFlight()     -- Enable Flight
-    playSound()
+-- God Mode System
+local function activateGodMode()
+    godMode = true
     
     spawn(function()
-        while isMovingToBase do
-            local direction = (basePosition.Position - rootPart.Position).Unit
-            direction = Vector3.new(direction.X, 0, direction.Z).Unit  -- Horizontal only
+        while godMode do
+            local char = getCharacter()
+            local hum = getHumanoid()
             
-            local distance = (basePosition.Position - rootPart.Position).Magnitude
+            if char and hum then
+                -- Salute infinita
+                hum.MaxHealth = math.huge
+                hum.Health = math.huge
+                
+                -- Rimuovi fall damage
+                if char:FindFirstChild("FallDamageScript") then
+                    char.FallDamageScript:Destroy()
+                end
+                
+                -- Protezione parti del corpo
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                        if part.Name == "HumanoidRootPart" then
+                            part.CanCollide = true
+                        end
+                    end
+                end
+                
+                -- Anti-void
+                local root = getRootPart()
+                if root and root.Position.Y < -500 then
+                    root.CFrame = basePosition or CFrame.new(0, 100, 0)
+                end
+            end
+            
+            task.wait(0.1)
+        end
+    end)
+end
+
+-- Advanced Flying System
+local flyConnection
+local function startFlying()
+    flying = true
+    local char = getCharacter()
+    local root = getRootPart()
+    local hum = getHumanoid()
+    
+    if not root or not hum then return end
+    
+    -- Crea BodyVelocity per volo fluido
+    local bodyVel = Instance.new("BodyVelocity")
+    bodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bodyVel.Velocity = Vector3.new(0, 0, 0)
+    bodyVel.Parent = root
+    
+    local bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    bodyGyro.P = 3000
+    bodyGyro.D = 500
+    bodyGyro.Parent = root
+    
+    -- Controlli di volo
+    flyConnection = RunService.Heartbeat:Connect(function()
+        if not flying then return end
+        
+        local moveVector = hum.MoveDirection * flySpeed
+        bodyVel.Velocity = moveVector + Vector3.new(0, workspace.Gravity * 0.5, 0)
+        bodyGyro.CFrame = camera.CFrame
+        
+        -- Boost con Shift
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            bodyVel.Velocity = bodyVel.Velocity * 2
+        end
+    end)
+end
+
+local function stopFlying()
+    flying = false
+    if flyConnection then
+        flyConnection:Disconnect()
+    end
+    
+    local root = getRootPart()
+    if root then
+        for _, obj in pairs(root:GetChildren()) do
+            if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then
+                obj:Destroy()
+            end
+        end
+    end
+end
+
+-- Funzione Steal Rainbow avanzata
+local function activateStealRainbow()
+    if not basePosition or isMovingToBase then return end
+    
+    isMovingToBase = true
+    activateGodMode()
+    
+    -- Riproduci musica
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://76714680193450"
+    sound.Volume = 0.7
+    sound.Looped = false
+    sound.Parent = workspace
+    sound:Play()
+    
+    -- Movimento avanzato
+    spawn(function()
+        local char = getCharacter()
+        local hum = getHumanoid()
+        local root = getRootPart()
+        
+        if not root or not hum then 
+            isMovingToBase = false
+            return 
+        end
+        
+        -- Abilita volo per movimento fluido
+        startFlying()
+        
+        while isMovingToBase do
+            local distance = (basePosition.Position - root.Position).Magnitude
+            
             if distance < 5 then
                 isMovingToBase = false
-                disableFlight()
-                game.StarterGui:SetCore("SendNotification", {Title = "Sigma Hub", Text = "Arrivato alla Base!", Duration = 3})
+                stopFlying()
+                root.CFrame = basePosition
+                
+                game.StarterGui:SetCore("SendNotification", {
+                    Title = "Sigma Hub",
+                    Text = "Arrivato alla Base! ✓",
+                    Icon = "rbxassetid://7733673987",
+                    Duration = 4
+                })
+                
+                sound:Stop()
+                sound:Destroy()
                 break
             end
             
-            -- Fast Backward Movement with Flight
-            rootPart.CFrame = rootPart.CFrame + (-direction * 5)  -- Speed: 50+ equiv
+            -- Calcola direzione
+            local direction = (basePosition.Position - root.Position).Unit
             
-            -- Auto Long Jumps (Simulated in Flight)
-            if math.random(1, 10) > 5 then  -- Random timing for realism
-                rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 20, 0)  -- Jump Up
-                wait(0.2)
-                rootPart.CFrame = rootPart.CFrame + Vector3.new(0, -10, 0) -- Realistic Land
+            -- Movimento super veloce con salti
+            root.CFrame = root.CFrame + (direction * 10)
+            
+            -- Salto automatico avanzato
+            if math.random(1, 10) <= 3 then
+                root.Velocity = root.Velocity + Vector3.new(0, 150, 0)
+                task.wait(0.2)
+                root.Velocity = root.Velocity + (direction * 50)
             end
-            RunService.RenderStepped:Wait()  -- Ultra Fluid
+            
+            -- Rotazione verso la direzione
+            root.CFrame = CFrame.lookAt(root.Position, basePosition.Position)
+            
+            task.wait()
         end
+        
+        godMode = false
     end)
 end
 
--- Respawn Handler
-player.CharacterAdded:Connect(function(newChar)
-    character = newChar
-    humanoid = newChar:WaitForChild("Humanoid")
-    rootPart = newChar:WaitForChild("HumanoidRootPart")
-    isMovingToBase = false
-    if godMode then bypassAntiCheat() end
+-- Protezione e reinizializzazione
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    if basePosition then
+        createAdvancedGUI()
+    end
 end)
 
--- Optimization Loop (No Lag, Universal)
-RunService.Heartbeat:Connect(function()
-    humanoid.Health = math.huge
-    humanoid.WalkSpeed = isMovingToBase and 50 or 16
-end)
+-- Anti-detection
+for _, connection in pairs(getconnections(game:GetService("LogService").MessageOut)) do
+    connection:Disable()
+end
 
--- Init
-bypassAntiCheat()
-createGUI()
-game.StarterGui:SetCore("SendNotification", {Title = "Sigma Hub Advanced", Text = "Loaded! Universal & Bug-Free", Duration = 3})
+for _, connection in pairs(getconnections(game:GetService("ScriptContext").Error)) do
+    connection:Disable()
+end
+
+-- Avvio
+createAdvancedGUI()
+
+-- Notifica di caricamento
+game.StarterGui:SetCore("SendNotification", {
+    Title = "Sigma Hub Advanced",
+    Text = "Script loaded! 100% Working",
+    Icon = "rbxassetid://7733964640",
+    Duration = 5
+})
