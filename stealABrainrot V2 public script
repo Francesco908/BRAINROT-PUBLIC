@@ -1,1 +1,417 @@
+-- Admin vs Admin Script by Znfpro - Advanced Mobile Version
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local SoundService = game:GetService("SoundService")
+local PathfindingService = game:GetService("PathfindingService")
+local Debris = game:GetService("Debris")
 
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Variabili avanzate
+local basePosition = nil
+local isActive = false
+local gui = nil
+local button = nil
+local jumpConnection = nil
+local moveConnection = nil
+local autoPath = nil
+local jumpPower = 100
+local walkSpeed = 60
+local jumpCooldown = false
+local effectsEnabled = true
+
+-- Anti-lag e ottimizzazione mobile
+local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+
+-- Mostra crediti iniziali con animazione
+local function showCredits()
+    local creditGui = Instance.new("ScreenGui")
+    creditGui.Name = "CreditGui"
+    creditGui.ResetOnSpawn = false
+    creditGui.Parent = playerGui
+    
+    local blackBg = Instance.new("Frame")
+    blackBg.Size = UDim2.new(1, 0, 1, 0)
+    blackBg.BackgroundColor3 = Color3.new(0, 0, 0)
+    blackBg.Parent = creditGui
+    
+    local creditText = Instance.new("TextLabel")
+    creditText.Size = UDim2.new(0.6, 0, 0.3, 0)
+    creditText.Position = UDim2.new(0.2, 0, 0.35, 0)
+    creditText.BackgroundTransparency = 1
+    creditText.TextColor3 = Color3.new(1, 1, 1)
+    creditText.Text = "Made by Znfpro"
+    creditText.TextScaled = true
+    creditText.Font = Enum.Font.SourceSansBold
+    creditText.Parent = blackBg
+    
+    -- Animazione fade in/out
+    local fadeIn = TweenService:Create(creditText, TweenInfo.new(1), {TextTransparency = 0})
+    local fadeOut = TweenService:Create(creditText, TweenInfo.new(1), {TextTransparency = 1})
+    local bgFadeOut = TweenService:Create(blackBg, TweenInfo.new(0.5), {BackgroundTransparency = 1})
+    
+    fadeIn:Play()
+    wait(2)
+    fadeOut:Play()
+    wait(1)
+    bgFadeOut:Play()
+    wait(0.5)
+    creditGui:Destroy()
+end
+
+-- Crea effetti visivi
+local function createEffects()
+    if not effectsEnabled then return end
+    
+    local effect = Instance.new("Part")
+    effect.Size = Vector3.new(2, 2, 2)
+    effect.Shape = Enum.PartType.Ball
+    effect.Material = Enum.Material.Neon
+    effect.BrickColor = BrickColor.Random()
+    effect.Anchored = true
+    effect.CanCollide = false
+    effect.Position = rootPart.Position
+    effect.Parent = workspace
+    
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(effect, tweenInfo, {
+        Size = Vector3.new(0.1, 0.1, 0.1),
+        Transparency = 1
+    })
+    
+    tween:Play()
+    Debris:AddItem(effect, 0.5)
+end
+
+-- Crea GUI principale super avanzata
+local function createGUI()
+    gui = Instance.new("ScreenGui")
+    gui.Name = "StealRainbowGUI"
+    gui.ResetOnSpawn = false
+    gui.Parent = playerGui
+    
+    -- Frame contenitore per mobile
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(0, 180, 0, 80)
+    container.Position = UDim2.new(0.5, -90, 0.8, 0)
+    container.BackgroundTransparency = 1
+    container.Parent = gui
+    
+    -- Pulsante principale
+    button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, 0, 1, 0)
+    button.Position = UDim2.new(0, 0, 0, 0)
+    button.BackgroundColor3 = Color3.new(0, 0, 0)
+    button.Text = "STEAL RAINBOW"
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.TextScaled = true
+    button.Font = Enum.Font.SourceSansBold
+    button.Parent = container
+    
+    -- Bordi arrotondati
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 15)
+    corner.Parent = button
+    
+    -- Ombra per depth
+    local shadow = Instance.new("Frame")
+    shadow.Size = UDim2.new(1, 6, 1, 6)
+    shadow.Position = UDim2.new(0, 3, 0, 3)
+    shadow.BackgroundColor3 = Color3.new(0, 0, 0)
+    shadow.BackgroundTransparency = 0.5
+    shadow.ZIndex = 0
+    shadow.Parent = container
+    
+    local shadowCorner = Instance.new("UICorner")
+    shadowCorner.CornerRadius = UDim.new(0, 15)
+    shadowCorner.Parent = shadow
+    
+    -- Sistema di drag migliorato per mobile
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+    local lastTouchTime = 0
+    
+    local function updatePosition(input)
+        if dragging then
+            local delta = input.Position - dragStart
+            container.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end
+    
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            
+            local currentTime = tick()
+            
+            -- Doppio tap per mobile
+            if isMobile and currentTime - lastTouchTime < 0.3 then
+                stealRainbow()
+                return
+            end
+            
+            lastTouchTime = currentTime
+            dragging = true
+            dragStart = input.Position
+            startPos = container.Position
+            
+            -- Feedback visivo
+            button.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or
+           input.UserInputType == Enum.UserInputType.Touch then
+            updatePosition(input)
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
+           input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            button.BackgroundColor3 = Color3.new(0, 0, 0)
+            
+            -- Click singolo su mobile (non doppio tap)
+            if isMobile and tick() - lastTouchTime > 0.3 then
+                wait(0.3)
+                if not dragging then
+                    stealRainbow()
+                end
+            elseif not isMobile then
+                stealRainbow()
+            end
+        end
+    end)
+    
+    -- Indicatore di stato
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(1, 0, 0.3, 0)
+    statusLabel.Position = UDim2.new(0, 0, 1, 5)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.TextColor3 = Color3.new(0, 1, 0)
+    statusLabel.Text = "Ready"
+    statusLabel.TextScaled = true
+    statusLabel.Font = Enum.Font.SourceSans
+    statusLabel.Parent = container
+    
+    return statusLabel
+end
+
+-- Avvia musica avanzata
+local function playMusic()
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://76714680193450"
+    sound.Volume = 0.7
+    sound.Looped = true
+    sound.Parent = workspace
+    sound:Play()
+    
+    -- Effetto audio 3D
+    sound.RollOffMode = Enum.RollOffMode.Linear
+    sound.RollOffMinDistance = 10
+    sound.RollOffMaxDistance = 100
+end
+
+-- Sistema di salto multiplo avanzato
+local function advancedMultiJump()
+    if jumpCooldown then return end
+    jumpCooldown = true
+    
+    -- Crea effetto particelle
+    local attachment = Instance.new("Attachment")
+    attachment.Parent = rootPart
+    
+    local particleEmitter = Instance.new("ParticleEmitter")
+    particleEmitter.Parent = attachment
+    particleEmitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+    particleEmitter.Rate = 100
+    particleEmitter.Lifetime = NumberRange.new(0.5, 1)
+    particleEmitter.VelocitySpread = 360
+    particleEmitter.Speed = NumberRange.new(5)
+    
+    -- Applica forza di salto
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+    bodyVelocity.Velocity = Vector3.new(0, jumpPower, 0)
+    bodyVelocity.Parent = rootPart
+    
+    -- Rotazione durante il salto
+    local bodyAngularVelocity = Instance.new("BodyAngularVelocity")
+    bodyAngularVelocity.MaxTorque = Vector3.new(0, math.huge, 0)
+    bodyAngularVelocity.AngularVelocity = Vector3.new(0, 10, 0)
+    bodyAngularVelocity.Parent = rootPart
+    
+    createEffects()
+    
+    wait(0.2)
+    bodyVelocity:Destroy()
+    bodyAngularVelocity:Destroy()
+    
+    wait(0.3)
+    particleEmitter:Destroy()
+    attachment:Destroy()
+    
+    jumpCooldown = false
+end
+
+-- Pathfinding avanzato
+local function createPath(destination)
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 2,
+        AgentHeight = 5,
+        AgentCanJump = true,
+        AgentJumpHeight = 20,
+        AgentMaxSlope = 45,
+        WaypointSpacing = 4,
+        Costs = {
+            Water = 20,
+            DangerZone = math.huge
+        }
+    })
+    
+    return path
+end
+
+-- Funzione principale steal super avanzata
+function stealRainbow()
+    if not basePosition then
+        button.Text = "SET BASE"
+        button.BackgroundColor3 = Color3.new(0.5, 0, 0)
+        basePosition = rootPart.Position
+        
+        -- Salva effetto visivo per la base
+        local baseMarker = Instance.new("Part")
+        baseMarker.Size = Vector3.new(4, 0.2, 4)
+        baseMarker.Position = basePosition
+        baseMarker.Anchored = true
+        baseMarker.CanCollide = false
+        baseMarker.Material = Enum.Material.Neon
+        baseMarker.BrickColor = BrickColor.new("Lime green")
+        baseMarker.Transparency = 0.5
+        baseMarker.Parent = workspace
+        
+        wait(1)
+        button.Text = "STEAL RAINBOW"
+        button.BackgroundColor3 = Color3.new(0, 0, 0)
+        return
+    end
+    
+    if isActive then 
+        -- Stop stealing
+        isActive = false
+        button.Text = "STEAL RAINBOW"
+        button.BackgroundColor3 = Color3.new(0, 0, 0)
+        humanoid.WalkSpeed = 16
+        humanoid.JumpPower = 50
+        if moveConnection then moveConnection:Disconnect() end
+        if jumpConnection then jumpConnection:Disconnect() end
+        return
+    end
+    
+    isActive = true
+    button.Text = "STOP STEALING"
+    button.BackgroundColor3 = Color3.new(0.5, 0, 0)
+    
+    -- Setup velocità
+    humanoid.WalkSpeed = walkSpeed
+    humanoid.JumpPower = 0 -- Disabilita jump normale
+    
+    -- Movimento automatico avanzato
+    moveConnection = RunService.Heartbeat:Connect(function()
+        if not isActive then return end
+        
+        local direction = (basePosition - rootPart.Position)
+        local distance = direction.Magnitude
+        
+        if distance > 5 then
+            -- Movimento all'indietro verso la base
+            direction = direction.Unit
+            local moveVector = Vector3.new(-direction.X, 0, -direction.Z)
+            humanoid:Move(moveVector)
+            
+            -- Rotazione del personaggio
+            rootPart.CFrame = rootPart.CFrame:Lerp(
+                CFrame.lookAt(rootPart.Position, rootPart.Position - direction),
+                0.1
+            )
+            
+            -- Sistema di salto intelligente
+            local ray = workspace:Raycast(rootPart.Position, Vector3.new(0, -10, 0))
+            if ray and ray.Instance then
+                local groundY = ray.Position.Y
+                
+                -- Salta se c'è un ostacolo o differenza di altezza
+                if (basePosition.Y > rootPart.Position.Y + 2) or 
+                   (math.random() < 0.05) then -- 5% chance di saltare random
+                    advancedMultiJump()
+                end
+            end
+            
+            -- Effetti trail
+            if math.random() < 0.1 then
+                createEffects()
+            end
+        else
+            -- Arrivato alla base
+            isActive = false
+            button.Text = "STEAL RAINBOW"
+            button.BackgroundColor3 = Color3.new(0, 0, 0)
+            humanoid.WalkSpeed = 16
+            humanoid.JumpPower = 50
+            
+            -- Effetto finale
+            for i = 1, 10 do
+                createEffects()
+                wait(0.1)
+            end
+            
+            if moveConnection then moveConnection:Disconnect() end
+        end
+    end)
+end
+
+-- Setup iniziale
+showCredits()
+wait(0.5)
+local statusLabel = createGUI()
+playMusic()
+
+-- Auto-reconnect quando il personaggio respawna
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = newChar:WaitForChild("Humanoid")
+    rootPart = newChar:WaitForChild("HumanoidRootPart")
+    
+    -- Resetta stato
+    isActive = false
+    button.Text = "STEAL RAINBOW"
+    button.BackgroundColor3 = Color3.new(0, 0, 0)
+end)
+
+-- Comandi chat per controllo avanzato
+player.Chatted:Connect(function(msg)
+    if msg:lower() == "/speed" then
+        walkSpeed = walkSpeed + 10
+        statusLabel.Text = "Speed: " .. walkSpeed
+    elseif msg:lower() == "/jump" then
+        jumpPower = jumpPower + 10
+        statusLabel.Text = "Jump: " .. jumpPower
+    elseif msg:lower() == "/effects" then
+        effectsEnabled = not effectsEnabled
+        statusLabel.Text = "Effects: " .. tostring(effectsEnabled)
+    end
+end)
