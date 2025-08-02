@@ -1,179 +1,212 @@
 -- Admin vs Admin Script by Znfpro
--- Steal Rainbow & Speed Boost System
+-- Fixed & Improved with Anti-Cheat Bypass
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local SoundService = game:GetService("SoundService")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-local character = player.CharacterAdded:Wait()
+local mouse = player:GetMouse()
+
+-- Wait for character
+local function getCharacter()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local character = getCharacter()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
 -- Variables
-local basePosition = Vector3.new(0, 5, 0) -- Default base position
+local basePosition = Vector3.new(0, 5, 0)
 local stealActive = false
 local speedBoostActive = false
-local speedCoilEquipped = false
+local gui = nil
 
--- Create ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AdminVsAdminGui"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
+-- Anti-Cheat Bypass System
+local originalCFrame = rootPart.CFrame
+local connections = {}
 
--- Startup Animation
-local function showStartupMessage()
+local function enableAntiCheatBypass()
+    -- Block all position resets
+    local oldIndex
+    oldIndex = hookmetamethod(game, "__index", function(self, key)
+        if key == "CFrame" and self == rootPart then
+            return originalCFrame
+        end
+        return oldIndex(self, key)
+    end)
+    
+    -- Disable all anchoring attempts
+    rootPart.Changed:Connect(function(property)
+        if property == "Anchored" and rootPart.Anchored then
+            rootPart.Anchored = false
+        end
+    end)
+end
+
+-- Create GUI
+local function createGUI()
+    if gui then gui:Destroy() end
+    
+    gui = Instance.new("ScreenGui")
+    gui.Name = "AdminVsAdminGUI"
+    gui.ResetOnSpawn = false
+    gui.Parent = player.PlayerGui
+    
+    return gui
+end
+
+-- Startup sequence
+local function showStartup()
+    local gui = createGUI()
+    
     local startupFrame = Instance.new("Frame")
-    startupFrame.Size = UDim2.new(0, 300, 0, 100)
-    startupFrame.Position = UDim2.new(0.5, -150, 0.5, -50)
-    startupFrame.BackgroundTransparency = 1
-    startupFrame.Parent = screenGui
+    startupFrame.Size = UDim2.new(1, 0, 1, 0)
+    startupFrame.Position = UDim2.new(0, 0, 0, 0)
+    startupFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+    startupFrame.BackgroundTransparency = 0.5
+    startupFrame.Parent = gui
     
-    local startupLabel = Instance.new("TextLabel")
-    startupLabel.Size = UDim2.new(1, 0, 1, 0)
-    startupLabel.BackgroundTransparency = 1
-    startupLabel.Text = "Made by Znfpro"
-    startupLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    startupLabel.TextScaled = true
-    startupLabel.Font = Enum.Font.GothamBold
-    startupLabel.TextTransparency = 1
-    startupLabel.Parent = startupFrame
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(0, 400, 0, 100)
+    titleLabel.Position = UDim2.new(0.5, -200, 0.5, -50)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "Made by Znfpro"
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
+    titleLabel.TextScaled = true
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Parent = startupFrame
     
-    -- Fade in
-    local fadeIn = TweenService:Create(startupLabel, TweenInfo.new(1, Enum.EasingStyle.Quad), {TextTransparency = 0})
-    fadeIn:Play()
+    -- Play music
+    spawn(function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://76714680193450"
+        sound.Volume = 0.3
+        sound.Looped = true
+        sound.Parent = workspace
+        pcall(function() sound:Play() end)
+    end)
     
-    wait(2)
-    
-    -- Fade out
-    local fadeOut = TweenService:Create(startupLabel, TweenInfo.new(1, Enum.EasingStyle.Quad), {TextTransparency = 1})
-    fadeOut:Play()
-    fadeOut.Completed:Wait()
-    
+    wait(3)
     startupFrame:Destroy()
 end
 
--- Play background music
-local function playBackgroundMusic()
-    local sound = Instance.new("Sound")
-    sound.SoundId = "rbxassetid://76714680193450"
-    sound.Volume = 0.5
-    sound.Looped = true
-    sound.Parent = workspace
-    sound:Play()
+-- Notification system
+local function notify(text, color, duration)
+    local gui = player.PlayerGui:FindFirstChild("AdminVsAdminGUI")
+    if not gui then return end
+    
+    local notification = Instance.new("Frame")
+    notification.Size = UDim2.new(0, 250, 0, 60)
+    notification.Position = UDim2.new(0.5, -125, 0, 20)
+    notification.BackgroundColor3 = color or Color3.new(0, 0, 0)
+    notification.BorderSizePixel = 0
+    notification.Parent = gui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = notification
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.TextScaled = true
+    label.Font = Enum.Font.Gotham
+    label.Parent = notification
+    
+    game:GetService("Debris"):AddItem(notification, duration or 3)
 end
 
--- Create draggable button function
-local function createDraggableButton(text, size, position, callback)
+-- Create draggable button
+local function createButton(text, position, callback)
+    local gui = player.PlayerGui:FindFirstChild("AdminVsAdminGUI")
+    if not gui then gui = createGUI() end
+    
     local button = Instance.new("TextButton")
-    button.Size = size
+    button.Size = UDim2.new(0, 160, 0, 50)
     button.Position = position
-    button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    button.BackgroundColor3 = Color3.new(0, 0, 0)
     button.BorderSizePixel = 0
     button.Text = text
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextColor3 = Color3.new(1, 1, 1)
     button.TextScaled = true
     button.Font = Enum.Font.GothamBold
-    button.Parent = screenGui
+    button.Parent = gui
     
-    -- Rounded corners
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = button
     
-    -- Dragging functionality
+    -- Dragging
     local dragging = false
-    local dragStart = nil
-    local startPos = nil
     
     button.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
-            dragStart = input.Position
-            startPos = button.Position
+            local startPos = input.Position
+            local startGui = button.Position
+            
+            local dragConnection
+            dragConnection = mouse.Move:Connect(function()
+                if dragging then
+                    local delta = mouse.Hit.Position - startPos
+                    button.Position = UDim2.new(startGui.X.Scale, startGui.X.Offset + mouse.X - startPos.X, startGui.Y.Scale, startGui.Y.Offset + mouse.Y - startPos.Y)
+                end
+            end)
             
             input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
+                    dragConnection:Disconnect()
                 end
             end)
         end
     end)
     
-    button.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - dragStart
-            button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
-    
-    -- Button click
     button.MouseButton1Click:Connect(callback)
-    
     return button
 end
 
--- Status message function
-local function showStatusMessage(text, duration)
-    local statusLabel = Instance.new("TextLabel")
-    statusLabel.Size = UDim2.new(0, 200, 0, 50)
-    statusLabel.Position = UDim2.new(0.5, -100, 0.1, 0)
-    statusLabel.BackgroundTransparency = 1
-    statusLabel.Text = text
-    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-    statusLabel.TextScaled = true
-    statusLabel.Font = Enum.Font.GothamBold
-    statusLabel.Parent = screenGui
-    
-    game:GetService("Debris"):AddItem(statusLabel, duration or 2)
-end
-
--- Set base position
-local function setBasePosition()
-    basePosition = rootPart.Position
-    showStatusMessage("Base Set!", 1.5)
-end
-
--- Advanced movement system
-local function moveToPosition(targetPos, speed, callback)
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(4000, 0, 4000)
-    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    bodyVelocity.Parent = rootPart
-    
-    local bodyPosition = Instance.new("BodyPosition")
-    bodyPosition.MaxForce = Vector3.new(4000, 4000, 4000)
-    bodyPosition.Position = targetPos
-    bodyPosition.D = 2000
-    bodyPosition.P = 10000
-    bodyPosition.Parent = rootPart
-    
-    -- Wait until close to target
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        local distance = (rootPart.Position - targetPos).Magnitude
-        if distance < 5 then
-            connection:Disconnect()
-            bodyVelocity:Destroy()
-            bodyPosition:Destroy()
-            if callback then callback() end
+-- Enhanced movement with anti-cheat bypass
+local function bypassMove(targetPos, speed)
+    spawn(function()
+        enableAntiCheatBypass()
+        
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.Parent = rootPart
+        
+        local direction = (targetPos - rootPart.Position).Unit
+        local distance = (targetPos - rootPart.Position).Magnitude
+        
+        for i = 1, distance / speed do
+            if not rootPart.Parent then break end
+            rootPart.CFrame = rootPart.CFrame + direction * speed
+            originalCFrame = rootPart.CFrame
+            wait(0.03)
         end
+        
+        bodyVelocity:Destroy()
     end)
 end
 
--- Advanced jumping system
-local function performMultiJump()
-    local jumpForce = Instance.new("BodyVelocity")
-    jumpForce.MaxForce = Vector3.new(0, math.huge, 0)
-    jumpForce.Velocity = Vector3.new(0, 80, 0) -- Strong jump
-    jumpForce.Parent = rootPart
-    
-    wait(0.3)
-    jumpForce:Destroy()
+-- Super jump with bypass
+local function superJump()
+    spawn(function()
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+        bodyVelocity.Velocity = Vector3.new(0, 100, 0)
+        bodyVelocity.Parent = rootPart
+        
+        wait(0.5)
+        bodyVelocity:Destroy()
+    end)
 end
 
 -- Steal Rainbow function
@@ -181,133 +214,91 @@ local function stealRainbow()
     if stealActive then return end
     stealActive = true
     
-    showStatusMessage("Set Base", 1)
+    notify("Set Base", Color3.new(1, 1, 0), 2)
+    basePosition = rootPart.Position
     wait(1)
-    setBasePosition()
-    wait(0.5)
-    showStatusMessage("Steal!", 1)
     
-    -- Phase 1: Move backward quickly
-    local backwardPos = rootPart.Position - rootPart.CFrame.LookVector * 20
-    moveToPosition(backwardPos, 50, function()
-        
-        -- Phase 2: Move toward base with jumping
-        local function moveWithJumps()
+    notify("Steal!", Color3.new(0, 1, 0), 2)
+    
+    -- Move backward
+    local backPos = rootPart.Position - rootPart.CFrame.LookVector * 30
+    bypassMove(backPos, 3)
+    wait(2)
+    
+    -- Move to base with jumps
+    spawn(function()
+        while (rootPart.Position - basePosition).Magnitude > 10 and stealActive do
             local direction = (basePosition - rootPart.Position).Unit
-            local horizontalDirection = Vector3.new(direction.X, 0, direction.Z).Unit
+            local nextPos = rootPart.Position + direction * 5
             
-            -- Move horizontally fast
-            local bodyVelocity = Instance.new("BodyVelocity")
-            bodyVelocity.MaxForce = Vector3.new(4000, 0, 4000)
-            bodyVelocity.Velocity = horizontalDirection * 60
-            bodyVelocity.Parent = rootPart
-            
-            -- Jumping sequence
-            local jumpCount = 0
-            local jumpConnection
-            jumpConnection = RunService.Heartbeat:Connect(function()
-                local distanceToBase = (rootPart.Position - basePosition).Magnitude
-                
-                if distanceToBase < 8 then
-                    jumpConnection:Disconnect()
-                    bodyVelocity:Destroy()
-                    showStatusMessage("Steal Complete!", 2)
-                    stealActive = false
-                    return
-                end
-                
-                -- Jump every 1.5 seconds
-                if jumpCount % 90 == 0 then -- 60 FPS * 1.5 = 90 frames
-                    performMultiJump()
-                end
-                jumpCount = jumpCount + 1
-            end)
+            bypassMove(nextPos, 2)
+            wait(0.5)
+            superJump()
+            wait(1.5)
         end
         
-        moveWithJumps()
+        if stealActive then
+            notify("Steal Complete!", Color3.new(0, 1, 0), 3)
+            stealActive = false
+        end
     end)
 end
 
--- Speed Boost function
+-- Speed boost function
 local function toggleSpeedBoost()
     speedBoostActive = not speedBoostActive
     
     if speedBoostActive then
-        showStatusMessage("Speed Boost ON", 1.5)
-        
-        -- Check for Speed Coil in backpack
         local speedCoil = player.Backpack:FindFirstChild("Speed Coil")
         if speedCoil then
             humanoid:EquipTool(speedCoil)
-            speedCoilEquipped = true
+            notify("Speed Boost ON", Color3.new(0, 1, 0), 2)
             
-            -- Keep Speed Coil equipped
-            local equipConnection
-            equipConnection = RunService.Heartbeat:Connect(function()
-                if not speedBoostActive then
-                    equipConnection:Disconnect()
-                    return
-                end
-                
-                local currentTool = character:FindFirstChildOfClass("Tool")
-                if not currentTool or currentTool.Name ~= "Speed Coil" then
-                    local newSpeedCoil = player.Backpack:FindFirstChild("Speed Coil")
-                    if newSpeedCoil then
-                        humanoid:EquipTool(newSpeedCoil)
+            -- Keep equipped forever
+            spawn(function()
+                while speedBoostActive do
+                    local equippedTool = character:FindFirstChildOfClass("Tool")
+                    if not equippedTool or equippedTool.Name ~= "Speed Coil" then
+                        local newCoil = player.Backpack:FindFirstChild("Speed Coil")
+                        if newCoil then
+                            humanoid:EquipTool(newCoil)
+                        end
                     end
+                    wait(0.1)
                 end
             end)
         else
-            showStatusMessage("Speed Coil not found!", 2)
+            notify("Speed Coil Not Found!", Color3.new(1, 0, 0), 3)
             speedBoostActive = false
         end
     else
-        showStatusMessage("Speed Boost OFF", 1.5)
-        speedCoilEquipped = false
+        notify("Speed Boost OFF", Color3.new(1, 1, 0), 2)
     end
 end
 
--- Initialize GUI
-local function initializeGUI()
-    -- Create Steal Rainbow button
-    local stealButton = createDraggableButton(
-        "Steal Rainbow",
-        UDim2.new(0, 150, 0, 60),
-        UDim2.new(0, 50, 0, 200),
-        stealRainbow
-    )
+-- Initialize
+spawn(function()
+    showStartup()
     
-    -- Create Speed Boost button
-    local speedButton = createDraggableButton(
-        "Speed Boost",
-        UDim2.new(0, 150, 0, 60),
-        UDim2.new(0, 220, 0, 200),
-        toggleSpeedBoost
-    )
+    local stealButton = createButton("Steal Rainbow", UDim2.new(0, 20, 0, 100), stealRainbow)
+    local speedButton = createButton("Speed Boost", UDim2.new(0, 20, 0, 160), toggleSpeedBoost)
     
-    -- Update Speed Boost button color
-    RunService.Heartbeat:Connect(function()
-        if speedBoostActive then
-            speedButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-        else
-            speedButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    -- Update speed button color
+    spawn(function()
+        while wait(0.1) do
+            if speedButton then
+                speedButton.BackgroundColor3 = speedBoostActive and Color3.new(0, 0.6, 0) or Color3.new(0, 0, 0)
+            end
         end
     end)
-end
-
--- Main execution
-spawn(function()
-    showStartupMessage()
-    playBackgroundMusic()
-    initializeGUI()
 end)
 
--- Handle character respawn
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-    humanoid = character:WaitForChild("Humanoid")
+-- Handle respawn
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = character:WaitForChild("Humanoid") 
     rootPart = character:WaitForChild("HumanoidRootPart")
+    originalCFrame = rootPart.CFrame
     stealActive = false
     speedBoostActive = false
-    speedCoilEquipped = false
 end)
