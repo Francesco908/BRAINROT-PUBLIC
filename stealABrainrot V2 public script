@@ -171,26 +171,11 @@ local function toggleSpeedBoost()
             humanoid:EquipTool(speedCoil)
         end
         
-        -- Enhanced speed with better bypass
+        -- Simple speed loop
         spawn(function()
             while speedBoostActive do
-                humanoid.WalkSpeed = 80
-                humanoid.JumpPower = 120
-                
-                -- Keep Speed Coil equipped
-                local speedTool = character:FindFirstChild("Speed Coil") or player.Backpack:FindFirstChild("Speed Coil")
-                if speedTool and speedTool.Parent == player.Backpack then
-                    humanoid:EquipTool(speedTool)
-                end
-                
-                -- Prevent dropping
-                for _, tool in pairs(character:GetChildren()) do
-                    if tool:IsA("Tool") and tool.Name:find("Speed") then
-                        tool.CanBeDropped = false
-                    end
-                end
-                
-                wait(0.15)
+                simpleBypass()
+                wait(0.1)
             end
             humanoid.WalkSpeed = originalWalkSpeed
             humanoid.JumpPower = 50
@@ -256,10 +241,7 @@ local function steal()
     end)
 end
 
--- Advanced Multi Jump System (Anti-Kick)
-local jumpCooldown = false
-local lastJumpTime = 0
-
+-- Multi Jump
 local function toggleMultiJump()
     multiJumpActive = not multiJumpActive
     
@@ -268,36 +250,15 @@ local function toggleMultiJump()
         
         local jumpConnection
         jumpConnection = UserInputService.JumpRequest:Connect(function()
-            if multiJumpActive and not jumpCooldown then
-                local currentTime = tick()
+            if multiJumpActive then
+                local jumpVel = Instance.new("BodyVelocity")
+                jumpVel.MaxForce = Vector3.new(0, 4000, 0)
+                jumpVel.Velocity = Vector3.new(0, 80, 0)
+                jumpVel.Parent = rootPart
                 
-                -- Anti-kick: Limit jump frequency
-                if currentTime - lastJumpTime < 0.3 then
-                    return
-                end
-                
-                jumpCooldown = true
-                lastJumpTime = currentTime
-                
-                -- Gradual jump instead of instant
-                spawn(function()
-                    local jumpForce = Instance.new("BodyVelocity")
-                    jumpForce.MaxForce = Vector3.new(0, 2000, 0) -- Reduced force
-                    jumpForce.Velocity = Vector3.new(0, 60, 0) -- Moderate jump
-                    jumpForce.Parent = rootPart
-                    
-                    -- Gradual reduction
-                    for i = 1, 10 do
-                        jumpForce.Velocity = Vector3.new(0, 60 - (i * 3), 0)
-                        wait(0.02)
-                    end
-                    
-                    jumpForce:Destroy()
-                    
-                    wait(0.1)
-                    jumpCooldown = false
-                end)
-            elseif not multiJumpActive then
+                wait(0.2)
+                jumpVel:Destroy()
+            else
                 jumpConnection:Disconnect()
             end
         end)
