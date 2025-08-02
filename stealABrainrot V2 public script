@@ -1,272 +1,262 @@
--- SPEED COIL ULTIMATE SYSTEM - Script Completo
--- Metti questo script in StarterPlayer > StarterPlayerScripts
+-- Speed Coil Auto Boost Script - Ultra Performance Edition
+-- Combina il bypass method di Znfpro con auto-equip avanzato
+
+wait(1)
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local mouse = player:GetMouse()
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Aspetta il personaggio
+repeat wait() until player.Character
+repeat wait() until player.Character:FindFirstChild("HumanoidRootPart")
+repeat wait() until player.Character:FindFirstChild("Humanoid")
+
+local character = player.Character
+local humanoid = character.Humanoid
+local rootPart = character.HumanoidRootPart
 
 -- Configurazione
-local BOOST_SPEED = 145
-local DEFAULT_SPEED = 80
 local SPEED_COIL_NAME = "Speed Coil"
-local systemEnabled = false
+local BOOST_SPEED = 90  -- Velocità richiesta
+local DEFAULT_SPEED = 16
+local originalWalkSpeed = humanoid.WalkSpeed
 
--- Crea GUI
+-- Variabili di stato
+local speedBoostActive = false
+local autoMode = true  -- Modalità automatica sempre attiva
+
+-- Funzione per trovare Speed Coil
+local function hasSpeedCoil()
+    return player.Backpack:FindFirstChild(SPEED_COIL_NAME) or character:FindFirstChild(SPEED_COIL_NAME)
+end
+
+-- GUI principale
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SpeedCoilSystemGUI"
+screenGui.Name = "SpeedCoilBoostGUI"
 screenGui.ResetOnSpawn = false
-screenGui.IgnoreGuiInset = true
+screenGui.Parent = playerGui
 
--- Frame principale
+-- Frame principale draggabile
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 250, 0, 120)
-mainFrame.Position = UDim2.new(0.5, -125, 0.5, -60)
-mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.Position = UDim2.new(0.5, -125, 0.1, 0)
+mainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Draggable = true
 mainFrame.Parent = screenGui
 
--- Bordi arrotondati
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
-corner.Parent = mainFrame
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 12)
+frameCorner.Parent = mainFrame
 
 -- Titolo
 local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, -40, 0, 30)
+titleLabel.Size = UDim2.new(1, -30, 0, 30)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "Speed Coil System"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Text = "SPEED COIL BOOST"
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
 titleLabel.TextScaled = true
-titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.Font = Enum.Font.GothamBold
 titleLabel.Parent = mainFrame
 
--- Pulsante chiudi
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 0, 30)
+statusLabel.Position = UDim2.new(0, 0, 0, 35)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Status: Searching..."
+statusLabel.TextColor3 = Color3.new(1, 1, 0)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.Parent = mainFrame
+
+-- Speed Label
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, 0, 0, 25)
+speedLabel.Position = UDim2.new(0, 0, 0, 70)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Speed: " .. DEFAULT_SPEED
+speedLabel.TextColor3 = Color3.new(0.5, 1, 0.5)
+speedLabel.TextScaled = true
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.Parent = mainFrame
+
+-- Bottone chiudi
 local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -35, 0, 5)
-closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeButton.Size = UDim2.new(0, 25, 0, 25)
+closeButton.Position = UDim2.new(1, -28, 0, 3)
+closeButton.BackgroundColor3 = Color3.new(1, 0.2, 0.2)
 closeButton.Text = "X"
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextColor3 = Color3.new(1, 1, 1)
 closeButton.TextScaled = true
-closeButton.Font = Enum.Font.SourceSansBold
+closeButton.Font = Enum.Font.GothamBold
 closeButton.Parent = mainFrame
 
 local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 5)
+closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeButton
 
--- Pulsante toggle
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0.8, 0, 0, 40)
-toggleButton.Position = UDim2.new(0.1, 0, 0.5, -10)
-toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-toggleButton.Text = "ATTIVA"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.TextScaled = true
-toggleButton.Font = Enum.Font.SourceSansBold
-toggleButton.Parent = mainFrame
+closeButton.MouseButton1Click:Connect(function()
+    screenGui.Enabled = false
+    speedBoostActive = false
+    autoMode = false
+end)
 
-local toggleCorner = Instance.new("UICorner")
-toggleCorner.CornerRadius = UDim.new(0, 8)
-toggleCorner.Parent = toggleButton
+-- Draggable setup
+local dragging = false
+local dragStart = nil
+local startPos = nil
 
--- Status label
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 20)
-statusLabel.Position = UDim2.new(0, 0, 1, -25)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Sistema Disattivato"
-statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-statusLabel.TextScaled = true
-statusLabel.Font = Enum.Font.SourceSans
-statusLabel.Parent = mainFrame
-
-screenGui.Parent = player:WaitForChild("PlayerGui")
-
--- Funzioni principali
-local function findSpeedCoil()
-    -- Cerca nel backpack
-    local backpack = player:FindFirstChild("Backpack")
-    if backpack then
-        for _, item in pairs(backpack:GetChildren()) do
-            if item:IsA("Tool") and item.Name == SPEED_COIL_NAME then
-                return item
-            end
-        end
-    end
-    
-    -- Cerca nel character
-    local character = player.Character
-    if character then
-        for _, item in pairs(character:GetChildren()) do
-            if item:IsA("Tool") and item.Name == SPEED_COIL_NAME then
-                return item
-            end
-        end
-    end
-    
-    return nil
-end
-
-local function forceSpeed(humanoid, speed)
-    humanoid.WalkSpeed = speed
-    -- Protezione multipla
-    local connections = {}
-    
-    connections[1] = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-        if systemEnabled and humanoid.WalkSpeed ~= speed then
-            humanoid.WalkSpeed = speed
-        end
-    end)
-    
-    -- Protezione contro StateChanged
-    connections[2] = humanoid.StateChanged:Connect(function()
-        if systemEnabled then
-            humanoid.WalkSpeed = speed
-        end
-    end)
-    
-    -- Cleanup connections quando il character muore
-    humanoid.Died:Connect(function()
-        for _, conn in pairs(connections) do
-            if conn then conn:Disconnect() end
-        end
-    end)
-end
-
-local function processSpeedCoil()
-    if not systemEnabled then return end
-    
-    local character = player.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    if not humanoid then return end
-    
-    local speedCoil = findSpeedCoil()
-    
-    if speedCoil then
-        -- Se è nel backpack, equipaggiala
-        if speedCoil.Parent == player.Backpack then
-            humanoid:EquipTool(speedCoil)
-        end
-        
-        -- Se è equipaggiata, applica boost
-        if speedCoil.Parent == character then
-            forceSpeed(humanoid, BOOST_SPEED)
-            statusLabel.Text = "Speed Boost Attivo!"
-            statusLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
-        end
-    else
-        -- Nessuna coil trovata, velocità normale
-        humanoid.WalkSpeed = DEFAULT_SPEED
-        statusLabel.Text = "Speed Coil non trovata"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
-    end
-end
-
--- Sistema di monitoraggio continuo
-local monitorConnection
-local function startMonitoring()
-    if monitorConnection then monitorConnection:Disconnect() end
-    
-    monitorConnection = RunService.Heartbeat:Connect(function()
-        if systemEnabled then
-            processSpeedCoil()
-        end
-    end)
-end
-
--- Gestione character respawn
-player.CharacterAdded:Connect(function(character)
-    wait(0.5) -- Attendi che il character sia completamente caricato
-    
-    if systemEnabled then
-        startMonitoring()
-        
-        -- Aggiungi listener per tool changes
-        character.ChildAdded:Connect(function(child)
-            if child:IsA("Tool") and systemEnabled then
-                processSpeedCoil()
-            end
-        end)
-        
-        character.ChildRemoved:Connect(function(child)
-            if child:IsA("Tool") and child.Name == SPEED_COIL_NAME and systemEnabled then
-                local humanoid = character:FindFirstChild("Humanoid")
-                if humanoid then
-                    humanoid.WalkSpeed = DEFAULT_SPEED
-                end
-            end
-        end)
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
     end
 end)
 
--- Toggle button
-toggleButton.MouseButton1Click:Connect(function()
-    systemEnabled = not systemEnabled
-    
-    if systemEnabled then
-        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        toggleButton.Text = "DISATTIVA"
-        statusLabel.Text = "Sistema Attivato"
-        statusLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
-        startMonitoring()
-    else
-        toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        toggleButton.Text = "ATTIVA"
-        statusLabel.Text = "Sistema Disattivato"
-        statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        
-        if monitorConnection then 
-            monitorConnection:Disconnect() 
+mainFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- Sistema di boost avanzato (metodo Znfpro migliorato)
+local function applySpeedBoost()
+    spawn(function()
+        while speedBoostActive and autoMode do
+            -- Mantieni velocità costante
+            humanoid.WalkSpeed = BOOST_SPEED
+            
+            -- Mantieni Speed Coil equipaggiata
+            local speedTool = character:FindFirstChild(SPEED_COIL_NAME) or player.Backpack:FindFirstChild(SPEED_COIL_NAME)
+            if speedTool and speedTool.Parent == player.Backpack then
+                humanoid:EquipTool(speedTool)
+            end
+            
+            -- Previeni il drop della tool
+            if speedTool and speedTool.Parent == character then
+                speedTool.CanBeDropped = false
+            end
+            
+            -- Aggiorna GUI
+            speedLabel.Text = "Speed: " .. math.floor(humanoid.WalkSpeed)
+            
+            wait(0.1)  -- Intervallo ottimizzato per evitare lag
         end
-        
-        -- Reset speed
-        local character = player.Character
-        if character then
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoid then
+    end)
+end
+
+-- Sistema di monitoraggio automatico
+local function autoMonitor()
+    spawn(function()
+        while autoMode do
+            local coil = hasSpeedCoil()
+            
+            if coil then
+                -- Se trovata e non attiva, attiva il boost
+                if not speedBoostActive then
+                    speedBoostActive = true
+                    statusLabel.Text = "Status: BOOST ACTIVE!"
+                    statusLabel.TextColor3 = Color3.new(0, 1, 0)
+                    applySpeedBoost()
+                end
+                
+                -- Auto-equip se in backpack
+                if coil.Parent == player.Backpack then
+                    humanoid:EquipTool(coil)
+                end
+            else
+                -- Se non trovata, disattiva
+                if speedBoostActive then
+                    speedBoostActive = false
+                    humanoid.WalkSpeed = DEFAULT_SPEED
+                    statusLabel.Text = "Status: No Speed Coil"
+                    statusLabel.TextColor3 = Color3.new(1, 0, 0)
+                    speedLabel.Text = "Speed: " .. DEFAULT_SPEED
+                end
+            end
+            
+            wait(0.2)
+        end
+    end)
+end
+
+-- Gestione eventi personaggio
+local function setupCharacterEvents()
+    -- Previeni reset velocità su eventi vari
+    humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if speedBoostActive and humanoid.WalkSpeed ~= BOOST_SPEED then
+            humanoid.WalkSpeed = BOOST_SPEED
+        end
+    end)
+    
+    -- Gestisci morte
+    humanoid.Died:Connect(function()
+        speedBoostActive = false
+    end)
+    
+    -- Gestisci cambio tool
+    character.ChildRemoved:Connect(function(child)
+        if child.Name == SPEED_COIL_NAME then
+            wait(0.1)  -- Piccolo delay per verificare se è stata droppata
+            if not hasSpeedCoil() then
+                speedBoostActive = false
                 humanoid.WalkSpeed = DEFAULT_SPEED
             end
         end
-    end
+    end)
+end
+
+-- Respawn handling
+player.CharacterAdded:Connect(function(newChar)
+    repeat wait() until newChar:FindFirstChild("HumanoidRootPart")
+    repeat wait() until newChar:FindFirstChild("Humanoid")
+    
+    character = newChar
+    humanoid = character.Humanoid
+    rootPart = character.HumanoidRootPart
+    originalWalkSpeed = humanoid.WalkSpeed
+    speedBoostActive = false
+    
+    setupCharacterEvents()
 end)
 
--- Close button
-closeButton.MouseButton1Click:Connect(function()
-    screenGui.Enabled = not screenGui.Enabled
-end)
+-- Inizializza
+setupCharacterEvents()
+autoMonitor()
 
--- Hotkey per riaprire (F per aprire/chiudere)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.F then
-        screenGui.Enabled = not screenGui.Enabled
-    end
-end)
+-- Notifica iniziale
+local startNotif = Instance.new("TextLabel")
+startNotif.Size = UDim2.new(0, 300, 0, 50)
+startNotif.Position = UDim2.new(0.5, -150, 0.5, -25)
+startNotif.BackgroundColor3 = Color3.new(0, 0, 0)
+startNotif.BackgroundTransparency = 0.2
+startNotif.Text = "Speed Coil Auto-Boost Loaded!"
+startNotif.TextColor3 = Color3.new(0, 1, 1)
+startNotif.TextScaled = true
+startNotif.Font = Enum.Font.GothamBold
+startNotif.Parent = screenGui
 
--- Anti-exploit protection
-spawn(function()
-    while wait(0.1) do
-        if systemEnabled and player.Character then
-            local humanoid = player.Character:FindFirstChild("Humanoid")
-            if humanoid then
-                local speedCoil = findSpeedCoil()
-                if speedCoil and speedCoil.Parent == player.Character then
-                    if humanoid.WalkSpeed ~= BOOST_SPEED then
-                        humanoid.WalkSpeed = BOOST_SPEED
-                    end
-                end
-            end
-        end
-    end
-end)
+local notifCorner = Instance.new("UICorner")
+notifCorner.CornerRadius = UDim.new(0, 10)
+notifCorner.Parent = startNotif
 
-print("Speed Coil System caricato! Premi F per aprire/chiudere la GUI")
+game:GetService("Debris"):AddItem(startNotif, 3)
