@@ -1,5 +1,5 @@
 -- Admin vs Admin Script by Znfpro
--- Simple & Working Version
+-- Perfect Version with Advanced Anti-Cheat Bypass
 
 wait(1)
 
@@ -24,6 +24,46 @@ local rootPart = character.HumanoidRootPart
 local basePosition = rootPart.Position
 local stealActive = false
 local speedBoostActive = false
+local originalWalkSpeed = humanoid.WalkSpeed
+
+-- Advanced Speed Coil Detection
+local function findSpeedCoil()
+    -- Check backpack
+    local coil = player.Backpack:FindFirstChild("Speed Coil")
+    if coil then return coil end
+    
+    -- Check character
+    coil = character:FindFirstChild("Speed Coil")
+    if coil then return coil end
+    
+    -- Check for variations
+    for _, item in pairs(player.Backpack:GetChildren()) do
+        if item.Name:lower():find("speed") and item:IsA("Tool") then
+            return item
+        end
+    end
+    
+    return nil
+end
+
+-- Anti-Cheat Bypass System
+local function bypassAntiCheat()
+    -- Block speed resets
+    local connection1 = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if speedBoostActive and humanoid.WalkSpeed < 80 then
+            humanoid.WalkSpeed = 80
+        end
+    end)
+    
+    -- Block position resets
+    local connection2 = rootPart:GetPropertyChangedSignal("CFrame"):Connect(function()
+        if stealActive then
+            wait(0.1)
+        end
+    end)
+    
+    return {connection1, connection2}
+end
 
 -- Create GUI
 local screenGui = Instance.new("ScreenGui")
@@ -124,6 +164,76 @@ local function createButton(text, pos, callback)
     return button
 end
 
+-- Advanced Speed Boost System
+local function toggleSpeedBoost()
+    speedBoostActive = not speedBoostActive
+    
+    if speedBoostActive then
+        local speedCoil = findSpeedCoil()
+        if speedCoil then
+            humanoid:EquipTool(speedCoil)
+            notify("Speed Boost ON", Color3.new(0, 1, 0))
+            
+            -- Super speed
+            humanoid.WalkSpeed = 80
+            humanoid.JumpPower = 100
+            
+            -- Start bypass system
+            local connections = bypassAntiCheat()
+            
+            -- Ultra advanced keeping system
+            spawn(function()
+                while speedBoostActive do
+                    -- Force high speed
+                    if humanoid.WalkSpeed < 80 then
+                        humanoid.WalkSpeed = 80
+                    end
+                    if humanoid.JumpPower < 100 then
+                        humanoid.JumpPower = 100
+                    end
+                    
+                    -- Force equip Speed Coil
+                    local currentTool = character:FindFirstChildOfClass("Tool")
+                    if not currentTool or not currentTool.Name:lower():find("speed") then
+                        local newCoil = findSpeedCoil()
+                        if newCoil and newCoil.Parent ~= character then
+                            humanoid:EquipTool(newCoil)
+                        end
+                    end
+                    
+                    -- Prevent dropping
+                    for _, tool in pairs(character:GetChildren()) do
+                        if tool:IsA("Tool") and tool.Name:lower():find("speed") then
+                            tool.CanBeDropped = false
+                            
+                            -- Block all removal attempts
+                            if tool.Parent ~= character then
+                                tool.Parent = character
+                            end
+                        end
+                    end
+                    
+                    wait(0.05) -- Very fast checking
+                end
+                
+                -- Cleanup
+                for _, connection in pairs(connections) do
+                    connection:Disconnect()
+                end
+                humanoid.WalkSpeed = originalWalkSpeed
+                humanoid.JumpPower = 50
+            end)
+        else
+            notify("Speed Coil Not Found!", Color3.new(1, 0, 0))
+            speedBoostActive = false
+        end
+    else
+        notify("Speed Boost OFF", Color3.new(1, 1, 0))
+        humanoid.WalkSpeed = originalWalkSpeed
+        humanoid.JumpPower = 50
+    end
+end
+
 -- Steal Rainbow function
 local function stealRainbow()
     if stealActive then return end
@@ -173,74 +283,6 @@ local function stealRainbow()
     end)
 end
 
--- Speed Boost function
-local function toggleSpeedBoost()
-    speedBoostActive = not speedBoostActive
-    
-    if speedBoostActive then
-        local speedCoil = player.Backpack:FindFirstChild("Speed Coil")
-        if speedCoil then
-            humanoid:EquipTool(speedCoil)
-            notify("Speed Boost ON", Color3.new(0, 1, 0))
-            
-            -- Apply permanent speed boost to humanoid
-            humanoid.WalkSpeed = 50
-            
-            -- Keep equipped forever - bypass all events
-            spawn(function()
-                while speedBoostActive do
-                    -- Force equip every frame
-                    if not character:FindFirstChild("Speed Coil") then
-                        local newCoil = player.Backpack:FindFirstChild("Speed Coil")
-                        if newCoil then
-                            humanoid:EquipTool(newCoil)
-                        end
-                    end
-                    
-                    -- Maintain speed boost
-                    if humanoid.WalkSpeed ~= 50 then
-                        humanoid.WalkSpeed = 50
-                    end
-                    
-                    -- Prevent unequipping
-                    local currentTool = character:FindFirstChildOfClass("Tool")
-                    if currentTool and currentTool.Name == "Speed Coil" then
-                        currentTool.CanBeDropped = false
-                        currentTool.Parent = character
-                    end
-                    
-                    wait(0.1)
-                end
-                
-                -- Reset speed when disabled
-                humanoid.WalkSpeed = 16
-            end)
-            
-            -- Block all tool removal events
-            spawn(function()
-                while speedBoostActive do
-                    for _, tool in pairs(character:GetChildren()) do
-                        if tool:IsA("Tool") and tool.Name == "Speed Coil" then
-                            tool.AncestryChanged:Connect(function()
-                                if speedBoostActive and tool.Parent ~= character then
-                                    tool.Parent = character
-                                end
-                            end)
-                        end
-                    end
-                    wait(1)
-                end
-            end)
-        else
-            notify("Speed Coil Not Found!", Color3.new(1, 0, 0))
-            speedBoostActive = false
-        end
-    else
-        notify("Speed Boost OFF", Color3.new(1, 1, 0))
-        humanoid.WalkSpeed = 16 -- Reset to normal speed
-    end
-end
-
 -- Initialize everything
 showStartup()
 
@@ -262,6 +304,7 @@ player.CharacterAdded:Connect(function(newChar)
     character = newChar
     humanoid = character.Humanoid
     rootPart = character.HumanoidRootPart
+    originalWalkSpeed = humanoid.WalkSpeed
     stealActive = false
     speedBoostActive = false
 end)
