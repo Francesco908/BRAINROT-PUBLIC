@@ -1,554 +1,272 @@
--- LocalScript in StarterGui/AdvancedSpeedSystem
--- Sistema Speed Boost Avanzato by Znfpro
+-- SPEED COIL ULTIMATE SYSTEM - Script Completo
+-- Metti questo script in StarterPlayer > StarterPlayerScripts
 
--- SERVICES
-local Players       = game:GetService("Players")
-local UserInputSvc  = game:GetService("UserInputService")
-local RunService    = game:GetService("RunService")
-local TweenService  = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local mouse = player:GetMouse()
 
--- CONFIGURAZIONE AVANZATA
-local CONFIG = {
-    SONG_ID = 76714680193450,
-    STEAL_SPEED = 100,
-    JUMP_POWER = 150,
-    JUMP_INTERVAL = 0.6,
-    REACH_THRESH = 5,
-    
-    -- Speed Coil Settings
-    SPEED_COIL_NAME = "Speed Coil",
-    SPEED_COIL_VELOCITY = 145,      -- Velocità del Speed Coil
-    PLAYER_SPEED_WITH_COIL = 80,    -- Velocità del player con Speed Coil
-    SPEED_CHECK_INTERVAL = 0.1,     -- Controllo ogni 0.1 secondi
-    
-    -- UI Colors
-    UI_BLACK = Color3.new(0, 0, 0),
-    UI_GREEN = Color3.new(0, 0.8, 0),
-    UI_RED = Color3.new(0.8, 0, 0),
-    UI_YELLOW = Color3.new(1, 1, 0),
-    UI_WHITE = Color3.new(1, 1, 1),
-}
+-- Configurazione
+local BOOST_SPEED = 145
+local DEFAULT_SPEED = 80
+local SPEED_COIL_NAME = "Speed Coil"
+local systemEnabled = false
 
--- SISTEMA DI DEBUG AVANZATO
-local DebugSystem = {
-    enabled = false,
-    logs = {},
-}
+-- Crea GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SpeedCoilSystemGUI"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
 
-function DebugSystem:log(message)
-    if not self.enabled then return end
-    local timestamp = tick()
-    table.insert(self.logs, string.format("[%.2f] %s", timestamp, message))
-    if #self.logs > 50 then
-        table.remove(self.logs, 1)
-    end
-    print("[SPEED DEBUG]", message)
-end
+-- Frame principale
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 250, 0, 120)
+mainFrame.Position = UDim2.new(0.5, -125, 0.5, -60)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
 
--- SPEED MANAGER AVANZATO
-local SpeedManager = {
-    originalWalkSpeed = 16,
-    currentSpeedCoil = nil,
-    isSpeedBoostActive = false,
-    speedConnection = nil,
-    equipConnection = nil,
-    characterConnection = nil,
-    backpackConnection = nil,
-}
+-- Bordi arrotondati
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = mainFrame
 
-function SpeedManager:initialize()
-    DebugSystem:log("Inizializzazione Speed Manager...")
-    self:setupCharacterMonitoring()
-    self:setupBackpackMonitoring()
-end
+-- Titolo
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -40, 0, 30)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Speed Coil System"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.Parent = mainFrame
 
-function SpeedManager:setupCharacterMonitoring()
-    -- Monitora quando spawna un nuovo character
-    if self.characterConnection then
-        self.characterConnection:Disconnect()
-    end
-    
-    self.characterConnection = player.CharacterAdded:Connect(function(character)
-        wait(1) -- Aspetta che il character sia completamente caricato
-        DebugSystem:log("Nuovo character rilevato")
-        self:onCharacterSpawned(character)
-    end)
-    
-    -- Se il character esiste già
-    if player.Character then
-        self:onCharacterSpawned(player.Character)
-    end
-end
+-- Pulsante chiudi
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(1, -35, 0, 5)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextScaled = true
+closeButton.Font = Enum.Font.SourceSansBold
+closeButton.Parent = mainFrame
 
-function SpeedManager:onCharacterSpawned(character)
-    local humanoid = character:WaitForChild("Humanoid")
-    self.originalWalkSpeed = humanoid.WalkSpeed
-    DebugSystem:log("WalkSpeed originale salvata: " .. self.originalWalkSpeed)
-    
-    -- Monitora quando viene equipaggiato/disequipaggiato un tool
-    if self.equipConnection then
-        self.equipConnection:Disconnect()
-    end
-    
-    self.equipConnection = humanoid.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") and child.Name == CONFIG.SPEED_COIL_NAME then
-            DebugSystem:log("Speed Coil equipaggiato")
-            self:onSpeedCoilEquipped(child)
-        end
-    end)
-    
-    humanoid.ChildRemoved:Connect(function(child)
-        if child:IsA("Tool") and child.Name == CONFIG.SPEED_COIL_NAME then
-            DebugSystem:log("Speed Coil rimosso")
-            self:onSpeedCoilRemoved(child)
-        end
-    end)
-end
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 5)
+closeCorner.Parent = closeButton
 
-function SpeedManager:setupBackpackMonitoring()
-    if self.backpackConnection then
-        self.backpackConnection:Disconnect()
-    end
-    
-    local backpack = player:WaitForChild("Backpack")
-    
-    self.backpackConnection = backpack.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") and child.Name == CONFIG.SPEED_COIL_NAME then
-            DebugSystem:log("Speed Coil aggiunto al backpack")
-            if self.isSpeedBoostActive then
-                self:forceEquipSpeedCoil(child)
+-- Pulsante toggle
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0.8, 0, 0, 40)
+toggleButton.Position = UDim2.new(0.1, 0, 0.5, -10)
+toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+toggleButton.Text = "ATTIVA"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextScaled = true
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.Parent = mainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleButton
+
+-- Status label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 0, 20)
+statusLabel.Position = UDim2.new(0, 0, 1, -25)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Sistema Disattivato"
+statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+statusLabel.TextScaled = true
+statusLabel.Font = Enum.Font.SourceSans
+statusLabel.Parent = mainFrame
+
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Funzioni principali
+local function findSpeedCoil()
+    -- Cerca nel backpack
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        for _, item in pairs(backpack:GetChildren()) do
+            if item:IsA("Tool") and item.Name == SPEED_COIL_NAME then
+                return item
             end
         end
+    end
+    
+    -- Cerca nel character
+    local character = player.Character
+    if character then
+        for _, item in pairs(character:GetChildren()) do
+            if item:IsA("Tool") and item.Name == SPEED_COIL_NAME then
+                return item
+            end
+        end
+    end
+    
+    return nil
+end
+
+local function forceSpeed(humanoid, speed)
+    humanoid.WalkSpeed = speed
+    -- Protezione multipla
+    local connections = {}
+    
+    connections[1] = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if systemEnabled and humanoid.WalkSpeed ~= speed then
+            humanoid.WalkSpeed = speed
+        end
+    end)
+    
+    -- Protezione contro StateChanged
+    connections[2] = humanoid.StateChanged:Connect(function()
+        if systemEnabled then
+            humanoid.WalkSpeed = speed
+        end
+    end)
+    
+    -- Cleanup connections quando il character muore
+    humanoid.Died:Connect(function()
+        for _, conn in pairs(connections) do
+            if conn then conn:Disconnect() end
+        end
     end)
 end
 
-function SpeedManager:findSpeedCoil()
+local function processSpeedCoil()
+    if not systemEnabled then return end
+    
     local character = player.Character
-    local backpack = player:FindFirstChild("Backpack")
+    if not character then return end
     
-    -- Cerca prima nel character (equipaggiato)
-    if character then
-        local speedCoil = character:FindFirstChild(CONFIG.SPEED_COIL_NAME)
-        if speedCoil then
-            return speedCoil, "equipped"
-        end
-    end
+    local humanoid = character:FindFirstChild("Humanoid")
+    if not humanoid then return end
     
-    -- Poi nel backpack
-    if backpack then
-        local speedCoil = backpack:FindFirstChild(CONFIG.SPEED_COIL_NAME)
-        if speedCoil then
-            return speedCoil, "backpack"
-        end
-    end
+    local speedCoil = findSpeedCoil()
     
-    return nil, "not_found"
-end
-
-function SpeedManager:forceEquipSpeedCoil(speedCoil)
-    if not speedCoil then
-        speedCoil = self:findSpeedCoil()
-    end
-    
-    if speedCoil and player.Character then
-        local humanoid = player.Character:FindFirstChild("Humanoid")
-        if humanoid then
-            DebugSystem:log("Equipaggiamento forzato Speed Coil")
+    if speedCoil then
+        -- Se è nel backpack, equipaggiala
+        if speedCoil.Parent == player.Backpack then
             humanoid:EquipTool(speedCoil)
         end
-    end
-end
-
-function SpeedManager:onSpeedCoilEquipped(speedCoil)
-    self.currentSpeedCoil = speedCoil
-    self:modifySpeedCoil(speedCoil)
-    self:setPlayerSpeed(CONFIG.PLAYER_SPEED_WITH_COIL)
-    
-    if self.isSpeedBoostActive then
-        self:startAdvancedSpeedMonitoring()
-    end
-end
-
-function SpeedManager:onSpeedCoilRemoved(speedCoil)
-    if self.currentSpeedCoil == speedCoil then
-        self.currentSpeedCoil = nil
-    end
-    
-    self:stopSpeedMonitoring()
-    
-    if not self.isSpeedBoostActive then
-        self:setPlayerSpeed(self.originalWalkSpeed)
+        
+        -- Se è equipaggiata, applica boost
+        if speedCoil.Parent == character then
+            forceSpeed(humanoid, BOOST_SPEED)
+            statusLabel.Text = "Speed Boost Attivo!"
+            statusLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
+        end
     else
-        -- Se speed boost è attivo, riequipaggia immediatamente
-        wait(0.1)
-        local newSpeedCoil = self:findSpeedCoil()
-        if newSpeedCoil then
-            self:forceEquipSpeedCoil(newSpeedCoil)
-        end
+        -- Nessuna coil trovata, velocità normale
+        humanoid.WalkSpeed = DEFAULT_SPEED
+        statusLabel.Text = "Speed Coil non trovata"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
     end
 end
 
-function SpeedManager:modifySpeedCoil(speedCoil)
-    -- Modifica le proprietà del Speed Coil per velocità custom
-    local handle = speedCoil:FindFirstChild("Handle")
-    if handle then
-        -- Cerca script o valori di velocità nel tool
-        for _, child in pairs(speedCoil:GetChildren()) do
-            if child:IsA("NumberValue") and (child.Name:lower():find("speed") or child.Name:lower():find("velocity")) then
-                DebugSystem:log("Modificando velocità Speed Coil: " .. child.Value .. " -> " .. CONFIG.SPEED_COIL_VELOCITY)
-                child.Value = CONFIG.SPEED_COIL_VELOCITY
-            end
-        end
-    end
-end
-
-function SpeedManager:setPlayerSpeed(speed)
-    if player.Character then
-        local humanoid = player.Character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = speed
-            DebugSystem:log("Velocità player settata a: " .. speed)
-        end
-    end
-end
-
-function SpeedManager:startAdvancedSpeedMonitoring()
-    self:stopSpeedMonitoring()
+-- Sistema di monitoraggio continuo
+local monitorConnection
+local function startMonitoring()
+    if monitorConnection then monitorConnection:Disconnect() end
     
-    DebugSystem:log("Avvio monitoraggio velocità avanzato")
-    
-    self.speedConnection = RunService.Heartbeat:Connect(function()
-        if not self.isSpeedBoostActive then return end
-        
-        local character = player.Character
-        if not character then return end
-        
-        local humanoid = character:FindFirstChild("Humanoid")
-        if not humanoid then return end
-        
-        -- Controlla se Speed Coil è equipaggiato
-        local speedCoil = character:FindFirstChild(CONFIG.SPEED_COIL_NAME)
-        if not speedCoil and self.isSpeedBoostActive then
-            -- Speed Coil non equipaggiato ma speed boost attivo - riequipaggia
-            local foundSpeedCoil = self:findSpeedCoil()
-            if foundSpeedCoil then
-                self:forceEquipSpeedCoil(foundSpeedCoil)
-            end
-        end
-        
-        -- Mantieni velocità costante
-        if speedCoil and humanoid.WalkSpeed ~= CONFIG.PLAYER_SPEED_WITH_COIL then
-            humanoid.WalkSpeed = CONFIG.PLAYER_SPEED_WITH_COIL
+    monitorConnection = RunService.Heartbeat:Connect(function()
+        if systemEnabled then
+            processSpeedCoil()
         end
     end)
 end
 
-function SpeedManager:stopSpeedMonitoring()
-    if self.speedConnection then
-        self.speedConnection:Disconnect()
-        self.speedConnection = nil
-        DebugSystem:log("Monitoraggio velocità fermato")
-    end
-end
-
-function SpeedManager:toggleSpeedBoost()
-    self.isSpeedBoostActive = not self.isSpeedBoostActive
+-- Gestione character respawn
+player.CharacterAdded:Connect(function(character)
+    wait(0.5) -- Attendi che il character sia completamente caricato
     
-    if self.isSpeedBoostActive then
-        DebugSystem:log("Speed Boost ATTIVATO")
-        local speedCoil, location = self:findSpeedCoil()
-        if speedCoil then
-            if location == "backpack" then
-                self:forceEquipSpeedCoil(speedCoil)
-            end
-        end
-        self:startAdvancedSpeedMonitoring()
-    else
-        DebugSystem:log("Speed Boost DISATTIVATO")
-        self:stopSpeedMonitoring()
-        self:setPlayerSpeed(self.originalWalkSpeed)
-    end
-    
-    return self.isSpeedBoostActive
-end
-
--- UI FACTORY MIGLIORATA
-local function createAdvancedUI()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "AdvancedZnfGui"
-    screenGui.ResetOnSpawn = false
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    screenGui.Parent = playerGui
-
-    -- Effetto draggabile migliorato
-    local function makeDraggable(frame)
-        local dragging, dragInput, dragStart, startPos
+    if systemEnabled then
+        startMonitoring()
         
-        frame.InputBegan:Connect(function(inp)
-            if inp.UserInputType == Enum.UserInputType.Touch or 
-               inp.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = true
-                dragStart = inp.Position
-                startPos = frame.Position
-                
-                -- Effetto visivo durante drag
-                TweenService:Create(frame, TweenInfo.new(0.2), {
-                    BackgroundTransparency = 0.1
-                }):Play()
-                
-                inp.Changed:Connect(function()
-                    if inp.UserInputState == Enum.UserInputState.End then
-                        dragging = false
-                        TweenService:Create(frame, TweenInfo.new(0.2), {
-                            BackgroundTransparency = 0.3
-                        }):Play()
-                    end
-                end)
+        -- Aggiungi listener per tool changes
+        character.ChildAdded:Connect(function(child)
+            if child:IsA("Tool") and systemEnabled then
+                processSpeedCoil()
             end
         end)
         
-        frame.InputChanged:Connect(function(inp)
-            if inp.UserInputType == Enum.UserInputType.Touch or 
-               inp.UserInputType == Enum.UserInputType.MouseMovement then
-                dragInput = inp
-            end
-        end)
-        
-        UserInputSvc.InputChanged:Connect(function(inp)
-            if dragging and inp == dragInput then
-                local delta = inp.Position - dragStart
-                frame.Position = UDim2.new(
-                    startPos.X.Scale,
-                    startPos.X.Offset + delta.X,
-                    startPos.Y.Scale,
-                    startPos.Y.Offset + delta.Y
-                )
-            end
-        end)
-    end
-
-    -- Splash screen animato
-    local splash = Instance.new("Frame", screenGui)
-    splash.Size = UDim2.new(0, 400, 0, 100)
-    splash.Position = UDim2.new(0.5, -200, 0.5, -50)
-    splash.BackgroundColor3 = CONFIG.UI_BLACK
-    splash.BackgroundTransparency = 0.2
-    splash.BorderSizePixel = 0
-    
-    local splashCorner = Instance.new("UICorner", splash)
-    splashCorner.CornerRadius = UDim.new(0, 15)
-    
-    local splashText = Instance.new("TextLabel", splash)
-    splashText.Size = UDim2.new(1, 0, 1, 0)
-    splashText.BackgroundTransparency = 1
-    splashText.Text = "made by Znfpro"
-    splashText.Font = Enum.Font.GothamBold
-    splashText.TextScaled = true
-    splashText.TextColor3 = CONFIG.UI_WHITE
-    
-    -- Animazione splash
-    splash:TweenPosition(UDim2.new(0.5, -200, 0.3, -50), "Out", "Bounce", 0.8)
-    
-    -- Musica
-    local sound = Instance.new("Sound", screenGui)
-    sound.SoundId = "rbxassetid://" .. CONFIG.SONG_ID
-    sound.Looped = true
-    sound.Volume = 0.6
-    
-    wait(1.5)
-    sound:Play()
-    splash:TweenPosition(UDim2.new(0.5, -200, -0.2, -50), "In", "Back", 0.5)
-    wait(0.6)
-    splash:Destroy()
-
-    -- Pannello principale
-    local mainFrame = Instance.new("Frame", screenGui)
-    mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 220, 0, 140)
-    mainFrame.Position = UDim2.new(0.5, -110, 0.4, -70)
-    mainFrame.BackgroundColor3 = CONFIG.UI_BLACK
-    mainFrame.BackgroundTransparency = 0.3
-    mainFrame.BorderSizePixel = 0
-    
-    local mainCorner = Instance.new("UICorner", mainFrame)
-    mainCorner.CornerRadius = UDim.new(0, 12)
-    
-    makeDraggable(mainFrame)
-
-    -- Funzione per creare pulsanti avanzati
-    local function createAdvancedButton(parent, name, position, size, text, color)
-        local button = Instance.new("TextButton", parent)
-        button.Name = name
-        button.Size = size
-        button.Position = position
-        button.BackgroundColor3 = color or CONFIG.UI_BLACK
-        button.BackgroundTransparency = 0.2
-        button.BorderSizePixel = 0
-        button.Font = Enum.Font.GothamBold
-        button.TextScaled = true
-        button.TextColor3 = CONFIG.UI_WHITE
-        button.Text = text
-        
-        local buttonCorner = Instance.new("UICorner", button)
-        buttonCorner.CornerRadius = UDim.new(0, 10)
-        
-        -- Effetti hover
-        button.MouseEnter:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.2), {
-                BackgroundTransparency = 0.1
-            }):Play()
-        end)
-        
-        button.MouseLeave:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.2), {
-                BackgroundTransparency = 0.2
-            }):Play()
-        end)
-        
-        makeDraggable(button)
-        return button
-    end
-
-    -- Pulsanti
-    local stealBtn = createAdvancedButton(
-        mainFrame, "StealBtn", 
-        UDim2.new(0, 10, 0, 10), 
-        UDim2.new(1, -20, 0, 40), 
-        "steal raimbow"
-    )
-    
-    local speedBtn = createAdvancedButton(
-        mainFrame, "SpeedBtn", 
-        UDim2.new(0, 10, 0, 60), 
-        UDim2.new(1, -20, 0, 40), 
-        "speed boost: OFF"
-    )
-    
-    -- Status indicator
-    local statusLabel = Instance.new("TextLabel", mainFrame)
-    statusLabel.Size = UDim2.new(1, -20, 0, 20)
-    statusLabel.Position = UDim2.new(0, 10, 0, 110)
-    statusLabel.BackgroundTransparency = 1
-    statusLabel.Text = "Ready"
-    statusLabel.Font = Enum.Font.Gotham
-    statusLabel.TextScaled = true
-    statusLabel.TextColor3 = CONFIG.UI_GREEN
-
-    return {
-        ScreenGui = screenGui,
-        MainFrame = mainFrame,
-        StealBtn = stealBtn,
-        SpeedBtn = speedBtn,
-        StatusLabel = statusLabel,
-    }
-end
-
--- INIZIALIZZAZIONE SISTEMA
-DebugSystem.enabled = true -- Abilita debug
-SpeedManager:initialize()
-
-local ui = createAdvancedUI()
-
--- LOGICA STEAL (migliorata)
-local basePos
-local stealing = false
-
-local function advancedSteal()
-    if stealing then return end
-    stealing = true
-    ui.StatusLabel.Text = "Stealing..."
-    ui.StatusLabel.TextColor3 = CONFIG.UI_YELLOW
-
-    local char = player.Character or player.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-
-    local bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(math.huge, 0, math.huge)
-    bodyVelocity.P = 1250
-    bodyVelocity.Parent = hrp
-
-    spawn(function()
-        while stealing and char.Parent and (hrp.Position - basePos).Magnitude > CONFIG.REACH_THRESH do
-            local direction = (basePos - hrp.Position)
-            direction = Vector3.new(direction.X, 0, direction.Z).Unit
-            bodyVelocity.Velocity = direction * CONFIG.STEAL_SPEED
-
-            -- Multi jump avanzato
-            local jumpVelocity = Instance.new("BodyVelocity")
-            jumpVelocity.MaxForce = Vector3.new(0, math.huge, 0)
-            jumpVelocity.Velocity = Vector3.new(0, CONFIG.JUMP_POWER, 0)
-            jumpVelocity.P = 1250
-            jumpVelocity.Parent = hrp
-            
-            wait(CONFIG.JUMP_INTERVAL)
-            if jumpVelocity.Parent then
-                jumpVelocity:Destroy()
-            end
-        end
-        
-        if bodyVelocity.Parent then
-            bodyVelocity:Destroy()
-        end
-        stealing = false
-        ui.StealBtn.Text = "steal raimbow"
-        ui.StatusLabel.Text = "Ready"
-        ui.StatusLabel.TextColor3 = CONFIG.UI_GREEN
-    end)
-end
-
--- EVENTI PULSANTI
-ui.StealBtn.MouseButton1Click:Connect(function()
-    if not basePos then
-        ui.StealBtn.Text = "set base"
-        ui.StealBtn.BackgroundColor3 = CONFIG.UI_YELLOW
-        ui.StatusLabel.Text = "Click to set base"
-        
-        local conn
-        conn = UserInputSvc.InputBegan:Connect(function(inp, gameProcessed)
-            if gameProcessed then return end
-            if inp.UserInputType == Enum.UserInputType.MouseButton1 or 
-               inp.UserInputType == Enum.UserInputType.Touch then
-                local cam = workspace.CurrentCamera
-                local unitRay = cam:ScreenPointToRay(inp.Position.X, inp.Position.Y)
-                local raycastParams = RaycastParams.new()
-                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                raycastParams.FilterDescendantsInstances = {player.Character}
-                
-                local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 1000, raycastParams)
-                if result then
-                    basePos = result.Position
-                    conn:Disconnect()
-                    ui.StealBtn.BackgroundColor3 = CONFIG.UI_BLACK
-                    ui.StealBtn.Text = "steal raimbow"
-                    ui.StatusLabel.Text = "Base set!"
-                    ui.StatusLabel.TextColor3 = CONFIG.UI_GREEN
+        character.ChildRemoved:Connect(function(child)
+            if child:IsA("Tool") and child.Name == SPEED_COIL_NAME and systemEnabled then
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = DEFAULT_SPEED
                 end
             end
         end)
-    else
-        ui.StealBtn.Text = "steal"
-        ui.StealBtn.BackgroundColor3 = CONFIG.UI_RED
-        advancedSteal()
     end
 end)
 
-ui.SpeedBtn.MouseButton1Click:Connect(function()
-    local isActive = SpeedManager:toggleSpeedBoost()
+-- Toggle button
+toggleButton.MouseButton1Click:Connect(function()
+    systemEnabled = not systemEnabled
     
-    if isActive then
-        ui.SpeedBtn.Text = "speed boost: ON"
-        ui.SpeedBtn.BackgroundColor3 = CONFIG.UI_GREEN
-        ui.StatusLabel.Text = "Speed boost active"
-        ui.StatusLabel.TextColor3 = CONFIG.UI_GREEN
+    if systemEnabled then
+        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        toggleButton.Text = "DISATTIVA"
+        statusLabel.Text = "Sistema Attivato"
+        statusLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
+        startMonitoring()
     else
-        ui.SpeedBtn.Text = "speed boost: OFF"
-        ui.SpeedBtn.BackgroundColor3 = CONFIG.UI_BLACK
-        ui.StatusLabel.Text = "Speed boost off"
-        ui.StatusLabel.TextColor3 = CONFIG.UI_WHITE
+        toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        toggleButton.Text = "ATTIVA"
+        statusLabel.Text = "Sistema Disattivato"
+        statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        
+        if monitorConnection then 
+            monitorConnection:Disconnect() 
+        end
+        
+        -- Reset speed
+        local character = player.Character
+        if character then
+            local humanoid = character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid.WalkSpeed = DEFAULT_SPEED
+            end
+        end
     end
 end)
 
-DebugSystem:log("Sistema Speed Boost Avanzato caricato completamente!")
+-- Close button
+closeButton.MouseButton1Click:Connect(function()
+    screenGui.Enabled = not screenGui.Enabled
+end)
+
+-- Hotkey per riaprire (F per aprire/chiudere)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.F then
+        screenGui.Enabled = not screenGui.Enabled
+    end
+end)
+
+-- Anti-exploit protection
+spawn(function()
+    while wait(0.1) do
+        if systemEnabled and player.Character then
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                local speedCoil = findSpeedCoil()
+                if speedCoil and speedCoil.Parent == player.Character then
+                    if humanoid.WalkSpeed ~= BOOST_SPEED then
+                        humanoid.WalkSpeed = BOOST_SPEED
+                    end
+                end
+            end
+        end
+    end
+end)
+
+print("Speed Coil System caricato! Premi F per aprire/chiudere la GUI")
