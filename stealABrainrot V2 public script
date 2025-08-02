@@ -1,170 +1,122 @@
 -- Admin vs Admin Script by Znfpro
--- Fixed & Improved with Anti-Cheat Bypass
+-- Simple & Working Version
+
+wait(1)
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
-local mouse = player:GetMouse()
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Wait for character
-local function getCharacter()
-    return player.Character or player.CharacterAdded:Wait()
-end
+-- Wait for character properly
+repeat wait() until player.Character
+repeat wait() until player.Character:FindFirstChild("HumanoidRootPart")
+repeat wait() until player.Character:FindFirstChild("Humanoid")
 
-local character = getCharacter()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
+local character = player.Character
+local humanoid = character.Humanoid
+local rootPart = character.HumanoidRootPart
 
 -- Variables
-local basePosition = Vector3.new(0, 5, 0)
+local basePosition = rootPart.Position
 local stealActive = false
 local speedBoostActive = false
-local gui = nil
-
--- Anti-Cheat Bypass System
-local originalCFrame = rootPart.CFrame
-local connections = {}
-
-local function enableAntiCheatBypass()
-    -- Block all position resets
-    local oldIndex
-    oldIndex = hookmetamethod(game, "__index", function(self, key)
-        if key == "CFrame" and self == rootPart then
-            return originalCFrame
-        end
-        return oldIndex(self, key)
-    end)
-    
-    -- Disable all anchoring attempts
-    rootPart.Changed:Connect(function(property)
-        if property == "Anchored" and rootPart.Anchored then
-            rootPart.Anchored = false
-        end
-    end)
-end
 
 -- Create GUI
-local function createGUI()
-    if gui then gui:Destroy() end
-    
-    gui = Instance.new("ScreenGui")
-    gui.Name = "AdminVsAdminGUI"
-    gui.ResetOnSpawn = false
-    gui.Parent = player.PlayerGui
-    
-    return gui
-end
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AdminVsAdminGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
 
--- Startup sequence
+-- Startup message
 local function showStartup()
-    local gui = createGUI()
-    
-    local startupFrame = Instance.new("Frame")
-    startupFrame.Size = UDim2.new(1, 0, 1, 0)
-    startupFrame.Position = UDim2.new(0, 0, 0, 0)
-    startupFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-    startupFrame.BackgroundTransparency = 0.5
-    startupFrame.Parent = gui
-    
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(0, 400, 0, 100)
-    titleLabel.Position = UDim2.new(0.5, -200, 0.5, -50)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = "Made by Znfpro"
-    titleLabel.TextColor3 = Color3.new(1, 1, 1)
-    titleLabel.TextScaled = true
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.Parent = startupFrame
-    
-    -- Play music
-    spawn(function()
-        local sound = Instance.new("Sound")
-        sound.SoundId = "rbxassetid://76714680193450"
-        sound.Volume = 0.3
-        sound.Looped = true
-        sound.Parent = workspace
-        pcall(function() sound:Play() end)
-    end)
-    
-    wait(3)
-    startupFrame:Destroy()
-end
-
--- Notification system
-local function notify(text, color, duration)
-    local gui = player.PlayerGui:FindFirstChild("AdminVsAdminGUI")
-    if not gui then return end
-    
-    local notification = Instance.new("Frame")
-    notification.Size = UDim2.new(0, 250, 0, 60)
-    notification.Position = UDim2.new(0.5, -125, 0, 20)
-    notification.BackgroundColor3 = color or Color3.new(0, 0, 0)
-    notification.BorderSizePixel = 0
-    notification.Parent = gui
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 100)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -50)
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.BackgroundTransparency = 0.3
+    frame.Parent = screenGui
     
     local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 8)
-    corner.Parent = notification
+    corner.CornerRadius = UDim.new(0, 10)
+    corner.Parent = frame
     
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 1, 0)
     label.BackgroundTransparency = 1
-    label.Text = text
+    label.Text = "Made by Znfpro"
     label.TextColor3 = Color3.new(1, 1, 1)
     label.TextScaled = true
-    label.Font = Enum.Font.Gotham
-    label.Parent = notification
+    label.Font = Enum.Font.GothamBold
+    label.Parent = frame
     
-    game:GetService("Debris"):AddItem(notification, duration or 3)
+    -- Play music
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://76714680193450"
+    sound.Volume = 0.5
+    sound.Looped = true
+    sound.Parent = workspace
+    sound:Play()
+    
+    wait(3)
+    frame:Destroy()
+end
+
+-- Notification function
+local function notify(text, color)
+    local notif = Instance.new("TextLabel")
+    notif.Size = UDim2.new(0, 200, 0, 40)
+    notif.Position = UDim2.new(0.5, -100, 0, 50)
+    notif.BackgroundColor3 = color or Color3.new(0, 0, 0)
+    notif.BackgroundTransparency = 0.2
+    notif.Text = text
+    notif.TextColor3 = Color3.new(1, 1, 1)
+    notif.TextScaled = true
+    notif.Font = Enum.Font.Gotham
+    notif.Parent = screenGui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = notif
+    
+    game:GetService("Debris"):AddItem(notif, 2)
 end
 
 -- Create draggable button
-local function createButton(text, position, callback)
-    local gui = player.PlayerGui:FindFirstChild("AdminVsAdminGUI")
-    if not gui then gui = createGUI() end
-    
+local function createButton(text, pos, callback)
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 160, 0, 50)
-    button.Position = position
+    button.Size = UDim2.new(0, 150, 0, 50)
+    button.Position = pos
     button.BackgroundColor3 = Color3.new(0, 0, 0)
-    button.BorderSizePixel = 0
     button.Text = text
     button.TextColor3 = Color3.new(1, 1, 1)
     button.TextScaled = true
     button.Font = Enum.Font.GothamBold
-    button.Parent = gui
+    button.Parent = screenGui
     
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = button
     
-    -- Dragging
+    -- Simple dragging
     local dragging = false
+    button.MouseButton1Down:Connect(function()
+        dragging = true
+    end)
     
-    button.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            local startPos = input.Position
-            local startGui = button.Position
-            
-            local dragConnection
-            dragConnection = mouse.Move:Connect(function()
-                if dragging then
-                    local delta = mouse.Hit.Position - startPos
-                    button.Position = UDim2.new(startGui.X.Scale, startGui.X.Offset + mouse.X - startPos.X, startGui.Y.Scale, startGui.Y.Offset + mouse.Y - startPos.Y)
-                end
-            end)
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                    dragConnection:Disconnect()
-                end
-            end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local mousePos = UserInputService:GetMouseLocation()
+            button.Position = UDim2.new(0, mousePos.X - 75, 0, mousePos.Y - 25)
         end
     end)
     
@@ -172,79 +124,56 @@ local function createButton(text, position, callback)
     return button
 end
 
--- Enhanced movement with anti-cheat bypass
-local function bypassMove(targetPos, speed)
-    spawn(function()
-        enableAntiCheatBypass()
-        
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.Parent = rootPart
-        
-        local direction = (targetPos - rootPart.Position).Unit
-        local distance = (targetPos - rootPart.Position).Magnitude
-        
-        for i = 1, distance / speed do
-            if not rootPart.Parent then break end
-            rootPart.CFrame = rootPart.CFrame + direction * speed
-            originalCFrame = rootPart.CFrame
-            wait(0.03)
-        end
-        
-        bodyVelocity:Destroy()
-    end)
-end
-
--- Super jump with bypass
-local function superJump()
-    spawn(function()
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
-        bodyVelocity.Velocity = Vector3.new(0, 100, 0)
-        bodyVelocity.Parent = rootPart
-        
-        wait(0.5)
-        bodyVelocity:Destroy()
-    end)
-end
-
 -- Steal Rainbow function
 local function stealRainbow()
     if stealActive then return end
     stealActive = true
     
-    notify("Set Base", Color3.new(1, 1, 0), 2)
+    notify("Set Base", Color3.new(1, 1, 0))
     basePosition = rootPart.Position
     wait(1)
     
-    notify("Steal!", Color3.new(0, 1, 0), 2)
+    notify("Steal!", Color3.new(0, 1, 0))
     
-    -- Move backward
-    local backPos = rootPart.Position - rootPart.CFrame.LookVector * 30
-    bypassMove(backPos, 3)
-    wait(2)
+    -- Move backward fast
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(4000, 0, 4000)
+    bodyVelocity.Velocity = rootPart.CFrame.LookVector * -50
+    bodyVelocity.Parent = rootPart
+    
+    wait(1)
+    bodyVelocity:Destroy()
     
     -- Move to base with jumps
     spawn(function()
-        while (rootPart.Position - basePosition).Magnitude > 10 and stealActive do
+        while (rootPart.Position - basePosition).Magnitude > 8 do
+            -- Move horizontally
             local direction = (basePosition - rootPart.Position).Unit
-            local nextPos = rootPart.Position + direction * 5
+            local bodyVel = Instance.new("BodyVelocity")
+            bodyVel.MaxForce = Vector3.new(4000, 0, 4000)
+            bodyVel.Velocity = Vector3.new(direction.X * 60, 0, direction.Z * 60)
+            bodyVel.Parent = rootPart
             
-            bypassMove(nextPos, 2)
             wait(0.5)
-            superJump()
-            wait(1.5)
+            
+            -- Jump
+            local jumpVel = Instance.new("BodyVelocity")
+            jumpVel.MaxForce = Vector3.new(0, 4000, 0)
+            jumpVel.Velocity = Vector3.new(0, 80, 0)
+            jumpVel.Parent = rootPart
+            
+            wait(0.3)
+            jumpVel:Destroy()
+            wait(1)
+            bodyVel:Destroy()
         end
         
-        if stealActive then
-            notify("Steal Complete!", Color3.new(0, 1, 0), 3)
-            stealActive = false
-        end
+        notify("Steal Complete!", Color3.new(0, 1, 0))
+        stealActive = false
     end)
 end
 
--- Speed boost function
+-- Speed Boost function
 local function toggleSpeedBoost()
     speedBoostActive = not speedBoostActive
     
@@ -252,53 +181,50 @@ local function toggleSpeedBoost()
         local speedCoil = player.Backpack:FindFirstChild("Speed Coil")
         if speedCoil then
             humanoid:EquipTool(speedCoil)
-            notify("Speed Boost ON", Color3.new(0, 1, 0), 2)
+            notify("Speed Boost ON", Color3.new(0, 1, 0))
             
-            -- Keep equipped forever
+            -- Keep equipped
             spawn(function()
                 while speedBoostActive do
-                    local equippedTool = character:FindFirstChildOfClass("Tool")
-                    if not equippedTool or equippedTool.Name ~= "Speed Coil" then
+                    if not character:FindFirstChild("Speed Coil") then
                         local newCoil = player.Backpack:FindFirstChild("Speed Coil")
                         if newCoil then
                             humanoid:EquipTool(newCoil)
                         end
                     end
-                    wait(0.1)
+                    wait(0.5)
                 end
             end)
         else
-            notify("Speed Coil Not Found!", Color3.new(1, 0, 0), 3)
+            notify("Speed Coil Not Found!", Color3.new(1, 0, 0))
             speedBoostActive = false
         end
     else
-        notify("Speed Boost OFF", Color3.new(1, 1, 0), 2)
+        notify("Speed Boost OFF", Color3.new(1, 1, 0))
     end
 end
 
--- Initialize
+-- Initialize everything
+showStartup()
+
+local stealButton = createButton("Steal Rainbow", UDim2.new(0, 50, 0, 200), stealRainbow)
+local speedButton = createButton("Speed Boost", UDim2.new(0, 220, 0, 200), toggleSpeedBoost)
+
+-- Update speed button color
 spawn(function()
-    showStartup()
-    
-    local stealButton = createButton("Steal Rainbow", UDim2.new(0, 20, 0, 100), stealRainbow)
-    local speedButton = createButton("Speed Boost", UDim2.new(0, 20, 0, 160), toggleSpeedBoost)
-    
-    -- Update speed button color
-    spawn(function()
-        while wait(0.1) do
-            if speedButton then
-                speedButton.BackgroundColor3 = speedBoostActive and Color3.new(0, 0.6, 0) or Color3.new(0, 0, 0)
-            end
+    while wait(0.1) do
+        if speedButton then
+            speedButton.BackgroundColor3 = speedBoostActive and Color3.new(0, 0.5, 0) or Color3.new(0, 0, 0)
         end
-    end)
+    end
 end)
 
 -- Handle respawn
 player.CharacterAdded:Connect(function(newChar)
+    repeat wait() until newChar:FindFirstChild("HumanoidRootPart")
     character = newChar
-    humanoid = character:WaitForChild("Humanoid") 
-    rootPart = character:WaitForChild("HumanoidRootPart")
-    originalCFrame = rootPart.CFrame
+    humanoid = character.Humanoid
+    rootPart = character.HumanoidRootPart
     stealActive = false
     speedBoostActive = false
 end)
