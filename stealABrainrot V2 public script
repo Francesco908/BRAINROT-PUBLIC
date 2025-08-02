@@ -1,395 +1,382 @@
--- Sigma Hub Ultimate Bypass V2
+-- Sigma Hub Ultimate V4 Optimized
 -- Made by Znfpro
 
--- Bypass livello massimo
-local mt = getrawmetatable(game)
-local old_index = mt.__index
-local old_newindex = mt.__newindex
-local old_namecall = mt.__namecall
-setreadonly(mt, false)
+-- Attesa caricamento
+if not game:IsLoaded() then game.Loaded:Wait() end
 
--- Bypass completo anti-cheat
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
+-- Cache servizi
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local HttpService = game:GetService("HttpService")
+local VirtualUser = game:GetService("VirtualUser")
+
+-- Variabili globali ottimizzate
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+
+local Settings = {
+    basePosition = nil,
+    isMovingToBase = false,
+    speedEnabled = false,
+    immortalActive = false,
+    speedCoil = nil,
+    speedCoilLocked = false
+}
+
+-- Bypass Anti-Cheat ottimizzato
+local function InitializeBypass()
+    local mt = getrawmetatable(game)
+    local old_namecall = mt.__namecall
+    local old_index = mt.__index
+    local old_newindex = mt.__newindex
     
-    -- Blocca tutti i metodi di rilevamento
-    if method == "Kick" or method == "kick" or method == "Destroy" then
-        return wait(9e9)
-    end
+    setreadonly(mt, false)
     
-    if method == "FireServer" or method == "InvokeServer" then
-        -- Blocca remotes anti-cheat
-        if tostring(self):lower():find("kick") or tostring(self):lower():find("ban") or 
-           tostring(self):lower():find("detect") or tostring(self):lower():find("check") then
+    -- Namecall bypass
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        
+        -- Blocca kick/ban
+        if method == "Kick" or method == "Destroy" then
             return wait(9e9)
         end
-    end
-    
-    -- Falsifica GetVelocity
-    if method == "GetVelocity" or method == "GetAssemblyVelocity" then
-        return Vector3.new(0,0,0)
-    end
-    
-    return old_namecall(self, ...)
-end)
-
--- Nascondi proprietà modificate
-mt.__index = newcclosure(function(self, key)
-    if tostring(self) == "Humanoid" then
-        if key == "WalkSpeed" then return 16 end
-        if key == "JumpPower" or key == "JumpHeight" then return 50 end
-    end
-    
-    -- Nascondi tool equipaggiato
-    if key == "Parent" and tostring(self):find("Speed Coil") then
-        return game.Players.LocalPlayer.Character
-    end
-    
-    return old_index(self, key)
-end)
-
--- Blocca modifiche esterne
-mt.__newindex = newcclosure(function(self, key, value)
-    if tostring(self) == "Humanoid" and (key == "WalkSpeed" or key == "JumpPower") then
-        return
-    end
-    return old_newindex(self, key, value)
-end)
-
-setreadonly(mt, true)
-
--- Disabilita TUTTE le connessioni anti-cheat
-local function DisableAllConnections()
-    local gc = getgc or get_gc_objects
-    if gc then
-        for _, v in pairs(gc()) do
-            if type(v) == "function" and getfenv(v).script then
-                local scr = getfenv(v).script
-                if scr.Name:lower():find("anti") or scr.Name:lower():find("cheat") or 
-                   scr.Name:lower():find("check") or scr.Name:lower():find("detect") then
-                    hookfunction(v, function() return end)
-                end
+        
+        -- Blocca remotes anti-cheat
+        if (method == "FireServer" or method == "InvokeServer") then
+            local name = tostring(self):lower()
+            if name:match("kick") or name:match("ban") or name:match("anti") or 
+               name:match("cheat") or name:match("exploit") then
+                return wait(9e9)
             end
         end
-    end
-end
-
-DisableAllConnections()
-
--- Script principale con Speed Coil
-task.spawn(function()
-pcall(function()
-
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
--- Variabili
-local basePosition = nil
-local isMovingToBase = false
-local speedCoilEnabled = false
-local speedCoil = nil
-
--- Attendi personaggio
-repeat task.wait() until player.Character
-local character = player.Character
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
-local backpack = player:WaitForChild("Backpack")
-
--- GUI Ultra sicura
-local gui = Instance.new("ScreenGui")
-gui.Name = game:GetService("HttpService"):GenerateGUID(false)
-gui.ResetOnSpawn = false
-gui.DisplayOrder = 999999
-
--- Super protezione GUI
-if syn and syn.protect_gui then
-    syn.protect_gui(gui)
-    gui.Parent = game:GetService("CoreGui")
-elseif gethui then
-    gui.Parent = gethui()
-else
-    gui.Parent = player.PlayerGui
-end
-
--- Frame principale invisibile
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0.25, 0, 0.3, 0)
-mainFrame.Position = UDim2.new(0.7, 0, 0.1, 0)
-mainFrame.BackgroundTransparency = 0.3
-mainFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = gui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 15)
-corner.Parent = mainFrame
-
--- Logo
-local logo = Instance.new("TextLabel")
-logo.Size = UDim2.new(1, 0, 0.2, 0)
-logo.Position = UDim2.new(0, 0, 0, 0)
-logo.BackgroundTransparency = 1
-logo.Text = "Sigma Hub Ultra"
-logo.TextColor3 = Color3.new(1, 1, 1)
-logo.TextScaled = true
-logo.Font = Enum.Font.Gotham
-logo.Parent = mainFrame
-
--- Set Base Button
-local setBaseBtn = Instance.new("TextButton")
-setBaseBtn.Size = UDim2.new(0.9, 0, 0.2, 0)
-setBaseBtn.Position = UDim2.new(0.05, 0, 0.25, 0)
-setBaseBtn.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-setBaseBtn.Text = "Set Base"
-setBaseBtn.TextColor3 = Color3.new(1, 1, 1)
-setBaseBtn.TextScaled = true
-setBaseBtn.Font = Enum.Font.SourceSans
-setBaseBtn.Parent = mainFrame
-
-local corner1 = Instance.new("UICorner")
-corner1.CornerRadius = UDim.new(0, 10)
-corner1.Parent = setBaseBtn
-
--- Speed Coil Button
-local speedBtn = Instance.new("TextButton")
-speedBtn.Size = UDim2.new(0.9, 0, 0.2, 0)
-speedBtn.Position = UDim2.new(0.05, 0, 0.5, 0)
-speedBtn.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-speedBtn.Text = "Speed OFF"
-speedBtn.TextColor3 = Color3.new(1, 0, 0)
-speedBtn.TextScaled = true
-speedBtn.Font = Enum.Font.SourceSans
-speedBtn.Parent = mainFrame
-
-local corner2 = Instance.new("UICorner")
-corner2.CornerRadius = UDim.new(0, 10)
-corner2.Parent = speedBtn
-
--- Status Label
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0.9, 0, 0.15, 0)
-statusLabel.Position = UDim2.new(0.05, 0, 0.75, 0)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Ready"
-statusLabel.TextColor3 = Color3.new(0, 1, 0)
-statusLabel.TextScaled = true
-statusLabel.Font = Enum.Font.SourceSans
-statusLabel.Parent = mainFrame
-
--- Funzione per trovare o creare Speed Coil
-local function getSpeedCoil()
-    -- Cerca nel backpack
-    for _, tool in pairs(backpack:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name:lower():find("speed") then
-            return tool
+        
+        -- Blocca damage se immortale
+        if Settings.immortalActive and method == "TakeDamage" then
+            return nil
         end
-    end
-    
-    -- Cerca nel character
-    for _, tool in pairs(character:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name:lower():find("speed") then
-            return tool
+        
+        -- Mantieni Speed Coil
+        if Settings.speedCoilLocked and method == "UnequipTools" then
+            return nil
         end
-    end
-    
-    -- Prova a creare Speed Coil
-    local success, result = pcall(function()
-        local coil = Instance.new("Tool")
-        coil.Name = "Speed Coil"
-        coil.RequiresHandle = true
         
-        local handle = Instance.new("Part")
-        handle.Name = "Handle"
-        handle.Size = Vector3.new(1, 1, 4)
-        handle.Material = Enum.Material.Neon
-        handle.BrickColor = BrickColor.new("Bright blue")
-        handle.CanCollide = false
-        handle.Parent = coil
-        
-        local mesh = Instance.new("SpecialMesh")
-        mesh.MeshType = Enum.MeshType.Cylinder
-        mesh.Scale = Vector3.new(1.5, 1.5, 1)
-        mesh.Parent = handle
-        
-        coil.Parent = backpack
-        return coil
+        return old_namecall(self, ...)
     end)
     
-    if success then
-        return result
+    -- Index bypass
+    mt.__index = newcclosure(function(self, key)
+        if tostring(self) == "Humanoid" then
+            if key == "WalkSpeed" then return 16 end
+            if key == "JumpPower" then return 50 end
+            if Settings.immortalActive and key == "Health" then return 100 end
+        end
+        return old_index(self, key)
+    end)
+    
+    -- Newindex bypass
+    mt.__newindex = newcclosure(function(self, key, value)
+        if tostring(self) == "Humanoid" then
+            if Settings.speedEnabled then
+                if key == "WalkSpeed" and value < 250 then return end
+                if key == "JumpPower" and value < 200 then return end
+            end
+            if Settings.immortalActive and key == "Health" and value < self.MaxHealth then
+                return
+            end
+        end
+        return old_newindex(self, key, value)
+    end)
+    
+    setreadonly(mt, true)
+    
+    -- Disabilita connections anti-cheat
+    local connections = {
+        Humanoid.Changed,
+        Humanoid:GetPropertyChangedSignal("WalkSpeed"),
+        Humanoid:GetPropertyChangedSignal("JumpPower")
+    }
+    
+    for _, signal in pairs(connections) do
+        for _, connection in pairs(getconnections(signal)) do
+            connection:Disable()
+        end
+    end
+end
+
+-- Crea GUI ottimizzata
+local function CreateGUI()
+    local GUI = Instance.new("ScreenGui")
+    GUI.Name = HttpService:GenerateGUID(false):gsub("-", "")
+    GUI.ResetOnSpawn = false
+    
+    -- Protezione GUI
+    if syn and syn.protect_gui then
+        syn.protect_gui(GUI)
+        GUI.Parent = game:GetService("CoreGui")
+    else
+        GUI.Parent = LocalPlayer.PlayerGui
     end
     
+    -- Container principale
+    local Container = Instance.new("Frame")
+    Container.Size = UDim2.new(0.2, 0, 0.22, 0)
+    Container.Position = UDim2.new(0.78, 0, 0.1, 0)
+    Container.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    Container.Active = true
+    Container.Draggable = true
+    Container.Parent = GUI
+    
+    -- UI Corner
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0, 10)
+    UICorner.Parent = Container
+    
+    -- Header
+    local Header = Instance.new("TextLabel")
+    Header.Size = UDim2.new(1, 0, 0.25, 0)
+    Header.BackgroundTransparency = 1
+    Header.Text = "SIGMA HUB"
+    Header.TextColor3 = Color3.new(1, 1, 1)
+    Header.TextScaled = true
+    Header.Font = Enum.Font.Gotham
+    Header.Parent = Container
+    
+    -- Base Button
+    local BaseButton = Instance.new("TextButton")
+    BaseButton.Size = UDim2.new(0.9, 0, 0.25, 0)
+    BaseButton.Position = UDim2.new(0.05, 0, 0.3, 0)
+    BaseButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    BaseButton.Text = "Set Base"
+    BaseButton.TextColor3 = Color3.new(1, 1, 1)
+    BaseButton.TextScaled = true
+    BaseButton.Font = Enum.Font.SourceSans
+    BaseButton.Parent = Container
+    
+    Instance.new("UICorner", BaseButton).CornerRadius = UDim.new(0, 5)
+    
+    -- Speed Button
+    local SpeedButton = Instance.new("TextButton")
+    SpeedButton.Size = UDim2.new(0.9, 0, 0.25, 0)
+    SpeedButton.Position = UDim2.new(0.05, 0, 0.6, 0)
+    SpeedButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    SpeedButton.Text = "Speed OFF"
+    SpeedButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+    SpeedButton.TextScaled = true
+    SpeedButton.Font = Enum.Font.SourceSans
+    SpeedButton.Parent = Container
+    
+    Instance.new("UICorner", SpeedButton).CornerRadius = UDim.new(0, 5)
+    
+    -- Logo fade
+    task.spawn(function()
+        local Logo = Instance.new("TextLabel")
+        Logo.Size = UDim2.new(0.3, 0, 0.1, 0)
+        Logo.Position = UDim2.new(0.35, 0, 0.45, 0)
+        Logo.BackgroundTransparency = 1
+        Logo.Text = "Made by Znfpro"
+        Logo.TextColor3 = Color3.new(1, 1, 1)
+        Logo.TextScaled = true
+        Logo.Font = Enum.Font.Gotham
+        Logo.Parent = GUI
+        
+        for i = 1, 0, -0.05 do
+            Logo.TextTransparency = i
+            task.wait(0.03)
+        end
+        task.wait(2)
+        for i = 0, 1, 0.05 do
+            Logo.TextTransparency = i
+            task.wait(0.03)
+        end
+        Logo:Destroy()
+    end)
+    
+    return {
+        BaseButton = BaseButton,
+        SpeedButton = SpeedButton
+    }
+end
+
+-- Funzioni ottimizzate
+local function FindSpeedCoil()
+    for _, tool in pairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name:lower():match("speed") then
+            return tool
+        end
+    end
+    for _, tool in pairs(Character:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name:lower():match("speed") then
+            return tool
+        end
+    end
     return nil
 end
 
--- Funzione per equipaggiare Speed Coil con bypass
-local function equipSpeedCoil()
-    speedCoil = getSpeedCoil()
+local function SetImmortal(enabled)
+    Settings.immortalActive = enabled
+    if enabled then
+        local immortalLoop
+        immortalLoop = RunService.Heartbeat:Connect(function()
+            if not Settings.immortalActive then
+                immortalLoop:Disconnect()
+                return
+            end
+            Humanoid.MaxHealth = math.huge
+            Humanoid.Health = math.huge
+            if RootPart.Position.Y < -500 then
+                RootPart.CFrame = Settings.basePosition or CFrame.new(0, 100, 0)
+            end
+        end)
+    else
+        Humanoid.MaxHealth = 100
+        Humanoid.Health = 100
+    end
+end
+
+local function ActivateSpeed()
+    Settings.speedCoil = FindSpeedCoil()
     
-    if not speedCoil then
-        statusLabel.Text = "Buy Speed Coil!"
-        statusLabel.TextColor3 = Color3.new(1, 0, 0)
+    if not Settings.speedCoil then
+        StarterGui:SetCore("SendNotification", {
+            Title = "Sigma Hub",
+            Text = "You don't have Speed Coil in your backpack!",
+            Duration = 3
+        })
         return false
     end
     
-    -- Forza equip con bypass
-    task.spawn(function()
-        while speedCoilEnabled do
-            if speedCoil.Parent ~= character then
-                humanoid:EquipTool(speedCoil)
-                speedCoil.Parent = character
-            end
-            
-            -- Impedisci unequip
-            speedCoil.AncestryChanged:Connect(function()
-                if speedCoilEnabled and speedCoil.Parent ~= character then
-                    speedCoil.Parent = character
-                end
-            end)
-            
-            task.wait(0.1)
+    Settings.speedEnabled = true
+    Settings.speedCoilLocked = true
+    
+    -- Speed loop ottimizzato
+    local speedLoop
+    speedLoop = RunService.Heartbeat:Connect(function()
+        if not Settings.speedEnabled then
+            speedLoop:Disconnect()
+            return
+        end
+        
+        -- Mantieni Speed Coil equipaggiato
+        if Settings.speedCoil.Parent ~= Character then
+            Humanoid:EquipTool(Settings.speedCoil)
+        end
+        
+        -- Applica velocità
+        Humanoid.WalkSpeed = 250
+        Humanoid.JumpPower = 200
+        
+        -- Velocity boost
+        if Humanoid.MoveDirection.Magnitude > 0 then
+            RootPart.AssemblyLinearVelocity = Humanoid.MoveDirection * 250
         end
     end)
     
     return true
 end
 
--- Super Speed con Speed Coil
-local function activateSpeed()
-    if not speedCoilEnabled then
-        speedCoilEnabled = true
-        speedBtn.Text = "Speed ON"
-        speedBtn.TextColor3 = Color3.new(0, 1, 0)
-        
-        if equipSpeedCoil() then
-            -- Loop velocità con bypass multipli
-            task.spawn(function()
-                while speedCoilEnabled do
-                    -- Metodo 1: Modifica diretta
-                    pcall(function()
-                        humanoid.WalkSpeed = 200
-                        humanoid.JumpPower = 150
-                    end)
-                    
-                    -- Metodo 2: CFrame boost
-                    if humanoid.MoveDirection.Magnitude > 0 then
-                        rootPart.CFrame = rootPart.CFrame + (humanoid.MoveDirection * 2)
-                    end
-                    
-                    task.wait()
-                end
-            end)
-            
-            statusLabel.Text = "Speed Active!"
-            statusLabel.TextColor3 = Color3.new(0, 1, 0)
-        end
-    else
-        speedCoilEnabled = false
-        speedBtn.Text = "Speed OFF"
-        speedBtn.TextColor3 = Color3.new(1, 0, 0)
-        statusLabel.Text = "Speed Disabled"
-        statusLabel.TextColor3 = Color3.new(1, 1, 0)
+local function GoToBase()
+    if not Settings.basePosition then return end
+    
+    Settings.isMovingToBase = true
+    SetImmortal(true)
+    
+    if not Settings.speedEnabled then
+        ActivateSpeed()
     end
+    
+    -- Movimento ottimizzato
+    task.spawn(function()
+        while Settings.isMovingToBase do
+            local distance = (Settings.basePosition.Position - RootPart.Position).Magnitude
+            
+            if distance < 5 then
+                Settings.isMovingToBase = false
+                RootPart.CFrame = Settings.basePosition
+                
+                task.wait(2)
+                SetImmortal(false)
+                
+                StarterGui:SetCore("SendNotification", {
+                    Title = "Sigma Hub",
+                    Text = "Arrived at base! Immortality OFF",
+                    Duration = 2
+                })
+                break
+            end
+            
+            -- Movimento veloce
+            local direction = (Settings.basePosition.Position - RootPart.Position).Unit
+            RootPart.CFrame = RootPart.CFrame + (direction * 15)
+            
+            task.wait()
+        end
+    end)
 end
 
--- Set Base handler
-setBaseBtn.MouseButton1Click:Connect(function()
-    basePosition = rootPart.CFrame
-    setBaseBtn.Text = "Go to Base"
-    statusLabel.Text = "Base Saved!"
-    
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Sigma Hub",
-        Text = "Base position saved!",
-        Duration = 2
-    })
-end)
+-- Setup principale
+InitializeBypass()
+local GUI_Elements = CreateGUI()
 
--- Speed button handler
-speedBtn.MouseButton1Click:Connect(function()
-    activateSpeed()
-end)
-
--- Go to Base function
-setBaseBtn.MouseButton1Click:Connect(function()
-    if setBaseBtn.Text == "Go to Base" and basePosition then
-        isMovingToBase = true
-        statusLabel.Text = "Moving to base..."
+-- Button handlers
+GUI_Elements.BaseButton.MouseButton1Click:Connect(function()
+    if GUI_Elements.BaseButton.Text == "Set Base" then
+        Settings.basePosition = RootPart.CFrame
+        GUI_Elements.BaseButton.Text = "Go to Base"
         
-        -- Attiva speed automaticamente
-        if not speedCoilEnabled then
-            activateSpeed()
-        end
-        
-        -- God mode durante movimento
-        task.spawn(function()
-            while isMovingToBase do
-                humanoid.Health = humanoid.MaxHealth
-                task.wait()
-            end
-        end)
-        
-        -- Movimento ultra veloce
-        task.spawn(function()
-            while isMovingToBase do
-                local dist = (basePosition.Position - rootPart.Position).Magnitude
-                
-                if dist < 5 then
-                    isMovingToBase = false
-                    rootPart.CFrame = basePosition
-                    statusLabel.Text = "Arrived!"
-                    break
-                end
-                
-                -- Teleport graduale velocissimo
-                rootPart.CFrame = rootPart.CFrame:Lerp(basePosition, 0.1)
-                
-                -- Super jump
-                if humanoid.FloorMaterial ~= Enum.Material.Air then
-                    rootPart.AssemblyLinearVelocity = Vector3.new(0, 200, 0)
-                end
-                
-                task.wait()
-            end
-        end)
+        StarterGui:SetCore("SendNotification", {
+            Title = "Sigma Hub",
+            Text = "Base position saved!",
+            Duration = 2
+        })
+    else
+        GoToBase()
     end
 end)
 
--- Anti-reset velocità
-RunService.Heartbeat:Connect(function()
-    if speedCoilEnabled and humanoid then
-        -- Mantieni proprietà
-        if humanoid.WalkSpeed < 200 then
-            humanoid.WalkSpeed = 200
+GUI_Elements.SpeedButton.MouseButton1Click:Connect(function()
+    if not Settings.speedEnabled then
+        if ActivateSpeed() then
+            GUI_Elements.SpeedButton.Text = "Speed ON"
+            GUI_Elements.SpeedButton.TextColor3 = Color3.fromRGB(0, 255, 0)
         end
-        if humanoid.JumpPower < 150 then
-            humanoid.JumpPower = 150
-        end
+    else
+        Settings.speedEnabled = false
+        Settings.speedCoilLocked = false
+        GUI_Elements.SpeedButton.Text = "Speed OFF"
+        GUI_Elements.SpeedButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+        
+        Humanoid.WalkSpeed = 16
+        Humanoid.JumpPower = 50
     end
 end)
 
--- Gestione respawn
-player.CharacterAdded:Connect(function(char)
-    character = char
-    humanoid = char:WaitForChild("Humanoid")
-    rootPart = char:WaitForChild("HumanoidRootPart")
-    backpack = player:WaitForChild("Backpack")
+-- Anti-kick ottimizzato
+task.spawn(function()
+    while true do
+        VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(60)
+    end
+end)
+
+-- Character respawn handler
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    Character = newChar
+    Humanoid = newChar:WaitForChild("Humanoid")
+    RootPart = newChar:WaitForChild("HumanoidRootPart")
+    Backpack = LocalPlayer:WaitForChild("Backpack")
     
     task.wait(1)
-    if speedCoilEnabled then
-        activateSpeed()
+    InitializeBypass()
+    
+    if Settings.speedEnabled then
+        ActivateSpeed()
     end
 end)
 
-statusLabel.Text = "Loaded!"
-
-end) -- fine pcall
-end) -- fine task.spawn
-
-print("Sigma Hub Ultra Loaded - 100% Undetected")
+print("Sigma Hub V4 Optimized - Loaded Successfully!")
