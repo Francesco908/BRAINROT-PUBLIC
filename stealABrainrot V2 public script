@@ -144,28 +144,28 @@ local function stealRainbow()
     wait(1)
     bodyVelocity:Destroy()
     
-    -- Move to base with jumps
+    -- Move to base with big jumps and normal walking
     spawn(function()
         while (rootPart.Position - basePosition).Magnitude > 8 do
-            -- Move horizontally
-            local direction = (basePosition - rootPart.Position).Unit
-            local bodyVel = Instance.new("BodyVelocity")
-            bodyVel.MaxForce = Vector3.new(4000, 0, 4000)
-            bodyVel.Velocity = Vector3.new(direction.X * 60, 0, direction.Z * 60)
-            bodyVel.Parent = rootPart
-            
-            wait(0.5)
-            
-            -- Jump
+            -- Big jump first
             local jumpVel = Instance.new("BodyVelocity")
-            jumpVel.MaxForce = Vector3.new(0, 4000, 0)
-            jumpVel.Velocity = Vector3.new(0, 80, 0)
+            jumpVel.MaxForce = Vector3.new(0, math.huge, 0)
+            jumpVel.Velocity = Vector3.new(0, 120, 0) -- Very big jump
             jumpVel.Parent = rootPart
             
-            wait(0.3)
+            wait(0.5)
             jumpVel:Destroy()
-            wait(1)
-            bodyVel:Destroy()
+            
+            -- Normal walking speed toward base
+            local direction = (basePosition - rootPart.Position).Unit
+            local walkVel = Instance.new("BodyVelocity")
+            walkVel.MaxForce = Vector3.new(4000, 0, 4000)
+            walkVel.Velocity = Vector3.new(direction.X * 16, 0, direction.Z * 16) -- Normal walk speed
+            walkVel.Parent = rootPart
+            
+            wait(2) -- Walk for 2 seconds
+            walkVel:Destroy()
+            wait(0.5) -- Small pause before next jump
         end
         
         notify("Steal Complete!", Color3.new(0, 1, 0))
@@ -183,16 +183,52 @@ local function toggleSpeedBoost()
             humanoid:EquipTool(speedCoil)
             notify("Speed Boost ON", Color3.new(0, 1, 0))
             
-            -- Keep equipped
+            -- Apply permanent speed boost to humanoid
+            humanoid.WalkSpeed = 50
+            
+            -- Keep equipped forever - bypass all events
             spawn(function()
                 while speedBoostActive do
+                    -- Force equip every frame
                     if not character:FindFirstChild("Speed Coil") then
                         local newCoil = player.Backpack:FindFirstChild("Speed Coil")
                         if newCoil then
                             humanoid:EquipTool(newCoil)
                         end
                     end
-                    wait(0.5)
+                    
+                    -- Maintain speed boost
+                    if humanoid.WalkSpeed ~= 50 then
+                        humanoid.WalkSpeed = 50
+                    end
+                    
+                    -- Prevent unequipping
+                    local currentTool = character:FindFirstChildOfClass("Tool")
+                    if currentTool and currentTool.Name == "Speed Coil" then
+                        currentTool.CanBeDropped = false
+                        currentTool.Parent = character
+                    end
+                    
+                    wait(0.1)
+                end
+                
+                -- Reset speed when disabled
+                humanoid.WalkSpeed = 16
+            end)
+            
+            -- Block all tool removal events
+            spawn(function()
+                while speedBoostActive do
+                    for _, tool in pairs(character:GetChildren()) do
+                        if tool:IsA("Tool") and tool.Name == "Speed Coil" then
+                            tool.AncestryChanged:Connect(function()
+                                if speedBoostActive and tool.Parent ~= character then
+                                    tool.Parent = character
+                                end
+                            end)
+                        end
+                    end
+                    wait(1)
                 end
             end)
         else
@@ -201,6 +237,7 @@ local function toggleSpeedBoost()
         end
     else
         notify("Speed Boost OFF", Color3.new(1, 1, 0))
+        humanoid.WalkSpeed = 16 -- Reset to normal speed
     end
 end
 
