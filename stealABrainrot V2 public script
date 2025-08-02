@@ -29,8 +29,8 @@ local originalWalkSpeed = humanoid.WalkSpeed
 local function simpleBypass()
     if speedBoostActive then
         -- Just set speed, no fancy hooks
-        humanoid.WalkSpeed = 50
-        humanoid.JumpPower = 100
+        humanoid.WalkSpeed = 90
+        humanoid.JumpPower = 90
         
         -- Keep tools equipped simply
         local speedTool = character:FindFirstChild("Speed Coil") or player.Backpack:FindFirstChild("Speed Coil")
