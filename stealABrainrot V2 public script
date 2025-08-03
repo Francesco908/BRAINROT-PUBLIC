@@ -1,1 +1,817 @@
+-- Water Hub by Water Hub Team
+-- Advanced Admin Script for Roblox Mobile
 
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Main GUI Setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "WaterHub"
+screenGui.Parent = playerGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Toggle button per aprire/chiudere GUI
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleBtn"
+toggleBtn.Size = UDim2.new(0, 100, 0, 50)
+toggleBtn.Position = UDim2.new(0, 20, 0, 20)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Text = "Water Hub"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextScaled = true
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Parent = screenGui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 8)
+toggleCorner.Parent = toggleBtn
+
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 280, 0, 350)
+mainFrame.Position = UDim2.new(0.5, -140, 0.5, -175)
+mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false -- Inizia chiuso
+mainFrame.Parent = screenGui
+
+-- Rounded corners
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = mainFrame
+
+-- Make draggable
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if dragging then
+            local delta = input.Position - dragStart
+            mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end
+end)
+
+mainFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- Draggable toggle button
+local toggleDragging = false
+local toggleDragStart = nil
+local toggleStartPos = nil
+
+toggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        toggleDragging = true
+        toggleDragStart = input.Position
+        toggleStartPos = toggleBtn.Position
+    end
+end)
+
+toggleBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if toggleDragging then
+            local delta = input.Position - toggleDragStart
+            toggleBtn.Position = UDim2.new(toggleStartPos.X.Scale, toggleStartPos.X.Offset + delta.X, toggleStartPos.Y.Scale, toggleStartPos.Y.Offset + delta.Y)
+        end
+    end
+end)
+
+toggleBtn.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        toggleDragging = false
+    end
+end)
+
+-- Click to toggle GUI
+local clickStart = nil
+toggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        clickStart = tick()
+    end
+end)
+
+toggleBtn.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if clickStart and (tick() - clickStart) < 0.3 then -- Click veloce
+            mainFrame.Visible = not mainFrame.Visible
+        end
+        clickStart = nil
+    end
+end)
+
+-- Title bar
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = titleBar
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Name = "Title"
+title.Size = UDim2.new(0.7, 0, 1, 0)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Water Hub"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = titleBar
+
+-- Minimize button
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Name = "MinimizeBtn"
+minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+minimizeBtn.Position = UDim2.new(1, -70, 0, 5)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 193, 7)
+minimizeBtn.BorderSizePixel = 0
+minimizeBtn.Text = "-"
+minimizeBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+minimizeBtn.TextScaled = true
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.Parent = titleBar
+
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 6)
+minCorner.Parent = minimizeBtn
+
+-- Close button
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseBtn"
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+closeBtn.BorderSizePixel = 0
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.TextScaled = true
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.Parent = titleBar
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 6)
+closeCorner.Parent = closeBtn
+
+-- Content area
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Size = UDim2.new(1, 0, 1, -40)
+contentFrame.Position = UDim2.new(0, 0, 0, 40)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Parent = mainFrame
+
+-- Tab buttons
+local tabFrame = Instance.new("Frame")
+tabFrame.Name = "TabFrame"
+tabFrame.Size = UDim2.new(1, 0, 0, 50)
+tabFrame.Position = UDim2.new(0, 0, 0, 0)
+tabFrame.BackgroundTransparency = 1
+tabFrame.Parent = contentFrame
+
+local tabLayout = Instance.new("UIListLayout")
+tabLayout.FillDirection = Enum.FillDirection.Horizontal
+tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+tabLayout.Padding = UDim.new(0, 5)
+tabLayout.Parent = tabFrame
+
+-- Tab content frame
+local tabContent = Instance.new("Frame")
+tabContent.Name = "TabContent"
+tabContent.Size = UDim2.new(1, -20, 1, -70)
+tabContent.Position = UDim2.new(0, 10, 0, 60)
+tabContent.BackgroundTransparency = 1
+tabContent.Parent = contentFrame
+
+-- Function to create notification
+local function createNotification(text, color)
+    local notif = Instance.new("Frame")
+    notif.Size = UDim2.new(0, 250, 0, 50)
+    notif.Position = UDim2.new(0.5, -125, 0, 100)
+    notif.BackgroundColor3 = color or Color3.fromRGB(220, 53, 69)
+    notif.BorderSizePixel = 0
+    notif.Parent = screenGui
+    
+    local notifCorner = Instance.new("UICorner")
+    notifCorner.CornerRadius = UDim.new(0, 8)
+    notifCorner.Parent = notif
+    
+    local notifText = Instance.new("TextLabel")
+    notifText.Size = UDim2.new(1, -20, 1, 0)
+    notifText.Position = UDim2.new(0, 10, 0, 0)
+    notifText.BackgroundTransparency = 1
+    notifText.Text = text
+    notifText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    notifText.TextScaled = true
+    notifText.Font = Enum.Font.Gotham
+    notifText.Parent = notif
+    
+    -- Auto remove
+    spawn(function()
+        wait(3)
+        notif:Destroy()
+    end)
+end
+
+-- Variables
+local currentTab = "Main"
+local isMinimized = false
+local connections = {}
+
+-- Funzione per disattivare tutto
+local function disableAllFeatures()
+    for _, connection in pairs(connections) do
+        if connection then
+            connection:Disconnect()
+        end
+    end
+    
+    if player.Character then
+        if player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = 16
+        end
+        
+        -- Rimuovi highlight ESP
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr.Character and plr.Character:FindFirstChild("WaterHubESP") then
+                plr.Character.WaterHubESP:Destroy()
+            end
+        end
+        
+        -- Reset plot timers
+        for _, plotBlock in pairs(Workspace:GetDescendants()) do
+            if plotBlock.Name == "PlotBlock" and plotBlock:FindFirstChild("Main") then
+                local main = plotBlock.Main
+                if main:FindFirstChild("BillboardGui") and main.BillboardGui:FindFirstChild("RemainingTime") then
+                    local billboard = main.BillboardGui
+                    local remainingTime = billboard.RemainingTime
+                    billboard.AlwaysOnTop = false
+                    billboard.StudsOffset = Vector3.new(0, 0, 0)
+                    remainingTime.Size = UDim2.new(1, 0, 1, 0)
+                    remainingTime.BackgroundTransparency = 1
+                    remainingTime.TextStrokeTransparency = 1
+                end
+            end
+        end
+    end
+end
+
+-- Feature states
+local infiniteJumpEnabled = false
+local antiRagdollEnabled = false
+local speedBoostEnabled = false
+local speedLocked = false
+local espEnabled = false
+local espTimerEnabled = false
+local antiTrapEnabled = false
+local godModeEnabled = false
+
+-- Create tabs
+local tabs = {"Main", "Visual", "Misc"}
+local tabButtons = {}
+local tabPages = {}
+
+for i, tabName in ipairs(tabs) do
+    -- Tab button
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Name = tabName .. "Tab"
+    tabBtn.Size = UDim2.new(0, 80, 0, 40)
+    tabBtn.BackgroundColor3 = currentTab == tabName and Color3.fromRGB(60, 60, 60) or Color3.fromRGB(50, 50, 50)
+    tabBtn.BorderSizePixel = 0
+    tabBtn.Text = tabName
+    tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tabBtn.TextScaled = true
+    tabBtn.Font = Enum.Font.Gotham
+    tabBtn.Parent = tabFrame
+    
+    local tabBtnCorner = Instance.new("UICorner")
+    tabBtnCorner.CornerRadius = UDim.new(0, 8)
+    tabBtnCorner.Parent = tabBtn
+    
+    tabButtons[tabName] = tabBtn
+    
+    -- Tab page
+    local tabPage = Instance.new("ScrollingFrame")
+    tabPage.Name = tabName .. "Page"
+    tabPage.Size = UDim2.new(1, 0, 1, 0)
+    tabPage.Position = UDim2.new(0, 0, 0, 0)
+    tabPage.BackgroundTransparency = 1
+    tabPage.BorderSizePixel = 0
+    tabPage.ScrollBarThickness = 8
+    tabPage.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+    tabPage.CanvasSize = UDim2.new(0, 0, 2, 0)
+    tabPage.Visible = currentTab == tabName
+    tabPage.Parent = tabContent
+    
+    local pageLayout = Instance.new("UIListLayout")
+    pageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    pageLayout.Padding = UDim.new(0, 10)
+    pageLayout.Parent = tabPage
+    
+    tabPages[tabName] = tabPage
+end
+
+-- Function to switch tabs
+local function switchTab(tabName)
+    currentTab = tabName
+    for name, btn in pairs(tabButtons) do
+        btn.BackgroundColor3 = name == tabName and Color3.fromRGB(60, 60, 60) or Color3.fromRGB(50, 50, 50)
+        tabPages[name].Visible = name == tabName
+    end
+end
+
+-- Tab button connections
+for tabName, btn in pairs(tabButtons) do
+    btn.MouseButton1Click:Connect(function()
+        switchTab(tabName)
+    end)
+end
+
+-- Function to create toggle button
+local function createToggle(parent, text, callback, hasLock)
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Size = UDim2.new(1, -20, 0, 50)
+    toggleFrame.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+    toggleFrame.BorderSizePixel = 0
+    toggleFrame.Parent = parent
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 8)
+    toggleCorner.Parent = toggleFrame
+    
+    local toggleLabel = Instance.new("TextLabel")
+    toggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+    toggleLabel.Position = UDim2.new(0, 10, 0, 0)
+    toggleLabel.BackgroundTransparency = 1
+    toggleLabel.Text = text
+    toggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleLabel.TextScaled = true
+    toggleLabel.Font = Enum.Font.Gotham
+    toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    toggleLabel.Parent = toggleFrame
+    
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0, 60, 0, 30)
+    toggleBtn.Position = UDim2.new(1, hasLock and -100 or -70, 0.5, -15)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+    toggleBtn.BorderSizePixel = 0
+    toggleBtn.Text = "OFF"
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.TextScaled = true
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.Parent = toggleFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = toggleBtn
+    
+    local lockBtn = nil
+    if hasLock then
+        lockBtn = Instance.new("TextButton")
+        lockBtn.Size = UDim2.new(0, 30, 0, 30)
+        lockBtn.Position = UDim2.new(1, -35, 0.5, -15)
+        lockBtn.BackgroundColor3 = Color3.fromRGB(108, 117, 125)
+        lockBtn.BorderSizePixel = 0
+        lockBtn.Text = "🔓"
+        lockBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        lockBtn.TextScaled = true
+        lockBtn.Font = Enum.Font.Gotham
+        lockBtn.Parent = toggleFrame
+        
+        local lockCorner = Instance.new("UICorner")
+        lockCorner.CornerRadius = UDim.new(0, 6)
+        lockCorner.Parent = lockBtn
+    end
+    
+    local isEnabled = false
+    local isLocked = false
+    
+    toggleBtn.MouseButton1Click:Connect(function()
+        if hasLock and isLocked then return end
+        isEnabled = not isEnabled
+        toggleBtn.BackgroundColor3 = isEnabled and Color3.fromRGB(40, 167, 69) or Color3.fromRGB(220, 53, 69)
+        toggleBtn.Text = isEnabled and "ON" or "OFF"
+        callback(isEnabled)
+    end)
+    
+    if lockBtn then
+        lockBtn.MouseButton1Click:Connect(function()
+            isLocked = not isLocked
+            lockBtn.Text = isLocked and "🔒" or "🔓"
+            lockBtn.BackgroundColor3 = isLocked and Color3.fromRGB(220, 53, 69) or Color3.fromRGB(108, 117, 125)
+        end)
+    end
+    
+    return toggleFrame, function() return isEnabled end, lockBtn and function() return isLocked end or nil
+end
+
+-- Main Tab Features
+local mainPage = tabPages["Main"]
+
+-- Infinite Jump
+createToggle(mainPage, "Infinite Jump", function(enabled)
+    infiniteJumpEnabled = enabled
+    if enabled then
+        connections.infiniteJump = UserInputService.JumpRequest:Connect(function()
+            if player.Character and player.Character:FindFirstChild("Humanoid") then
+                player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    else
+        if connections.infiniteJump then
+            connections.infiniteJump:Disconnect()
+        end
+    end
+end)
+
+-- Anti Ragdoll
+createToggle(mainPage, "Anti Ragdoll", function(enabled)
+    antiRagdollEnabled = enabled
+    if enabled then
+        connections.antiRagdoll = RunService.Heartbeat:Connect(function()
+            if player.Character and player.Character:FindFirstChild("Humanoid") then
+                player.Character.Humanoid.PlatformStand = false
+                for _, part in pairs(player.Character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        part.AssemblyLinearVelocity = Vector3.new(part.AssemblyLinearVelocity.X, part.AssemblyLinearVelocity.Y, part.AssemblyLinearVelocity.Z)
+                    end
+                end
+            end
+        end)
+    else
+        if connections.antiRagdoll then
+            connections.antiRagdoll:Disconnect()
+        end
+    end
+end)
+
+-- Set Position (Current Player Position)
+createToggle(mainPage, "Set Position", function(enabled)
+    if enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local rootPart = player.Character.HumanoidRootPart
+        local currentPos = rootPart.Position
+        
+        -- Salva posizione corrente
+        _G.WaterHubSavedPosition = currentPos
+        
+        -- Teletrasporto istantaneo alla posizione salvata
+        rootPart.CFrame = CFrame.new(currentPos)
+        
+        createNotification("Position saved!", Color3.fromRGB(40, 167, 69))
+    end
+end)
+
+-- Tween to Base con set position unpatchable
+createToggle(mainPage, "Tween to Base", function(enabled)
+    if enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local rootPart = player.Character.HumanoidRootPart
+        
+        -- Cerca base/spawn locations
+        local targetPosition = nil
+        local possibleBases = {
+            Workspace:FindFirstChild("Lobby"),
+            Workspace:FindFirstChild("SpawnLocation"), 
+            Workspace:FindFirstChild("Spawn"),
+            Workspace:FindFirstChild("Base")
+        }
+        
+        for _, base in pairs(possibleBases) do
+            if base then
+                targetPosition = base.Position + Vector3.new(0, 5, 0)
+                break
+            end
+        end
+        
+        -- Fallback: cerca per nome contenente "spawn" o "lobby"
+        if not targetPosition then
+            for _, obj in pairs(Workspace:GetDescendants()) do
+                local name = obj.Name:lower()
+                if obj:IsA("BasePart") and (name:find("spawn") or name:find("lobby") or name:find("base")) then
+                    targetPosition = obj.Position + Vector3.new(0, 5, 0)
+                    break
+                end
+            end
+        end
+        
+        -- Set position diretto (unpatchable method)
+        if targetPosition then
+            -- Metodo 1: CFrame teleport istantaneo
+            rootPart.CFrame = CFrame.new(targetPosition)
+            
+            -- Metodo 2: Backup con manipolazione Anchored
+            spawn(function()
+                local originalAnchored = rootPart.Anchored
+                rootPart.Anchored = true
+                rootPart.Position = targetPosition
+                wait(0.1)
+                rootPart.Anchored = originalAnchored
+            end)
+            
+            -- Metodo 3: Multiple position sets per bypass
+            spawn(function()
+                for i = 1, 5 do
+                    rootPart.Position = targetPosition
+                    wait(0.05)
+                end
+            end)
+        else
+            -- Fallback: teletrasporto a coordinate fisse comuni spawn
+            local fallbackPos = Vector3.new(0, 50, 0) -- Coordinate centro mappa
+            rootPart.CFrame = CFrame.new(fallbackPos)
+        end
+    end
+end)
+
+-- Speed Boost con Speed Coil detection
+createToggle(mainPage, "Speed Boost", function(enabled)
+    speedBoostEnabled = enabled
+    if enabled then
+        -- Controlla se Speed Coil è presente
+        local speedCoil = player.Backpack:FindFirstChild("Speed Coil") or (player.Character and player.Character:FindFirstChild("Speed Coil"))
+        
+        if not speedCoil then
+            createNotification("You need Speed Coil!", Color3.fromRGB(220, 53, 69))
+            return
+        end
+        
+        spawn(function()
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+                local humanoid = player.Character.Humanoid
+                local rootPart = player.Character.HumanoidRootPart
+                
+                -- Equipa Speed Coil se nel backpack
+                if speedCoil.Parent == player.Backpack then
+                    humanoid:EquipTool(speedCoil)
+                end
+                
+                -- Attiva Speed Coil
+                if speedCoil:FindFirstChild("Handle") then
+                    speedCoil:Activate()
+                end
+                
+                -- Metodo stealth con CFrame
+                local lastPosition = rootPart.Position
+                local moveMultiplier = 3.5
+                
+                connections.stealthSpeed = RunService.Heartbeat:Connect(function()
+                    if speedBoostEnabled and humanoid.MoveDirection.Magnitude > 0 then
+                        local currentPos = rootPart.Position
+                        local movement = (currentPos - lastPosition) * moveMultiplier
+                        
+                        if movement.Magnitude < 50 then
+                            rootPart.CFrame = rootPart.CFrame + movement
+                        end
+                        
+                        lastPosition = rootPart.Position
+                    else
+                        lastPosition = rootPart.Position
+                    end
+                end)
+                
+                -- WalkSpeed backup
+                humanoid.WalkSpeed = 25
+            end
+        end)
+    else
+        if connections.stealthSpeed then
+            connections.stealthSpeed:Disconnect()
+        end
+        
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = 16
+        end
+    end
+end, true)
+
+-- Visual Tab Features
+local visualPage = tabPages["Visual"]
+
+-- ESP
+createToggle(visualPage, "Player ESP", function(enabled)
+    espEnabled = enabled
+    if enabled then
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "WaterHubESP"
+                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                highlight.Parent = plr.Character
+            end
+        end
+        
+        connections.esp = Players.PlayerAdded:Connect(function(plr)
+            plr.CharacterAdded:Connect(function(char)
+                if espEnabled then
+                    wait(1)
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "WaterHubESP"
+                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.Parent = char
+                end
+            end)
+        end)
+    else
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr.Character and plr.Character:FindFirstChild("WaterHubESP") then
+                plr.Character.WaterHubESP:Destroy()
+            end
+        end
+        if connections.esp then
+            connections.esp:Disconnect()
+        end
+    end
+end)
+
+-- ESP Timer migliorato con distanza infinita
+createToggle(visualPage, "Plot Timer ESP", function(enabled)
+    espTimerEnabled = enabled
+    if enabled then
+        connections.espTimer = RunService.Heartbeat:Connect(function()
+            for _, plotBlock in pairs(Workspace:GetDescendants()) do
+                if plotBlock.Name == "PlotBlock" and plotBlock:FindFirstChild("Main") then
+                    local main = plotBlock.Main
+                    if main:FindFirstChild("BillboardGui") then
+                        local billboard = main.BillboardGui
+                        billboard.Adornee = main
+                        billboard.AlwaysOnTop = true
+                        billboard.LightInfluence = 0
+                        billboard.MaxDistance = math.huge -- Distanza infinita
+                        billboard.StudsOffset = Vector3.new(0, 8, 0) -- Più alto per visibilità
+                        
+                        if billboard:FindFirstChild("RemainingTime") then
+                            local remainingTime = billboard.RemainingTime
+                            remainingTime.Size = UDim2.new(0, 120, 0, 40)
+                            remainingTime.TextScaled = true
+                            remainingTime.Font = Enum.Font.GothamBold
+                            remainingTime.BackgroundTransparency = 1
+                            remainingTime.TextStrokeTransparency = 0
+                            remainingTime.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                            
+                            -- Colori basati sul timer
+                            if remainingTime.Text == "0" or string.find(remainingTime.Text:lower(), "unlock") then
+                                remainingTime.TextColor3 = Color3.fromRGB(0, 255, 0) -- Verde
+                                remainingTime.Text = "UNLOCKED"
+                            else
+                                remainingTime.TextColor3 = Color3.fromRGB(255, 255, 255) -- Bianco
+                            end
+                            
+                            -- Stroke per visibilità da lontano
+                            if remainingTime:FindFirstChild("UIStroke") then
+                                local stroke = remainingTime.UIStroke
+                                stroke.Thickness = 3
+                                stroke.Color = Color3.fromRGB(0, 0, 0)
+                                stroke.Transparency = 0
+                            else
+                                local stroke = Instance.new("UIStroke")
+                                stroke.Thickness = 3
+                                stroke.Color = Color3.fromRGB(0, 0, 0)
+                                stroke.Parent = remainingTime
+                            end
+                            
+                            remainingTime:SetAttribute("WaterHubEnhanced", true)
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        if connections.espTimer then
+            connections.espTimer:Disconnect()
+        end
+        -- Reset completo
+        for _, plotBlock in pairs(Workspace:GetDescendants()) do
+            if plotBlock.Name == "PlotBlock" and plotBlock:FindFirstChild("Main") then
+                local main = plotBlock.Main
+                if main:FindFirstChild("BillboardGui") and main.BillboardGui:FindFirstChild("RemainingTime") then
+                    local billboard = main.BillboardGui
+                    local remainingTime = billboard.RemainingTime
+                    billboard.AlwaysOnTop = false
+                    billboard.MaxDistance = 1000
+                    billboard.StudsOffset = Vector3.new(0, 0, 0)
+                    remainingTime.Size = UDim2.new(1, 0, 1, 0)
+                    remainingTime.BackgroundTransparency = 1
+                    remainingTime.TextStrokeTransparency = 1
+                    if remainingTime:FindFirstChild("UIStroke") then
+                        remainingTime.UIStroke:Destroy()
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Misc Tab Features
+local miscPage = tabPages["Misc"]
+
+-- Anti Trap
+createToggle(miscPage, "Anti Trap", function(enabled)
+    antiTrapEnabled = enabled
+    if enabled then
+        connections.antiTrap = RunService.Heartbeat:Connect(function()
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local rootPart = player.Character.HumanoidRootPart
+                local raycast = Workspace:Raycast(rootPart.Position, Vector3.new(0, -10, 0))
+                if raycast and raycast.Instance and (string.find(raycast.Instance.Name:lower(), "trap") or raycast.Instance.Name:lower() == "kill") then
+                    rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 20, 0)
+                end
+            end
+        end)
+    else
+        if connections.antiTrap then
+            connections.antiTrap:Disconnect()
+        end
+    end
+end)
+
+-- God Mode migliorato
+createToggle(miscPage, "God Mode", function(enabled)
+    godModeEnabled = enabled
+    if enabled then
+        connections.godMode = RunService.Heartbeat:Connect(function()
+            if player.Character and player.Character:FindFirstChild("Humanoid") then
+                local humanoid = player.Character.Humanoid
+                if humanoid.Health < humanoid.MaxHealth then
+                    humanoid.Health = humanoid.MaxHealth
+                end
+            end
+        end)
+    else
+        if connections.godMode then
+            connections.godMode:Disconnect()
+        end
+    end
+end)
+
+-- Button functionality
+minimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        contentFrame.Visible = false
+        mainFrame.Size = UDim2.new(0, 280, 0, 40)
+        minimizeBtn.Text = "+"
+    else
+        contentFrame.Visible = true
+        mainFrame.Size = UDim2.new(0, 280, 0, 350)
+        minimizeBtn.Text = "-"
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    -- Disabilita tutte le funzioni prima di chiudere
+    disableAllFeatures()
+    screenGui:Destroy()
+end)
+
+-- Auto-resize for mobile
+local function updateSize()
+    local viewportSize = Workspace.CurrentCamera.ViewportSize
+    local scale = math.min(viewportSize.X / 1920, viewportSize.Y / 1080)
+    scale = math.max(scale, 0.5)
+    
+    mainFrame.Size = UDim2.new(0, 280 * scale, 0, isMinimized and 40 * scale or 350 * scale)
+    
+    -- Ensure it stays on screen
+    if mainFrame.AbsolutePosition.X + mainFrame.AbsoluteSize.X > viewportSize.X then
+        mainFrame.Position = UDim2.new(0, viewportSize.X - mainFrame.AbsoluteSize.X - 10, mainFrame.Position.Y.Scale, mainFrame.Position.Y.Offset)
+    end
+    if mainFrame.AbsolutePosition.Y + mainFrame.AbsoluteSize.Y > viewportSize.Y then
+        mainFrame.Position = UDim2.new(mainFrame.Position.X.Scale, mainFrame.Position.X.Offset, 0, viewportSize.Y - mainFrame.AbsoluteSize.Y - 10)
+    end
+end
+
+Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateSize)
+updateSize()
+
+print("Water Hub loaded successfully!")
