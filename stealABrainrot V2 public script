@@ -1,267 +1,30 @@
--- Fluent + Addons (esempio originale)
+-- LocalScript (StarterPlayerScripts o StarterGui)
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
     Title = "Fluent " .. Fluent.Version,
     SubTitle = "by dawid",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
-    Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
+    Acrylic = true,
     Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl -- LeftControl funziona su PC
+    MinimizeKey = Enum.KeyCode.LeftControl
 })
 
-local Tabs = {
-    Main = Window:AddTab({ Title = "Main", Icon = "" }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
-}
+local MainTab = Window:AddTab({ Title = "Main", Icon = "" })
 
-local Options = Fluent.Options
-
-do
-    Fluent:Notify({
-        Title = "Notification",
-        Content = "This is a notification",
-        SubContent = "SubContent", -- Optional
-        Duration = 5 -- Set to nil to make the notification not disappear
-    })
-
-    Tabs.Main:AddParagraph({
-        Title = "Paragraph",
-        Content = "This is a paragraph.\nSecond line!"
-    })
-
-    Tabs.Main:AddButton({
-        Title = "Button",
-        Description = "Very important button",
-        Callback = function()
-            Window:Dialog({
-                Title = "Title",
-                Content = "This is a dialog",
-                Buttons = {
-                    {
-                        Title = "Confirm",
-                        Callback = function()
-                            print("Confirmed the dialog.")
-                        end
-                    },
-                    {
-                        Title = "Cancel",
-                        Callback = function()
-                            print("Cancelled the dialog.")
-                        end
-                    }
-                }
-            })
-        end
-    })
-
-    -- <<< qui aggiungo il button chiamato esattamente "button" nella tab Main >>>
-    Tabs.Main:AddButton({
-        Title = "button",
-        Description = "Main button 'button'",
-        Callback = function()
-            print("button clicked")
-            Fluent:Notify({
-                Title = "Main button",
-                Content = "Hai premuto 'button'",
-                Duration = 3
-            })
-        end
-    })
-
-    -- ... resto dei controlli come nel tuo esempio ...
-    local Toggle = Tabs.Main:AddToggle("MyToggle", {Title = "Toggle", Default = false })
-    Toggle:OnChanged(function()
-        print("Toggle changed:", Options.MyToggle.Value)
-    end)
-    Options.MyToggle:SetValue(false)
-
-    local Slider = Tabs.Main:AddSlider("Slider", {
-        Title = "Slider",
-        Description = "This is a slider",
-        Default = 2,
-        Min = 0,
-        Max = 5,
-        Rounding = 1,
-        Callback = function(Value)
-            print("Slider was changed:", Value)
-        end
-    })
-    Slider:OnChanged(function(Value)
-        print("Slider changed:", Value)
-    end)
-    Slider:SetValue(3)
-
-    local Dropdown = Tabs.Main:AddDropdown("Dropdown", {
-        Title = "Dropdown",
-        Values = {"one", "two", "three", "four", "five"},
-        Multi = false,
-        Default = 1,
-    })
-    Dropdown:SetValue("four")
-    Dropdown:OnChanged(function(Value)
-        print("Dropdown changed:", Value)
-    end)
-
-    -- (ho abbreviato alcune parti dell'esempio per chiarezza; mantieni tutto il resto se vuoi)
-end
-
--- Addons
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("FluentScriptHub")
-SaveManager:SetFolder("FluentScriptHub/specific-game")
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
+MainTab:AddButton({
+    Title = "button",
+    Description = "",
+    Callback = function()
+        print("button clicked")
+        Fluent:Notify({
+            Title = "button",
+            Content = "Hai premuto 'button'",
+            Duration = 3
+        })
+    end
+})
 
 Window:SelectTab(1)
-
-Fluent:Notify({
-    Title = "Fluent",
-    Content = "The script has been loaded.",
-    Duration = 8
-})
-
-SaveManager:LoadAutoloadConfig()
-
--- =========================================
--- CODICE AGGIUNTO: pulsante di restore su MOBILE
--- Mettilo in un LocalScript (StarterPlayerScripts o StarterGui)
--- =========================================
-
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-
--- funzione che cerca la ScreenGui creata da Fluent (usa il titolo come "fingerprint")
-local function findFluentScreenGui(timeout)
-    timeout = timeout or 6
-    local t0 = tick()
-    while tick() - t0 < timeout do
-        for _, sg in ipairs(playerGui:GetChildren()) do
-            if sg:IsA("ScreenGui") then
-                for _, desc in ipairs(sg:GetDescendants()) do
-                    if desc:IsA("TextLabel") then
-                        local ok, txt = pcall(function() return desc.Text end)
-                        if ok and type(txt) == "string" and txt:sub(1,6) == "Fluent " then
-                            return sg
-                        end
-                    end
-                end
-            end
-        end
-        -- aspetta l'aggiunta di qualcosa se non trovato subito
-        playerGui.ChildAdded:Wait()
-        task.wait(0.05)
-    end
-    return nil
-end
-
-local fluentGui = findFluentScreenGui(6)
-if not fluentGui then
-    warn("Fluent GUI non trovata: il pulsante mobile di restore non è stato creato.")
-    return
-end
-
--- prova a trovare il frame principale (heuristica: risalendo dall'etichetta titolo)
-local headerLabel
-for _, d in ipairs(fluentGui:GetDescendants()) do
-    if d:IsA("TextLabel") then
-        local ok, txt = pcall(function() return d.Text end)
-        if ok and type(txt) == "string" and txt:sub(1,6) == "Fluent " then
-            headerLabel = d
-            break
-        end
-    end
-end
-
-local rootFrame
-if headerLabel then
-    local anc = headerLabel
-    while anc and anc.Parent and anc.Parent ~= fluentGui do
-        anc = anc.Parent
-    end
-    if anc and anc.Parent == fluentGui and anc:IsA("Frame") then
-        rootFrame = anc
-    end
-end
-if not rootFrame then
-    for _, c in ipairs(fluentGui:GetChildren()) do
-        if c:IsA("Frame") then
-            rootFrame = c
-            break
-        end
-    end
-end
-
--- crea una ScreenGui separata per il pulsante (così rimane visibile anche quando la GUI viene disabilitata)
-local restoreGui = Instance.new("ScreenGui")
-restoreGui.Name = "FluentMobileRestore"
-restoreGui.ResetOnSpawn = false
-restoreGui.IgnoreGuiInset = true
-restoreGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-restoreGui.Parent = playerGui
-
-local restoreBtn = Instance.new("TextButton")
-restoreBtn.Name = "RestoreButton"
-restoreBtn.Size = UDim2.new(0,56,0,40)
-restoreBtn.AnchorPoint = Vector2.new(1,0)
-restoreBtn.Position = UDim2.new(1,-10,0,10) -- alto a destra
-restoreBtn.BackgroundColor3 = Color3.fromRGB(20,20,20)
-restoreBtn.BorderSizePixel = 0
-restoreBtn.TextColor3 = Color3.fromRGB(255,255,255)
-restoreBtn.Text = "Fluent"
-restoreBtn.Font = Enum.Font.SourceSansSemibold
-restoreBtn.TextSize = 14
-restoreBtn.Visible = false
-restoreBtn.Parent = restoreGui
-
--- condizione per device mobile (modifica se vuoi mostrarlo anche su desktop)
-local isMobile = UserInputService.TouchEnabled or UserInputService:GetPlatform() == Enum.Platform.Android or UserInputService:GetPlatform() == Enum.Platform.IOS
-
-local function fluentHidden()
-    local ok, enabled = pcall(function() return fluentGui.Enabled end)
-    if ok and enabled == false then return true end
-    if rootFrame then
-        local ok2, vis = pcall(function() return rootFrame.Visible end)
-        if ok2 and vis == false then return true end
-    end
-    return false
-end
-
-local function updateRestoreVisibility()
-    if isMobile and fluentHidden() then
-        restoreBtn.Visible = true
-    else
-        restoreBtn.Visible = false
-    end
-end
-
-if fluentGui then
-    fluentGui:GetPropertyChangedSignal("Enabled"):Connect(updateRestoreVisibility)
-end
-if rootFrame then
-    rootFrame:GetPropertyChangedSignal("Visible"):Connect(updateRestoreVisibility)
-    rootFrame:GetPropertyChangedSignal("Position"):Connect(updateRestoreVisibility)
-    rootFrame:GetPropertyChangedSignal("Size"):Connect(updateRestoreVisibility)
-end
-
-fluentGui.AncestryChanged:Connect(function(_, parent)
-    if not parent and restoreGui then restoreGui:Destroy() end
-end)
-
-updateRestoreVisibility()
-
-restoreBtn.MouseButton1Click:Connect(function()
-    pcall(function() fluentGui.Enabled = true end)
-    if rootFrame then pcall(function() rootFrame.Visible = true end) end
-    updateRestoreVisibility()
-end)
-
--- Fine script
+Fluent:Notify({ Title = "Fluent", Content = "GUI caricata", Duration = 3 })
